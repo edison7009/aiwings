@@ -1,3 +1,5 @@
+<p align="center"><img src="branding/wings-wordmark.svg" alt="Wings" width="320"></p>
+
 # Wings · 候话
 
 AI 正在忙的时候，先把下一句话存起来，等它空了再一键贴回去。
