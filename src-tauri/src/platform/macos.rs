@@ -286,21 +286,51 @@ pub fn front_app() -> Option<TargetInfo> {
     })
 }
 
-/// The target's focused text input: its frame (points) and whether it holds any text.
+/// The target's focused text input: the frame (points) of the box drawn around it, and whether it holds any text.
 /// Reads only the character count, never the text itself.
 pub fn focused_input() -> Option<(Frame, bool)> {
     let guard = DOCK.lock().unwrap();
     let d = guard.as_ref()?;
     unsafe {
         let el = copy_attr(d.app_el, "AXFocusedUIElement")?;
-        let role = copy_attr(el, "AXRole").map(|r| { let s = CFString::wrap_under_create_rule(r as CFStringRef).to_string(); s });
+        let role = copy_attr(el, "AXRole").map(|r| CFString::wrap_under_create_rule(r as CFStringRef).to_string());
         let editable = matches!(role.as_deref(), Some("AXTextArea" | "AXTextField" | "AXComboBox"));
-        let frame = editable.then(|| Some((read_pair(el, "AXPosition", 1)?, read_pair(el, "AXSize", 2)?))).flatten();
+        let frame = if editable { frame_of(el) } else { None };
         let count = copy_attr(el, "AXNumberOfCharacters")
             .and_then(|v| core_foundation::number::CFNumber::wrap_under_create_rule(v as _).to_i64())
             .unwrap_or(0);
+        let frame = frame.map(|f| input_box(el, f));
         CFRelease(el);
-        let (pos, size) = frame?;
-        Some((Frame { x: pos.a, y: pos.b, w: size.a, h: size.b }, count > 0))
+        Some((frame?, count > 0))
     }
+}
+
+unsafe fn frame_of(el: AXUIElementRef) -> Option<Frame> {
+    let (pos, size) = (read_pair(el, "AXPosition", 1)?, read_pair(el, "AXSize", 2)?);
+    Some(Frame { x: pos.a, y: pos.b, w: size.a, h: size.b })
+}
+
+/// Web apps (Claude, ChatGPT) report only the editable text region; the rounded box the user sees is
+/// an ancestor that grows with it. Climb to the outermost ancestor that still hugs the text region,
+/// so the chip rides the box's top edge as the box grows.
+unsafe fn input_box(el: AXUIElementRef, text: Frame) -> Frame {
+    let mut best = text;
+    let mut cur = el;
+    let mut owned: Vec<CFTypeRef> = Vec::new();
+    for _ in 0..6 {
+        let Some(parent) = copy_attr(cur, "AXParent") else { break };
+        owned.push(parent);
+        cur = parent;
+        let Some(f) = frame_of(parent) else { continue };
+        let hugs = f.y <= text.y + 1.0
+            && f.x <= text.x + 1.0
+            && f.x + f.w >= text.x + text.w - 1.0
+            && f.w <= text.w + 160.0
+            && f.y + f.h <= text.y + text.h + 140.0
+            && f.y >= text.y - 140.0;
+        if !hugs { break; }
+        best = f;
+    }
+    for o in owned { CFRelease(o); }
+    best
 }

@@ -221,21 +221,25 @@ kbd { font: inherit; padding: 1px 6px; border-radius: 4px; border: 1px solid var
 .chip-save {
   position: relative;
   height: 22px;
-  padding: 0 9px;
-  border: 1px dashed color-mix(in srgb, var(--accent) 70%, transparent);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--bg) 85%, transparent);
-  color: var(--accent);
+  padding: 0 10px;
+  border-radius: 11px;
+  /* iOS system blue with white text. */
+  background: #007aff;
+  color: #ffffff;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(0, 122, 255, 0.35);
   transform-style: preserve-3d;
   transform-origin: 50% 100%;
   animation: chip-flip 0.75s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  transition: background 0.15s;
 }
-.chip-save:hover { border-color: var(--accent); }
+.chip-save:hover { background: #0a84ff; }
+.chip-save:active { background: #0062cc; }
 .chip-face { display: block; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
-.chip-save::after { content: ''; position: absolute; inset: -1px; border-radius: inherit; background: color-mix(in srgb, var(--accent) 22%, var(--bg)); transform: rotateX(180deg); backface-visibility: hidden; -webkit-backface-visibility: hidden; pointer-events: none; }
+/* The slip's back, seen while it still lies face down. */
+.chip-save::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: #0062cc; transform: rotateX(180deg); backface-visibility: hidden; -webkit-backface-visibility: hidden; pointer-events: none; }
 @keyframes chip-flip { 0% { transform: rotateX(-178deg); } 60% { transform: rotateX(10deg); } 82% { transform: rotateX(-4deg); } 100% { transform: none; } }
 .chip-save.is-leaving { pointer-events: none; animation: chip-flip-back 0.45s cubic-bezier(0.5, 0, 0.75, 0) both; }
 @keyframes chip-flip-back { 0% { transform: none; } 25% { transform: rotateX(8deg); } 100% { transform: rotateX(-178deg); } }
