@@ -21,7 +21,7 @@ export function Onboarding({ onGranted }: { onGranted: () => void }) {
   };
 
   return (
-    <div className="panel">
+    <>
       <header className="panel-head" data-tauri-drag-region>
         <span className="brand" data-tauri-drag-region>Wings · 候话</span>
       </header>
@@ -36,6 +36,6 @@ export function Onboarding({ onGranted }: { onGranted: () => void }) {
         <button type="button" className="primary" onClick={open}>{t.permButton}</button>
         {asked && <p className="muted center">{t.permWaiting}</p>}
       </div>
-    </div>
+    </>
   );
 }

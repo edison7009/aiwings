@@ -2,9 +2,11 @@ mod actions;
 mod clip;
 mod platform;
 mod store;
+mod watch;
 
 use serde::Serialize;
-use tauri::{AppHandle, Manager, WindowEvent};
+use std::sync::atomic::Ordering;
+use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
 pub const SHORTCUT: &str = "Alt+S";
@@ -38,6 +40,21 @@ fn paste_note(app: AppHandle, text: String) {
     std::thread::spawn(move || actions::paste(&app, text));
 }
 
+/// Clicked from the chip: the click moved focus to Wings, so hand it back before cutting.
+#[tauri::command]
+fn capture_now(app: AppHandle) {
+    std::thread::spawn(move || {
+        if platform::activate_target() { actions::capture(&app); } else { actions::emit_error(&app, "没能切换到目标窗口"); }
+    });
+}
+
+#[tauri::command]
+fn set_prefs(app: AppHandle, float: bool, follow: bool, chip: bool) {
+    watch::FOLLOW.store(follow, Ordering::SeqCst);
+    watch::CHIP.store(chip, Ordering::SeqCst);
+    platform::set_float(&app, float);
+}
+
 #[tauri::command]
 fn permission_granted(prompt: bool) -> bool {
     platform::accessibility_trusted(prompt)
@@ -69,6 +86,21 @@ pub fn run() {
                     std::thread::spawn(move || actions::capture(&h));
                 }
             })?;
+            // The "save to Wings" chip that sits on the target's input box; hidden until an input is focused.
+            WebviewWindowBuilder::new(app, "chip", WebviewUrl::App("index.html".into()))
+                .title("Wings")
+                .inner_size(platform::CHIP_W, platform::CHIP_H)
+                .decorations(false)
+                .transparent(true)
+                .shadow(false)
+                .resizable(false)
+                .always_on_top(true)
+                .skip_taskbar(true)
+                .focused(false)
+                .focusable(false)
+                .visible(false)
+                .build()?;
+            watch::start(app.handle().clone());
             Ok(())
         })
         .on_window_event(|win, ev| {
@@ -76,7 +108,7 @@ pub fn run() {
             if let WindowEvent::Focused(false) = ev { platform::refresh_later(win.app_handle()); }
         })
         .invoke_handler(tauri::generate_handler![
-            list_targets, set_target, clear_target, paste_note,
+            list_targets, set_target, clear_target, paste_note, capture_now, set_prefs,
             permission_granted, open_permission_settings, shortcut_label,
             store::load_notes, store::save_notes
         ])

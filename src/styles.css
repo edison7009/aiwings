@@ -1,5 +1,6 @@
 :root {
-  --bg: rgba(250, 249, 246, 0.94);
+  --bg: #f4f2ee;
+  --stone: url('/backgrounds/basalt-light.png');
   --card: #ffffff;
   --card-hover: #f3f1ec;
   --text: #1f1e1c;
@@ -12,7 +13,8 @@
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: rgba(32, 31, 29, 0.94);
+    --bg: #1d1c1a;
+    --stone: url('/backgrounds/basalt-dark.png');
     --card: #2b2a27;
     --card-hover: #34332f;
     --text: #ecebe7;
@@ -35,15 +37,24 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .shell { height: 100%; padding: 6px; position: relative; }
 
 .panel {
+  position: relative;
+  isolation: isolate;
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: var(--bg);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   overflow: hidden;
+}
+/* Basalt stone (from Coffee CLI) on the theme base; only this layer fades with the opacity setting. */
+.panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--stone) center / cover no-repeat, var(--bg);
+  opacity: var(--panel-opacity, 0.92);
+  transition: opacity 0.15s;
 }
 .panel-head {
   display: flex;
@@ -86,7 +97,7 @@ h1 { font-size: 15px; margin: 6px 0 4px; }
 }
 .targets button:hover { background: var(--card-hover); }
 
-.notes { display: flex; flex-direction: column; gap: 6px; }
+.notes { display: flex; flex-direction: column; gap: 6px; padding-bottom: 44px; }
 .note { position: relative; }
 .note-body {
   width: 100%;
@@ -118,7 +129,8 @@ h1 { font-size: 15px; margin: 6px 0 4px; }
 .note:hover .note-delete { opacity: 1; }
 .note-delete:hover { color: var(--text); background: var(--line); }
 
-.empty { text-align: center; padding: 40px 8px; }
+/* Vertically centred in the list area. */
+.empty { margin: auto 0; text-align: center; padding: 0 8px 20px; }
 .empty p { margin: 4px 0; }
 
 .toast {
@@ -134,3 +146,95 @@ h1 { font-size: 15px; margin: 6px 0 4px; }
   text-align: center;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
 }
+
+/* Two-option switch; the thumb slides between options. */
+.segmented {
+  position: relative;
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--line);
+  flex-shrink: 0;
+}
+.segmented-thumb {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  width: calc((100% - 4px) / var(--seg-count));
+  border-radius: 6px;
+  background: var(--card);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  transform: translateX(calc(100% * var(--seg-index)));
+  transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.segmented button {
+  position: relative;
+  padding: 3px 10px;
+  font-size: 12px;
+  color: var(--muted);
+  transition: color 0.2s;
+  white-space: nowrap;
+}
+.segmented button.active { color: var(--text); }
+
+.gear {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--muted);
+  background: var(--card);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  transition: color 0.15s, transform 0.3s;
+}
+.gear:hover { color: var(--text); transform: rotate(45deg); }
+
+.settings section { margin: 4px 0 16px; }
+.settings label { display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 6px; }
+.settings .segmented { display: grid; width: 100%; }
+.settings .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; border-radius: 8px; background: var(--card); }
+.settings .row-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.settings input[type=range] { width: 100%; accent-color: var(--accent); }
+.small { font-size: 12px; margin: 6px 0 0; }
+kbd { font: inherit; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--line); }
+
+/* Chip window: only the button, on a fully transparent window. */
+[data-window="chip"] .shell { padding: 0; }
+.chip-ground {
+  position: absolute;
+  right: 4px;
+  bottom: 6px;
+  display: flex;
+  perspective: 300px;
+  /* The ground line: while the slip flips up from face down, nothing below its bottom edge shows. */
+  clip-path: inset(-60px -60px 0 -60px);
+}
+.chip-save {
+  position: relative;
+  height: 22px;
+  padding: 0 9px;
+  border: 1px dashed color-mix(in srgb, var(--accent) 70%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  transform-style: preserve-3d;
+  transform-origin: 50% 100%;
+  animation: chip-flip 0.75s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.chip-save:hover { border-color: var(--accent); }
+.chip-face { display: block; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.chip-save::after { content: ''; position: absolute; inset: -1px; border-radius: inherit; background: color-mix(in srgb, var(--accent) 22%, var(--bg)); transform: rotateX(180deg); backface-visibility: hidden; -webkit-backface-visibility: hidden; pointer-events: none; }
+@keyframes chip-flip { 0% { transform: rotateX(-178deg); } 60% { transform: rotateX(10deg); } 82% { transform: rotateX(-4deg); } 100% { transform: none; } }
+.chip-save.is-leaving { pointer-events: none; animation: chip-flip-back 0.45s cubic-bezier(0.5, 0, 0.75, 0) both; }
+@keyframes chip-flip-back { 0% { transform: none; } 25% { transform: rotateX(8deg); } 100% { transform: rotateX(-178deg); } }
+@media (prefers-reduced-motion: reduce) { .chip-save { animation: none; } .chip-save.is-leaving { visibility: hidden; } }

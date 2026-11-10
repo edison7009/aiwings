@@ -43,12 +43,29 @@ pub fn float_panel(app: &AppHandle) {
     }
 }
 
+const AI_APPS: &[&str] = &["claude", "chatgpt", "grok", "gemini", "deepseek", "kimi", "doubao", "豆包", "perplexity", "copilot", "元宝", "通义"];
+
+fn ai_rank(t: &crate::TargetInfo) -> usize {
+    let n = format!("{} {}", t.name, t.key).to_lowercase();
+    AI_APPS.iter().position(|k| n.contains(k)).unwrap_or(AI_APPS.len())
+}
+
+/// Whether an app is one of the AI apps Wings follows when "follow" is on.
+pub fn is_ai_app(t: &crate::TargetInfo) -> bool { ai_rank(t) < AI_APPS.len() }
+
 /// Known AI desktop apps float to the top of the picker; the rest stay alphabetical.
 pub fn sort_targets(list: &mut [crate::TargetInfo]) {
-    const AI: &[&str] = &["claude", "chatgpt", "grok", "gemini", "deepseek", "kimi", "doubao", "豆包", "perplexity", "copilot", "元宝", "通义"];
-    let rank = |t: &crate::TargetInfo| {
-        let n = t.name.to_lowercase();
-        AI.iter().position(|k| n.contains(k)).unwrap_or(AI.len())
-    };
-    list.sort_by(|a, b| rank(a).cmp(&rank(b)).then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase())));
+    list.sort_by(|a, b| ai_rank(a).cmp(&ai_rank(b)).then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase())));
 }
+
+/// Places the "save to Wings" chip just above the input box's top-right corner.
+pub fn place_chip(app: &AppHandle, input: Frame, scale: f64) {
+    let Some(chip) = app.get_webview_window("chip") else { return };
+    let (w, h) = (CHIP_W * scale, CHIP_H * scale);
+    let _ = chip.set_size(PhysicalSize::new(w.round() as u32, h.round() as u32));
+    let _ = chip.set_position(PhysicalPosition::new((input.x + input.w - w).round() as i32, (input.y - h).round() as i32));
+    show_no_activate(&chip);
+}
+
+pub const CHIP_W: f64 = 120.0;
+pub const CHIP_H: f64 = 34.0;

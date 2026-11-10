@@ -13,7 +13,7 @@ use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
 use objc2_app_kit::{NSApplicationActivationOptions, NSApplicationActivationPolicy, NSRunningApplication, NSWindow, NSWorkspace};
 use std::ffi::c_void;
 use std::ptr::null;
-use std::sync::atomic::{AtomicI32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Manager};
@@ -28,6 +28,7 @@ extern "C" {
     fn AXIsProcessTrusted() -> bool;
     fn AXIsProcessTrustedWithOptions(options: CFTypeRef) -> bool;
     fn AXUIElementCreateApplication(pid: i32) -> AXUIElementRef;
+    fn AXUIElementSetAttributeValue(el: AXUIElementRef, attr: CFStringRef, value: CFTypeRef) -> i32;
     fn AXUIElementCopyAttributeValue(el: AXUIElementRef, attr: CFStringRef, out: *mut CFTypeRef) -> i32;
     fn AXValueGetValue(value: CFTypeRef, ty: u32, out: *mut c_void) -> bool;
     fn AXObserverCreate(pid: i32, cb: AXCallback, out: *mut AXObserverRef) -> i32;
@@ -50,12 +51,13 @@ struct Dock {
     /// The followed window (owned +1), or null when the app has none.
     window: AXUIElementRef,
 }
-// Only ever touched on the main thread; the Mutex is for the static.
+// Observer setup and teardown happen on the main thread; AX element reads are thread-safe.
 unsafe impl Send for Dock {}
 
 static DOCK: Mutex<Option<Dock>> = Mutex::new(None);
 static TARGET_PID: AtomicI32 = AtomicI32::new(0);
 static APP: OnceLock<AppHandle> = OnceLock::new();
+static FLOAT: AtomicBool = AtomicBool::new(false);
 
 fn cfs(s: &str) -> CFString { CFString::new(s) }
 
@@ -103,6 +105,8 @@ unsafe fn attach_window(d: &mut Dock) {
 
 /// Show the bar beside the target when the target (or Wings itself) is frontmost and its window is up; hide otherwise.
 unsafe fn refresh_locked(d: &Dock) {
+    // Hover mode: the bar stays wherever the user put it.
+    if FLOAT.load(Ordering::SeqCst) { return; }
     let Some(app) = APP.get() else { return };
     let Some(win) = app.get_webview_window("main") else { return };
     let front = front_pid();
@@ -115,10 +119,7 @@ unsafe fn refresh_locked(d: &Dock) {
         Some((pos, size)) if front == pid || front == ours => {
             let s = win.scale_factor().unwrap_or(1.0);
             place_bar(app, Frame { x: pos.a * s, y: pos.b * s, w: size.a * s, h: size.b * s }, s);
-            // Show without activating Wings, so the target keeps keyboard focus.
-            if let Ok(ns) = win.ns_window() {
-                (*(ns as *const NSWindow)).orderFrontRegardless();
-            }
+            show_no_activate(&win);
         }
         _ => { let _ = win.hide(); }
     }
@@ -148,6 +149,8 @@ pub fn dock(app: AppHandle, id: &str) -> Result<(), String> {
     unsafe {
         if let Some(old) = guard.take() { teardown(old); }
         let app_el = AXUIElementCreateApplication(pid);
+        // Electron/Chromium apps (Claude, ChatGPT) only build their AX tree when asked to.
+        AXUIElementSetAttributeValue(app_el, cfs("AXManualAccessibility").as_concrete_TypeRef(), CFBoolean::true_value().as_CFTypeRef());
         let mut observer: AXObserverRef = null();
         if AXObserverCreate(pid, on_ax, &mut observer) != 0 || observer.is_null() {
             CFRelease(app_el);
@@ -253,4 +256,47 @@ pub fn list_targets() -> Vec<TargetInfo> {
         .collect();
     crate::platform::sort_targets(&mut out);
     out
+}
+
+/// Shows a window without activating Wings, so the target keeps keyboard focus.
+pub fn show_no_activate(win: &tauri::WebviewWindow) {
+    if let Ok(ns) = win.ns_window() {
+        unsafe { (*(ns as *const NSWindow)).orderFrontRegardless(); }
+    }
+}
+
+pub fn set_float(app: &AppHandle, float: bool) {
+    FLOAT.store(float, Ordering::SeqCst);
+    let Some(win) = app.get_webview_window("main") else { return };
+    if float { show_no_activate(&win); } else { refresh_later(app); }
+}
+
+pub fn current_id() -> String { TARGET_PID.load(Ordering::SeqCst).to_string() }
+
+pub fn front_app() -> Option<TargetInfo> {
+    let a = NSWorkspace::sharedWorkspace().frontmostApplication()?;
+    Some(TargetInfo {
+        id: a.processIdentifier().to_string(),
+        key: a.bundleIdentifier()?.to_string(),
+        name: a.localizedName().map(|n| n.to_string()).unwrap_or_default(),
+    })
+}
+
+/// The target's focused text input: its frame (points) and whether it holds any text.
+/// Reads only the character count, never the text itself.
+pub fn focused_input() -> Option<(Frame, bool)> {
+    let guard = DOCK.lock().unwrap();
+    let d = guard.as_ref()?;
+    unsafe {
+        let el = copy_attr(d.app_el, "AXFocusedUIElement")?;
+        let role = copy_attr(el, "AXRole").map(|r| { let s = CFString::wrap_under_create_rule(r as CFStringRef).to_string(); s });
+        let editable = matches!(role.as_deref(), Some("AXTextArea" | "AXTextField" | "AXComboBox"));
+        let frame = editable.then(|| Some((read_pair(el, "AXPosition", 1)?, read_pair(el, "AXSize", 2)?))).flatten();
+        let count = copy_attr(el, "AXNumberOfCharacters")
+            .and_then(|v| core_foundation::number::CFNumber::wrap_under_create_rule(v as _).to_i64())
+            .unwrap_or(0);
+        CFRelease(el);
+        let (pos, size) = frame?;
+        Some((Frame { x: pos.a, y: pos.b, w: size.a, h: size.b }, count > 0))
+    }
 }

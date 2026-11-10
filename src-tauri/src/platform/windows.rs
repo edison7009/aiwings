@@ -2,7 +2,7 @@
 
 use super::{float_panel, place_bar, Frame, Key};
 use crate::TargetInfo;
-use std::sync::atomic::{AtomicIsize, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicU32, Ordering};
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Manager};
@@ -34,6 +34,7 @@ const EVENT_OBJECT_LOCATIONCHANGE: u32 = 0x800B;
 static TARGET: AtomicIsize = AtomicIsize::new(0);
 static HOOK_THREAD: AtomicU32 = AtomicU32::new(0);
 static APP: OnceLock<AppHandle> = OnceLock::new();
+static FLOAT: AtomicBool = AtomicBool::new(false);
 
 fn target() -> HWND { HWND(TARGET.load(Ordering::SeqCst) as *mut _) }
 
@@ -58,6 +59,8 @@ fn target_owns_foreground() -> bool {
 }
 
 fn refresh() {
+    // Hover mode: the bar stays wherever the user put it.
+    if FLOAT.load(Ordering::SeqCst) { return; }
     let Some(app) = APP.get() else { return };
     let Some(win) = app.get_webview_window("main") else { return };
     let t = target();
@@ -69,7 +72,7 @@ fn refresh() {
         Some(f) => {
             let scale = win.scale_factor().unwrap_or(1.0);
             place_bar(app, f, scale);
-            if let Some(h) = ours { unsafe { let _ = ShowWindow(h, SW_SHOWNOACTIVATE); } }
+            show_no_activate(&win);
         }
         None => { let _ = win.hide(); }
     }
@@ -94,11 +97,7 @@ pub fn dock(app: AppHandle, id: &str) -> Result<(), String> {
     if !unsafe { IsWindow(t).as_bool() } { return Err("这个窗口已经关闭了".into()); }
     stop_hooks();
     TARGET.store(raw, Ordering::SeqCst);
-    // Owned by the target: Wings stays just above it in z-order instead of above everything.
-    if let Some(w) = app.get_webview_window("main") {
-        let _ = w.set_always_on_top(false);
-        if let Some(h) = wings_hwnd(&app) { unsafe { SetWindowLongPtrW(h, GWLP_HWNDPARENT, raw); } }
-    }
+    if !FLOAT.load(Ordering::SeqCst) { own_by_target(&app, true); }
     let mut pid = 0u32;
     unsafe { GetWindowThreadProcessId(t, Some(&mut pid)); }
     std::thread::spawn(move || unsafe {
@@ -120,10 +119,7 @@ pub fn dock(app: AppHandle, id: &str) -> Result<(), String> {
 pub fn undock(app: &AppHandle) {
     stop_hooks();
     TARGET.store(0, Ordering::SeqCst);
-    if let Some(w) = app.get_webview_window("main") {
-        if let Some(h) = wings_hwnd(app) { unsafe { SetWindowLongPtrW(h, GWLP_HWNDPARENT, 0); } }
-        let _ = w.set_always_on_top(true);
-    }
+    own_by_target(app, false);
     float_panel(app);
 }
 
@@ -200,22 +196,26 @@ fn exe_name(pid: u32) -> Option<String> {
 
 unsafe extern "system" fn collect(h: HWND, lp: LPARAM) -> BOOL {
     let out = &mut *(lp.0 as *mut Vec<TargetInfo>);
-    if !IsWindowVisible(h).as_bool() || !GetWindow(h, GW_OWNER).map(|o| o.0.is_null()).unwrap_or(true) { return true.into(); }
+    if let Some(t) = info_of(h) { out.push(t); }
+    true.into()
+}
+
+unsafe fn info_of(h: HWND) -> Option<TargetInfo> {
+    if !IsWindowVisible(h).as_bool() || !GetWindow(h, GW_OWNER).map(|o| o.0.is_null()).unwrap_or(true) { return None; }
     let mut cloaked = 0u32;
     let _ = DwmGetWindowAttribute(h, DWMWA_CLOAKED, &mut cloaked as *mut _ as *mut _, 4);
-    if cloaked != 0 { return true.into(); }
+    if cloaked != 0 { return None; }
     let len = GetWindowTextLengthW(h);
-    if len == 0 { return true.into(); }
+    if len == 0 { return None; }
     let mut buf = vec![0u16; len as usize + 1];
     let n = GetWindowTextW(h, &mut buf);
     let title = String::from_utf16_lossy(&buf[..n as usize]);
     let mut pid = 0u32;
     GetWindowThreadProcessId(h, Some(&mut pid));
-    if pid == GetCurrentProcessId() { return true.into(); }
-    let Some(exe) = exe_name(pid) else { return true.into() };
-    if exe == "explorer.exe" || exe == "applicationframehost.exe" && title.is_empty() { return true.into(); }
-    out.push(TargetInfo { id: (h.0 as isize).to_string(), key: exe, name: title });
-    true.into()
+    if pid == GetCurrentProcessId() { return None; }
+    let exe = exe_name(pid)?;
+    if exe == "explorer.exe" { return None; }
+    Some(TargetInfo { id: (h.0 as isize).to_string(), key: exe, name: title })
 }
 
 pub fn list_targets() -> Vec<TargetInfo> {
@@ -224,3 +224,33 @@ pub fn list_targets() -> Vec<TargetInfo> {
     crate::platform::sort_targets(&mut out);
     out
 }
+
+/// Owned by the target, Wings sits just above it in z-order; unowned, it floats above everything.
+fn own_by_target(app: &AppHandle, owned: bool) {
+    let Some(w) = app.get_webview_window("main") else { return };
+    let _ = w.set_always_on_top(!owned);
+    if let Some(h) = wings_hwnd(app) {
+        unsafe { SetWindowLongPtrW(h, GWLP_HWNDPARENT, if owned { TARGET.load(Ordering::SeqCst) } else { 0 }); }
+    }
+}
+
+pub fn show_no_activate(win: &tauri::WebviewWindow) {
+    if let Ok(h) = win.hwnd() { unsafe { let _ = ShowWindow(HWND(h.0 as *mut _), SW_SHOWNOACTIVATE); } }
+}
+
+pub fn set_float(app: &AppHandle, float: bool) {
+    FLOAT.store(float, Ordering::SeqCst);
+    let owned = !float && has_target();
+    own_by_target(app, owned);
+    if let Some(w) = app.get_webview_window("main") { show_no_activate(&w); }
+    if !float { refresh(); }
+}
+
+pub fn current_id() -> String { (TARGET.load(Ordering::SeqCst)).to_string() }
+
+pub fn front_app() -> Option<TargetInfo> {
+    unsafe { info_of(GetAncestor(GetForegroundWindow(), GA_ROOTOWNER)) }
+}
+
+/// Input box detection is not adapted on Windows yet (UI Automation goes here).
+pub fn focused_input() -> Option<(Frame, bool)> { None }

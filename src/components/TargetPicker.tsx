@@ -10,7 +10,7 @@ export function TargetPicker({ missing, onPick }: { missing: string | null; onPi
   useEffect(load, [load]);
 
   return (
-    <div className="panel">
+    <>
       <header className="panel-head" data-tauri-drag-region>
         <span className="brand" data-tauri-drag-region>Wings · 候话</span>
         <button type="button" className="ghost" onClick={load}>{t.refresh}</button>
@@ -27,6 +27,6 @@ export function TargetPicker({ missing, onPick }: { missing: string | null; onPi
           ))}
         </ul>
       </div>
-    </div>
+    </>
   );
 }

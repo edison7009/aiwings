@@ -4,7 +4,10 @@ import { listen } from '@tauri-apps/api/event';
 import { Onboarding } from './components/Onboarding';
 import { TargetPicker, type Target } from './components/TargetPicker';
 import { NoteList } from './components/NoteList';
+import { Settings } from './components/Settings';
+import { Segmented } from './components/Segmented';
 import { loadNotes, makeNote, saveNotes, type Note } from './lib/notes';
+import { readPrefs, writePrefs, type Prefs } from './lib/prefs';
 import { t } from './strings';
 
 const TARGET_KEY = 'wings-target';
@@ -15,20 +18,35 @@ function readRemembered(): Remembered | null {
   try { const raw = localStorage.getItem(TARGET_KEY); return raw ? JSON.parse(raw) : null; } catch { return null; }
 }
 
+function GearIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  );
+}
+
 export function App() {
   const [trusted, setTrusted] = useState<boolean | null>(null);
   const [target, setTarget] = useState<Target | null>(null);
   const [missing, setMissing] = useState<string | null>(null);
   const [notes, setNotes] = useState<Note[] | null>(null);
   const [shortcut, setShortcut] = useState('Alt+S');
+  const [prefs, setPrefs] = useState<Prefs>(readPrefs);
+  const [view, setView] = useState<'notes' | 'settings'>('notes');
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
+  const prefsRef = useRef(prefs);
+  prefsRef.current = prefs;
 
   const flash = useCallback((msg: string) => {
     setToast(msg);
     window.clearTimeout(toastTimer.current);
     toastTimer.current = window.setTimeout(() => setToast(null), 2600);
   }, []);
+
+  const changePrefs = useCallback((next: Prefs) => { setPrefs(next); writePrefs(next); }, []);
 
   useEffect(() => {
     void invoke<string>('shortcut_label').then(label => {
@@ -42,20 +60,24 @@ export function App() {
     setNotes(prev => { const next = fn(prev ?? []); saveNotes(next); return next; });
   }, []);
 
-  useEffect(() => {
-    const unCaptured = listen<string>('wings://captured', e => update(prev => [...prev, makeNote(e.payload)]));
-    const unError = listen<string>('wings://error', e => flash(e.payload));
-    return () => { void unCaptured.then(f => f()); void unError.then(f => f()); };
-  }, [update, flash]);
-
   const choose = useCallback(async (next: Target) => {
     try {
       await invoke('set_target', { id: next.id });
       setTarget(next);
       setMissing(null);
+      writePrefs(prefsRef.current);
       try { localStorage.setItem(TARGET_KEY, JSON.stringify({ key: next.key, name: next.name })); } catch { /* Best effort. */ }
     } catch (e) { flash(String(e)); }
   }, [flash]);
+
+  useEffect(() => {
+    const subs = [
+      listen<string>('wings://captured', e => update(prev => [...prev, makeNote(e.payload)])),
+      listen<string>('wings://error', e => flash(e.payload)),
+      listen<Target>('wings://follow', e => { if (prefsRef.current.follow) void choose(e.payload); }),
+    ];
+    return () => { subs.forEach(s => void s.then(f => f())); };
+  }, [update, flash, choose]);
 
   // Re-dock the remembered app once permission is in place.
   useEffect(() => {
@@ -68,26 +90,35 @@ export function App() {
     });
   }, [trusted, target, choose]);
 
-  const switchTarget = () => { void invoke('clear_target'); setTarget(null); };
+  const switchTarget = () => { void invoke('clear_target'); setTarget(null); setView('notes'); };
 
   let body;
   if (trusted === null || notes === null) body = null;
   else if (!trusted) body = <Onboarding onGranted={() => setTrusted(true)} />;
   else if (!target) body = <TargetPicker missing={missing} onPick={choose} />;
+  else if (view === 'settings') body = (
+    <Settings prefs={prefs} shortcut={shortcut} targetName={target.name} onChange={changePrefs} onSwitchTarget={switchTarget} onBack={() => setView('notes')} />
+  );
   else body = (
-    <NoteList
-      notes={notes}
-      shortcut={shortcut}
-      targetName={target.name}
-      onSwitch={switchTarget}
-      onPaste={note => { void invoke('paste_note', { text: note.text }); flash(t.pasted); }}
-      onRemove={id => update(prev => prev.filter(n => n.id !== id))}
-    />
+    <>
+      {/* Hover mode lets the header drag the bar anywhere; docked, it follows the target instead. */}
+      <header className="panel-head" data-tauri-drag-region={prefs.mode === 'float' || undefined}>
+        <span className="brand" data-tauri-drag-region={prefs.mode === 'float' || undefined}>{target.name}</span>
+        <Segmented value={prefs.mode} options={[['dock', t.dock], ['float', t.float]]} onChange={mode => changePrefs({ ...prefs, mode })} />
+      </header>
+      <NoteList
+        notes={notes}
+        shortcut={shortcut}
+        onPaste={note => { void invoke('paste_note', { text: note.text }); flash(t.pasted); }}
+        onRemove={id => update(prev => prev.filter(n => n.id !== id))}
+      />
+      <button type="button" className="gear" aria-label={t.settings} onClick={() => setView('settings')}><GearIcon /></button>
+    </>
   );
 
   return (
     <div className="shell">
-      {body}
+      <div className="panel" style={{ '--panel-opacity': prefs.opacity } as React.CSSProperties}>{body}</div>
       {toast && <div className="toast" role="status">{toast}</div>}
     </div>
   );
