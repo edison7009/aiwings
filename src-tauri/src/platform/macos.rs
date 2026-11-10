@@ -259,10 +259,14 @@ pub fn list_targets() -> Vec<TargetInfo> {
 }
 
 /// Shows a window without activating Wings, so the target keeps keyboard focus.
+/// Hops to the main thread: AppKit/WebKit abort the process when a window is ordered from a background thread.
 pub fn show_no_activate(win: &tauri::WebviewWindow) {
-    if let Ok(ns) = win.ns_window() {
-        unsafe { (*(ns as *const NSWindow)).orderFrontRegardless(); }
-    }
+    let w = win.clone();
+    let _ = win.run_on_main_thread(move || {
+        if let Ok(ns) = w.ns_window() {
+            unsafe { (*(ns as *const NSWindow)).orderFrontRegardless(); }
+        }
+    });
 }
 
 pub fn set_float(app: &AppHandle, float: bool) {
