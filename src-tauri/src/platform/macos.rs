@@ -330,7 +330,7 @@ unsafe fn frame_of(el: AXUIElementRef) -> Option<Frame> {
 
 /// Web apps (Claude, ChatGPT) report only the editable text region; the rounded box the user sees is
 /// an ancestor that grows with it. Climb to the outermost ancestor that still hugs the text region,
-/// so the chip rides the box's top edge as the box grows. See docs/input-box.md.
+/// so the chip rides the box's top edge as the box grows. Details are in the internal input-box notes.
 unsafe fn input_box(el: AXUIElementRef, text: Frame) -> Frame {
     let prefer_inner = super::target_prefers_inner_box();
     let key = super::TARGET_KEY.lock().unwrap().clone();
