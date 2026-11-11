@@ -54,3 +54,9 @@ jobs:
           prerelease: false
           assetNamePattern: '[name]-[version]-[platform]-[arch][setup][ext]'
           args: ${{ matrix.args }}
+
+  portable:
+    needs: build
+    uses: ./.github/workflows/portable.yml
+    with:
+      tag: ${{ github.ref_name }}
