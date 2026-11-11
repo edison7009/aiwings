@@ -7,7 +7,8 @@ import { NoteList } from './components/NoteList';
 import { Settings } from './components/Settings';
 import { Segmented } from './components/Segmented';
 import { loadNotes, makeNote, saveNotes, type Note } from './lib/notes';
-import { readPrefs, writePrefs, type Prefs } from './lib/prefs';
+import { readPrefs, saveFloatRect, writePrefs, type Prefs } from './lib/prefs';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { applyTheme, themeFor } from './lib/theme';
 import { t } from './strings';
 
@@ -93,6 +94,22 @@ export function App() {
   }, [trusted, target, choose]);
 
   useEffect(() => { applyTheme(themeFor(target?.key ?? null)); }, [target]);
+
+  // While hovering, remember where the bar is and how big, so the next switch to hover (or the next launch) returns there.
+  const floating = !!target && prefs.mode === 'float';
+  useEffect(() => {
+    if (!floating) return;
+    const win = getCurrentWindow();
+    let timer: number | undefined;
+    const save = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        void Promise.all([win.outerPosition(), win.innerSize()]).then(([p, z]) => saveFloatRect([p.x, p.y, z.width, z.height]));
+      }, 300);
+    };
+    const subs = [win.onMoved(save), win.onResized(save)];
+    return () => { window.clearTimeout(timer); subs.forEach(s => void s.then(f => f())); };
+  }, [floating]);
 
   const switchTarget = () => { void invoke('clear_target'); setTarget(null); setView('notes'); };
 

@@ -19,7 +19,21 @@ export function readPrefs(): Prefs {
   try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) ?? '{}') }; } catch { return DEFAULTS; }
 }
 
+const FLOAT_RECT_KEY = 'wings-float-rect';
+
+/** Last hover frame in physical pixels [x, y, width, height]; hover mode returns there. */
+export function saveFloatRect(rect: [number, number, number, number]) {
+  try { localStorage.setItem(FLOAT_RECT_KEY, JSON.stringify(rect)); } catch { /* Best effort. */ }
+}
+
+function readFloatRect(): [number, number, number, number] | null {
+  try {
+    const r: unknown = JSON.parse(localStorage.getItem(FLOAT_RECT_KEY) ?? 'null');
+    return Array.isArray(r) && r.length === 4 && r.every(n => typeof n === 'number') ? r as [number, number, number, number] : null;
+  } catch { return null; }
+}
+
 export function writePrefs(p: Prefs) {
   try { localStorage.setItem(KEY, JSON.stringify(p)); } catch { /* Best effort. */ }
-  void invoke('set_prefs', { float: p.mode === 'float', follow: p.follow, chip: p.chip });
+  void invoke('set_prefs', { float: p.mode === 'float', follow: p.follow, chip: p.chip, floatRect: readFloatRect() });
 }

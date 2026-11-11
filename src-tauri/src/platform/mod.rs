@@ -76,13 +76,22 @@ pub const CHIP_H: f64 = 34.0;
 /// Room kept clear for the box's own buttons at its right end.
 pub const CHIP_RIGHT_INSET: f64 = 72.0;
 
-/// Hover keeps the docked width, trims the height, and lets the user resize by the edges.
-/// Docked, the size comes from the target window again.
-pub fn shape_for_mode(app: &AppHandle, float: bool) {
+/// Hover returns to where (and how big) it was last hovering, or on first use keeps the docked
+/// width and trims the height. It is resizable by the edges; docked, the target sets the size again.
+/// `last` is the remembered hover frame in physical pixels: x, y, width, height.
+pub fn shape_for_mode(app: &AppHandle, float: bool, last: Option<[f64; 4]>) {
     let Some(win) = app.get_webview_window("main") else { return };
     let _ = win.set_resizable(float);
     if !float { return; }
     let _ = win.set_min_size(Some(LogicalSize::new(200.0, 240.0)));
+    // Only if that spot is still on a screen (a monitor may have been unplugged since).
+    if let Some([x, y, w, h]) = last {
+        if let Ok(Some(_)) = app.monitor_from_point(x + w / 2.0, y + 20.0) {
+            let _ = win.set_size(PhysicalSize::new(w.round() as u32, h.round() as u32));
+            let _ = win.set_position(PhysicalPosition::new(x.round() as i32, y.round() as i32));
+            return;
+        }
+    }
     let scale = win.scale_factor().unwrap_or(1.0);
     if let Ok(size) = win.inner_size() {
         let h = (size.height as f64).min(FLOAT_HEIGHT * scale);
