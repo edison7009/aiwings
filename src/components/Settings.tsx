@@ -25,6 +25,7 @@ export function Settings({ prefs, shortcut, target, onChange, onPickTarget, onEr
       <div className="panel-body settings">
         {/* Follow first. Under it, ticks choose which apps to follow, or (when off) the one app to stay with. */}
         <section>
+          <p className="muted small hint">{prefs.follow ? t.followOnHint : t.followOffHint}</p>
           <Segmented value={prefs.follow ? 'on' : 'off'} options={[['on', t.followOn], ['off', t.followOff]]} onChange={v => set('follow', v === 'on')} />
           {prefs.follow
             ? <AppMenu mode="multi" followKeys={prefs.followKeys} onChangeKeys={keys => set('followKeys', keys)} />

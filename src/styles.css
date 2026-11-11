@@ -254,6 +254,7 @@ h1 { font-size: 15px; margin: 6px 0 4px; }
 .settings .row-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .settings input[type=range] { width: 100%; accent-color: var(--accent); }
 .small { font-size: 12px; margin: 6px 0 0; }
+.settings .hint { margin: 0 0 8px; }
 /* App menu: opens below its button, never over it. */
 .app-menu { position: relative; margin-top: 8px; }
 .app-menu-button, .app-menu-list button {
@@ -268,20 +269,14 @@ h1 { font-size: 15px; margin: 6px 0 4px; }
 }
 .app-menu-button { background: var(--card); }
 .app-menu-button:disabled { cursor: default; color: var(--muted); }
+/* In the flow, not floating: the bar is tall, so the whole list shows and pushes the rest down. */
 .app-menu-list {
-  position: absolute;
-  z-index: 5;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  margin: 0;
+  margin: 4px 0 0;
   padding: 4px;
   list-style: none;
   border-radius: 10px;
   background: var(--card);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.16);
-  max-height: 220px;
-  overflow-y: auto;
 }
 .app-menu-list button:hover { background: var(--card-hover); }
 .app-menu-list button { justify-content: flex-start; }
