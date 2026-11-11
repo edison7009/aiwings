@@ -1,6 +1,6 @@
-# Portable (no-install) builds, added to a release's assets:
-#   macOS:   Wings.app in a zip — unzip and run, or drag it anywhere.
-#   Windows: the bare Wings.exe in a zip — needs the WebView2 runtime, which Windows 10/11 already have.
+# Portable (no-install) Windows build, added to a release's assets: the bare Wings.exe, no zip — download
+# and double-click. Needs the WebView2 runtime, which Windows 10/11 already have. macOS gets no portable
+# build: a .app is a folder and can only ship in an archive, and the .dmg already opens to a ready app.
 # Called by the Release workflow once the installers are up, or run by hand for an existing tag.
 # (A release created with GITHUB_TOKEN does not fire release events, so it cannot listen for one.)
 name: Portable
@@ -26,12 +26,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: macos-latest
-            target: aarch64-apple-darwin
-            arch: aarch64
-          - platform: macos-latest
-            target: x86_64-apple-darwin
-            arch: x64
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
             arch: x64
@@ -55,25 +49,13 @@ jobs:
           workspaces: src-tauri -> target
       - run: npm ci
 
-      - name: Build and zip (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          npx tauri build --target ${{ matrix.target }} --bundles app
-          VERSION="${TAG#v}"
-          cd src-tauri/target/${{ matrix.target }}/release/bundle/macos
-          ditto -c -k --keepParent Wings.app "$GITHUB_WORKSPACE/Wings-$VERSION-macos-${{ matrix.arch }}-portable.zip"
-
-      - name: Build and zip (Windows)
-        if: runner.os == 'Windows'
+      - name: Build
         shell: pwsh
         run: |
           npx tauri build --target ${{ matrix.target }} --no-bundle
           $version = $env:TAG.TrimStart('v')
-          $dir = "Wings-$version-windows-${{ matrix.arch }}-portable"
-          New-Item -ItemType Directory $dir | Out-Null
-          Copy-Item "src-tauri/target/${{ matrix.target }}/release/wings.exe" "$dir/Wings.exe"
-          Compress-Archive -Path "$dir/*" -DestinationPath "$dir.zip"
+          Copy-Item "src-tauri/target/${{ matrix.target }}/release/wings.exe" "Wings-$version-windows-${{ matrix.arch }}.exe"
 
       - name: Upload to the release
         shell: bash
-        run: gh release upload "$TAG" Wings-*-portable.zip --clobber
+        run: gh release upload "$TAG" Wings-*-windows-*.exe --clobber
