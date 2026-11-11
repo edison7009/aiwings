@@ -119,32 +119,28 @@ h1 { font-size: 15px; margin: 6px 0 4px; }
   pointer-events: none;
   transition: opacity 0.2s;
 }
-.note.is-collapsed:hover::before { opacity: 1; }
+.note:hover::before { opacity: 1; }
 .note-text {
   position: relative;
   display: block;
   width: 100%;
   text-align: left;
-  padding: 0;
+  padding: 9px 11px;
   white-space: pre-wrap;
   word-break: break-word;
 }
-.note-text::after { content: none; }
-/* Collapsed: at most three lines. The clamp sits on an inner span: WebKit ignores line-clamp on a <button>.
-   Margin (not padding) so the fourth line never peeks in. */
-.note.is-collapsed .note-text { margin: 9px 11px; width: calc(100% - 22px); }
-.note.is-collapsed .note-clamp {
+/* At most three lines. The clamp sits on an inner span: WebKit ignores line-clamp on a <button>. */
+.note-clamp {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
   line-clamp: 3;
   overflow: hidden;
 }
-.note:not(.is-collapsed) .note-text { margin: 9px 11px 2px; width: calc(100% - 22px); }
-/* The line fades out under the hover icons instead of moving. */
-.note.is-collapsed:hover .note-text {
-  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 84px), transparent calc(100% - 50px));
-  mask-image: linear-gradient(to right, #000 calc(100% - 84px), transparent calc(100% - 50px));
+/* The text fades out under the trash icon instead of moving. */
+.note:hover .note-clamp {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 52px), transparent calc(100% - 26px));
+  mask-image: linear-gradient(to right, #000 calc(100% - 52px), transparent calc(100% - 26px));
 }
 .note-quick {
   position: absolute;
@@ -153,30 +149,24 @@ h1 { font-size: 15px; margin: 6px 0 4px; }
   bottom: 0;
   display: flex;
   align-items: center;
-  gap: 2px;
   opacity: 0;
   transform: translateX(6px);
   pointer-events: none;
   transition: opacity 0.18s, transform 0.18s;
 }
 .note:hover .note-quick, .note:focus-within .note-quick { opacity: 1; transform: none; pointer-events: auto; }
-.note-actions { display: flex; align-items: center; padding: 2px 5px 6px; }
-.note-gap { flex: 1; }
 .note-btn {
   width: 26px;
   height: 26px;
   display: grid;
   place-items: center;
   border-radius: 6px;
-  color: var(--accent);
-  transition: color 0.15s, background 0.15s, filter 0.15s;
+  color: var(--muted);
+  transition: color 0.15s, background 0.15s;
 }
 .note-btn svg { width: 15px; height: 15px; }
 .note-btn:hover { background: var(--line); }
 .note-delete:hover { color: #e5534b; }
-.note-send { border-radius: 50%; color: #fff; background: var(--accent); margin-left: 2px; }
-.note-send svg { width: 11px; height: 11px; margin-left: 2px; }
-.note-send:hover { background: var(--accent); filter: brightness(1.12); }
 @media (prefers-reduced-motion: reduce) { .note-quick, .note::before { transition: none; } .note-quick { transform: none; } }
 
 /* Vertically centred in the list area. */

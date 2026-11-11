@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import type { Note } from '../lib/notes';
 import { t } from '../strings';
 
@@ -20,20 +19,12 @@ function DeleteIcon() {
   );
 }
 
-function SendIcon() {
-  return <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden><polygon points="5 3 21 12 5 21" /></svg>;
-}
-
 /**
- * Notes as in Coffee CLI's pre-input board, but up to three lines each so short notes read in full;
- * a click opens or closes a longer one.
- * Collapsed, hovering slides delete and send in over the end of the line without moving anything;
- * open, they sit in a row under the text. Send pastes into the target's input box.
+ * Notes were already written in the target's own input box, so here they are read-only:
+ * up to three lines each, a click pastes one back, and hovering slides in a trash icon
+ * over the end of the text without moving anything.
  */
 export function NoteList({ notes, shortcut, onPaste, onRemove }: Props) {
-  const [openIds, setOpenIds] = useState<Set<string>>(() => new Set());
-  const toggle = (id: string) => setOpenIds(prev => { const next = new Set(prev); if (!next.delete(id)) next.add(id); return next; });
-
   return (
     <div className="panel-body notes">
       {notes.length === 0 && (
@@ -42,24 +33,19 @@ export function NoteList({ notes, shortcut, onPaste, onRemove }: Props) {
           <p className="muted">{t.emptyBody(shortcut)}</p>
         </div>
       )}
-      {notes.map(note => {
-        const open = openIds.has(note.id);
-        const del = <button type="button" className="note-btn note-delete" aria-label={t.delete} onClick={() => onRemove(note.id)}><DeleteIcon /></button>;
-        const send = <button type="button" className="note-btn note-send" aria-label={t.send} onClick={() => onPaste(note)}><SendIcon /></button>;
-        return (
-          <div
-            key={note.id}
-            className={`note${open ? '' : ' is-collapsed'}`}
-            // The hover glow follows the pointer through a CSS variable, no re-render.
-            onPointerMove={e => e.currentTarget.style.setProperty('--glow-x', `${Math.round(e.clientX - e.currentTarget.getBoundingClientRect().left)}px`)}
-          >
-            <button type="button" className="note-text" aria-expanded={open} onClick={() => toggle(note.id)}><span className="note-clamp">{note.text}</span></button>
-            {open
-              ? <div className="note-actions">{del}<span className="note-gap" />{send}</div>
-              : <span className="note-quick">{del}{send}</span>}
-          </div>
-        );
-      })}
+      {notes.map(note => (
+        <div
+          key={note.id}
+          className="note"
+          // The hover glow follows the pointer through a CSS variable, no re-render.
+          onPointerMove={e => e.currentTarget.style.setProperty('--glow-x', `${Math.round(e.clientX - e.currentTarget.getBoundingClientRect().left)}px`)}
+        >
+          <button type="button" className="note-text" onClick={() => onPaste(note)}><span className="note-clamp">{note.text}</span></button>
+          <span className="note-quick">
+            <button type="button" className="note-btn note-delete" aria-label={t.delete} onClick={() => onRemove(note.id)}><DeleteIcon /></button>
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
