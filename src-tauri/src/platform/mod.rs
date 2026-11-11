@@ -61,14 +61,25 @@ pub fn sort_targets(list: &mut [crate::TargetInfo]) {
 
 /// Places the "save to Wings" chip astride the input box's top border, left of the box's
 /// right-hand buttons (send/stop, mic) so it never sits right above them.
-pub fn place_chip(app: &AppHandle, input: Frame, scale: f64) {
-    let Some(chip) = app.get_webview_window("chip") else { return };
+/// Returns true when the chip window was hidden and has just been shown.
+/// Only touches the window when its spot changes or it was hidden: re-setting the frame and re-ordering
+/// it every tick makes the button stutter.
+pub fn place_chip(app: &AppHandle, input: Frame, scale: f64) -> bool {
+    static PLACED: std::sync::Mutex<Option<(i32, i32, u32, u32)>> = std::sync::Mutex::new(None);
+    let Some(chip) = app.get_webview_window("chip") else { return false };
     let (w, h) = (CHIP_W * scale, CHIP_H * scale);
-    let _ = chip.set_size(PhysicalSize::new(w.round() as u32, h.round() as u32));
     // The button's centre is the window's vertical centre, so half the window above the line centres it on the border.
     let x = input.x + input.w - w - CHIP_RIGHT_INSET * scale;
-    let _ = chip.set_position(PhysicalPosition::new(x.round() as i32, (input.y - h / 2.0).round() as i32));
-    show_no_activate(&chip);
+    let spot = (x.round() as i32, (input.y - h / 2.0).round() as i32, w.round() as u32, h.round() as u32);
+    let mut placed = PLACED.lock().unwrap();
+    if *placed != Some(spot) {
+        let _ = chip.set_size(PhysicalSize::new(spot.2, spot.3));
+        let _ = chip.set_position(PhysicalPosition::new(spot.0, spot.1));
+    }
+    let was_hidden = !chip.is_visible().unwrap_or(false);
+    if was_hidden { show_no_activate(&chip); }
+    *placed = Some(spot);
+    was_hidden
 }
 
 pub const CHIP_W: f64 = 140.0;

@@ -43,7 +43,10 @@ pub fn start(app: AppHandle) {
                     hide_at = None;
                     let scale = chip.scale_factor().unwrap_or(1.0);
                     let s = if cfg!(target_os = "macos") { scale } else { 1.0 };
-                    place_chip(&app, platform::Frame { x: frame.x * s, y: frame.y * s, w: frame.w * s, h: frame.h * s }, scale);
+                    let just_shown = place_chip(&app, platform::Frame { x: frame.x * s, y: frame.y * s, w: frame.w * s, h: frame.h * s }, scale);
+                    // A hidden window's page is paused: let it paint once before the flip starts, or the
+                    // first frames are dropped and the button looks cut off for a moment.
+                    if just_shown { continue; }
                     if last_chip != Some(has_text) {
                         last_chip = Some(has_text);
                         let _ = chip.emit("wings://chip", has_text);
