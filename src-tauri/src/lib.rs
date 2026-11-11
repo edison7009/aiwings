@@ -185,6 +185,9 @@ pub fn run() {
                 .focused(false)
                 .focusable(false)
                 .accept_first_mouse(true)
+                // Wings is never the active app while the user types elsewhere; without this, macOS 14+
+                // throttles the page and animations stutter.
+                .background_throttling(tauri::utils::config::BackgroundThrottlingPolicy::Disabled)
                 .visible(false)
                 .build()?;
             watch::start(app.handle().clone());

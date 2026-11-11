@@ -3,9 +3,9 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { t } from '../strings';
 
-const FLIP_OUT_MS = 450;
+const FADE_OUT_MS = 150;
 
-/** "Save to Wings" and "Clear" on the target's input box: flips up from face down when there is text, back down when it goes. */
+/** "Save to Wings" and "Clear" on the target's input box: fade in (rising slightly) when there is text, fade out when it goes. */
 export function Chip() {
   const [shown, setShown] = useState(false);
   const [leaving, setLeaving] = useState(false);
@@ -18,7 +18,7 @@ export function Chip() {
   }, []);
   useEffect(() => {
     if (!leaving) return;
-    const timer = window.setTimeout(() => setLeaving(false), FLIP_OUT_MS);
+    const timer = window.setTimeout(() => setLeaving(false), FADE_OUT_MS);
     return () => window.clearTimeout(timer);
   }, [leaving]);
 

@@ -24,6 +24,7 @@
         "alwaysOnTop": true,
         "shadow": false,
         "acceptFirstMouse": true,
+        "backgroundThrottling": "disabled",
         "center": true
       }
     ],
