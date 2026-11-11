@@ -157,8 +157,12 @@ pub fn dock(app: AppHandle, id: &str) -> Result<(), String> {
         // A hung target would otherwise block each AX read for the 6 s default while holding DOCK,
         // which the main thread also needs: Wings would freeze with it.
         AXUIElementSetMessagingTimeout(app_el, 0.5);
-        // Electron/Chromium apps (Claude, ChatGPT) only build their AX tree when asked to.
-        AXUIElementSetAttributeValue(app_el, cfs("AXManualAccessibility").as_concrete_TypeRef(), CFBoolean::true_value().as_CFTypeRef());
+        // Electron/Chromium apps only build their AX tree when asked to. Claude honours AXManualAccessibility;
+        // the ChatGPT app rejects it as unsupported (-25205) and needs AXEnhancedUserInterface instead.
+        let yes = CFBoolean::true_value();
+        if AXUIElementSetAttributeValue(app_el, cfs("AXManualAccessibility").as_concrete_TypeRef(), yes.as_CFTypeRef()) != 0 {
+            AXUIElementSetAttributeValue(app_el, cfs("AXEnhancedUserInterface").as_concrete_TypeRef(), yes.as_CFTypeRef());
+        }
         let mut observer: AXObserverRef = null();
         if AXObserverCreate(pid, on_ax, &mut observer) != 0 || observer.is_null() {
             CFRelease(app_el);
