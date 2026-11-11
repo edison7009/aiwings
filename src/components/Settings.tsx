@@ -1,3 +1,6 @@
+import { useEffect, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import { getVersion } from '@tauri-apps/api/app';
 import { withLayout, type Prefs } from '../lib/prefs';
 import type { Target } from './TargetPicker';
 import { t } from '../strings';
@@ -19,6 +22,8 @@ interface Props {
 }
 
 export function Settings({ prefs, shortcut, target, onChange, onError, onShortcut, onBack }: Props) {
+  const [version, setVersion] = useState('');
+  useEffect(() => { void getVersion().then(setVersion).catch(() => {}); }, []);
   const set = <K extends keyof Prefs>(k: K, v: Prefs[K]) => onChange({ ...prefs, [k]: v });
   return (
     <>
@@ -51,6 +56,15 @@ export function Settings({ prefs, shortcut, target, onChange, onError, onShortcu
           <ShortcutRecorder label={shortcut} onChange={onShortcut} onError={onError} />
         </section>
       </div>
+      <footer className="settings-foot">
+        <span>{version ? `v${version}` : ''}</span>
+        <button type="button" onClick={() => void invoke('open_url', { url: 'https://aiwings.app' })}>
+          {t.website}
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
+          </svg>
+        </button>
+      </footer>
     </>
   );
 }

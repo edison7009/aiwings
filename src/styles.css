@@ -256,6 +256,37 @@ h1 { font-size: 15px; margin: 6px 0 4px; }
   transition: color 0.15s, transform 0.3s;
 }
 .gear:hover { color: var(--text); transform: rotate(45deg); }
+/* New version out: red download button left of the gear, as in the sister apps. */
+.update {
+  position: absolute;
+  right: 46px;
+  bottom: 10px;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #ef4444;
+  background: var(--card);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+.update:hover { background: var(--card-hover, var(--card)); }
+.update .spin { animation: update-spin 0.9s linear infinite; }
+@keyframes update-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .update .spin { animation: none; } }
+/* Settings foot: version left, website right. */
+.settings-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border, rgba(127, 127, 127, 0.18));
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.settings-foot button { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); }
+.settings-foot button:hover { color: var(--text); }
 
 .settings section { margin: 4px 0 16px; }
 .settings label { display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 6px; }

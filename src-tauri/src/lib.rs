@@ -2,6 +2,7 @@ mod actions;
 mod clip;
 mod platform;
 mod store;
+mod update;
 mod watch;
 
 use serde::Serialize;
@@ -268,6 +269,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             list_targets, list_menu_apps, set_tray_target, open_ai_app, set_target, clear_target, paste_note, capture_now, clear_input, set_prefs, cursor_in_window,
             permission_granted, open_permission_settings, shortcut_label, set_shortcut,
+            update::check_update, update::download_update, update::open_url,
             store::load_notes, store::save_notes, store::image_data_url, store::delete_image
         ])
         .run(tauri::generate_context!())

@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { Onboarding } from './components/Onboarding';
 import type { Target } from './components/TargetPicker';
+import { UpdateButton } from './components/UpdateButton';
 import { NoteList } from './components/NoteList';
 import { Settings } from './components/Settings';
 import { savedShortcut } from './components/ShortcutRecorder';
@@ -155,6 +156,7 @@ export function App() {
           return prev.filter(n => n.id !== id);
         })}
       />
+      <UpdateButton onError={flash} />
       <button type="button" className="gear" aria-label={t.settings} onClick={() => setView('settings')}><GearIcon /></button>
     </>
   );

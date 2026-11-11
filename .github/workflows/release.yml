@@ -57,3 +57,10 @@ jobs:
     uses: ./.github/workflows/portable.yml
     with:
       tag: ${{ github.ref_name }}
+
+  mirror:
+    needs: portable
+    uses: ./.github/workflows/mirror-release.yml
+    with:
+      tag: ${{ github.ref_name }}
+    secrets: inherit
