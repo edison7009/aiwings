@@ -296,7 +296,7 @@ pub fn front_app() -> Option<TargetInfo> {
 }
 
 /// The target's focused text input: the frame (points) of the box drawn around it, and whether it holds any text.
-/// Reads only the character count, never the text itself.
+/// The text is looked at only to tell empty from not; it is never kept or sent anywhere.
 pub fn focused_input() -> Option<(Frame, bool)> {
     let mut guard = DOCK.lock().unwrap();
     let d = guard.as_mut()?;
@@ -310,12 +310,10 @@ pub fn focused_input() -> Option<(Frame, bool)> {
             if !d.input.is_null() { CFRelease(d.input); }
             d.input = CFRetain(el);
         }
-        let count = copy_attr(el, "AXNumberOfCharacters")
-            .and_then(|v| core_foundation::number::CFNumber::wrap_under_create_rule(v as _).to_i64())
-            .unwrap_or(0);
+        let has_text = has_real_text(el);
         let frame = frame.map(|f| input_box(el, f));
         CFRelease(el);
-        Some((frame?, count > 0))
+        Some((frame?, has_text))
     }
 }
 
@@ -382,5 +380,24 @@ pub fn focus_input() {
         }
         if let Some(p) = back { CGWarpMouseCursorPosition(p); }
         std::thread::sleep(Duration::from_millis(60));
+    }
+}
+
+/// Whether an input holds text the user typed. Chromium inputs report a character count of 1 or more
+/// even when empty (a placeholder, or the editor's hidden line break), so the count alone is not enough:
+/// check the value itself, ignoring whitespace and a value that is just the placeholder.
+unsafe fn has_real_text(el: AXUIElementRef) -> bool {
+    let read = |attr: &str| copy_attr(el, attr).and_then(|v| {
+        let cf = core_foundation::base::CFType::wrap_under_create_rule(v);
+        cf.downcast::<CFString>().map(|s| s.to_string())
+    });
+    match read("AXValue") {
+        Some(value) => {
+            let value = value.trim();
+            !value.is_empty() && read("AXPlaceholderValue").map_or(true, |p| p.trim() != value)
+        }
+        None => copy_attr(el, "AXNumberOfCharacters")
+            .and_then(|v| core_foundation::number::CFNumber::wrap_under_create_rule(v as _).to_i64())
+            .is_some_and(|n| n > 0),
     }
 }
