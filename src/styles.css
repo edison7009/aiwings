@@ -254,7 +254,7 @@ h1 { font-size: 15px; margin: 6px 0 4px; }
 .settings .row-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .settings input[type=range] { width: 100%; accent-color: var(--accent); }
 .small { font-size: 12px; margin: 6px 0 0; }
-.settings .hint { margin: 0 0 8px; }
+.settings .hint { margin: 8px 0 0; }
 /* App menu: opens below its button, never over it. */
 .app-menu { position: relative; margin-top: 8px; }
 .app-menu-button, .app-menu-list button {
