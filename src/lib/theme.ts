@@ -14,7 +14,7 @@ export interface ThemeTokens {
 }
 
 const APP_THEMES: Record<string, ThemeTokens> = {
-  // Example for later: 'com.anthropic.claudefordesktop': { '--accent': '#d97757' },
+  // Wings keeps a single accent (iOS blue); add per-app overrides here only if that ever changes.
 };
 
 export function themeFor(appKey: string | null): ThemeTokens {
