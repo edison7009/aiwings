@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>手写字体比较</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700;900&family=Ma+Shan+Zheng&family=Long+Cang&family=Zhi+Mang+Xing&family=Liu+Jian+Mao+Cao&family=ZCOOL+KuaiLe&family=ZCOOL+XiaoWei&family=ZCOOL+QingKe+HuangYou&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.7.0/style.css">
+<style>
+/* Side-by-side comparison of Chinese handwriting fonts for the hero's two notes. Not part of the site. */
+* { box-sizing: border-box; }
+body { margin: 0; background: #fbf6f9; color: #1a1320; font: 400 16px/1.6 "Noto Sans SC", sans-serif; }
+.wrap { width: min(1200px, 100% - 32px); margin: 0 auto; padding: 48px 0 80px; }
+h1 { margin: 0 0 6px; font-size: 30px; }
+.lede { color: #6d6474; margin: 0 0 32px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 22px; }
+.card { background: #fff; border-radius: 20px; padding: 22px 24px 20px; box-shadow: 0 18px 40px -26px rgba(74,10,120,.35); }
+.tag { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 18px; }
+.tag b { font-size: 18px; }
+.tag span { color: #6d6474; font-size: 13px; }
+.photo { position: relative; background: #fbfaf7; border: 1px solid #ece4d4; border-radius: 8px; padding: 46px 16px 14px; rotate: -1.5deg; }
+.arrow { position: absolute; top: 8px; left: 18px; color: #f84890; font-size: 26px; line-height: 1; rotate: -3deg; white-space: nowrap; }
+.mock { height: 70px; border-radius: 6px; background: linear-gradient(90deg, #fff 70%, #f4f1f6 70%); border: 1px solid #ece4d4; }
+.cap { margin-top: 10px; font-size: 24px; color: #5f564c; line-height: 1.2; }
+.note { margin-top: 14px; color: #6d6474; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>手写字体比较</h1>
+  <p class="lede">首屏演示图上的两处手写：粉色的箭头标注，和相框下方的灰色说明。字号和颜色都按首屏实际效果。</p>
+  <div class="grid" id="grid"></div>
+</div>
+<script>
+const fonts = [
+  ['1', '霞鹜文楷', '"LXGW WenKai"', '像认真写的钢笔字，最清楚，耐看。需要从 jsDelivr 加载，或放自己的服务器。'],
+  ['2', '马善政（现在用的）', '"Ma Shan Zheng"', '毛笔楷书，清楚，但毛笔味较重。'],
+  ['3', '站酷小薇', '"ZCOOL XiaoWei"', '文艺的细宋手写感，清楚，偏安静。'],
+  ['4', '站酷快乐体', '"ZCOOL KuaiLe"', '圆润可爱，和页面其他标题同一套，很清楚，但不太像手写。'],
+  ['5', '站酷庆科黄油体', '"ZCOOL QingKe HuangYou"', '方正的海报手绘字，很年轻，很清楚。'],
+  ['6', '龙藏体（原来的）', '"Long Cang"', '最像随手写的，但笔画连在一起，难认。'],
+  ['7', '志莽行书', '"Zhi Mang Xing"', '行书，有味道，小字号下难认。'],
+  ['8', '刘建毛草', '"Liu Jian Mao Cao"', '草书，最潦草，基本不适合正文说明。'],
+];
+document.getElementById('grid').innerHTML = fonts.map(([n, name, fam, note]) => `
+  <div class="card">
+    <div class="tag"><b>${n}. ${name}</b><span>${fam.replace(/"/g, '')}</span></div>
+    <div class="photo" style="font-family:${fam.replace(/"/g, "'")}">
+      <div class="arrow">右边这条就是 Wings ↘</div>
+      <div class="mock"></div>
+      <div class="cap">AI 还在回，两句话已经排好队了</div>
+    </div>
+    <p class="note">${note}</p>
+  </div>`).join('');
+</script>
+</body>
+</html>
