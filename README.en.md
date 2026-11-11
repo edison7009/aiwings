@@ -1,4 +1,4 @@
-<p align="center"><img src="branding/wings-icon-1024.png" alt="Wings" width="160"></p>
+<p align="center"><img src="branding/wings-banner.png" alt="Wings" width="420"></p>
 
 # Wings
 
