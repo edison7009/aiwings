@@ -8,7 +8,7 @@ import { Settings } from './components/Settings';
 import { savedShortcut } from './components/ShortcutRecorder';
 import { Segmented } from './components/Segmented';
 import { loadNotes, makeNote, saveNotes, type Note } from './lib/notes';
-import { readPrefs, saveFloatRect, writePrefs, type Prefs } from './lib/prefs';
+import { applyThemeMode, readPrefs, saveFloatRect, writePrefs, type Prefs } from './lib/prefs';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { applyTheme, themeFor } from './lib/theme';
 import { t } from './strings';
@@ -52,7 +52,7 @@ export function App() {
     toastTimer.current = window.setTimeout(() => setToast(null), 2600);
   }, []);
 
-  const changePrefs = useCallback((next: Prefs) => { setPrefs(next); writePrefs(next); }, []);
+  const changePrefs = useCallback((next: Prefs) => { setPrefs(next); writePrefs(next); applyThemeMode(next.theme); }, []);
 
   useEffect(() => {
     // Re-apply a saved custom shortcut first; if it can no longer be registered, the default stays.

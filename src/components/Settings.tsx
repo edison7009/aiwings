@@ -38,6 +38,10 @@ export function Settings({ prefs, shortcut, target, onChange, onPickTarget, onEr
           <Segmented value={prefs.chip ? 'on' : 'off'} options={[['on', t.show], ['off', t.hide]]} onChange={v => set('chip', v === 'on')} />
         </section>
         <section>
+          <label>{t.theme}</label>
+          <Segmented value={prefs.theme} options={[['system', t.themeSystem], ['light', t.themeLight], ['dark', t.themeDark]]} onChange={v => set('theme', v)} />
+        </section>
+        <section>
           <label>{t.shortcut}</label>
           <ShortcutRecorder label={shortcut} onChange={onShortcut} onError={onError} />
         </section>

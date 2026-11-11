@@ -8,12 +8,14 @@ export interface Prefs {
   follow: boolean;
   /** Apps (by key) ticked to follow; null = the default, every AI app. */
   followKeys: string[] | null;
+  /** Light, dark, or follow the system. */
+  theme: 'system' | 'light' | 'dark';
   /** Show the "save to Wings" chip on the target's input box. */
   chip: boolean;
 }
 
 const KEY = 'wings-prefs';
-const DEFAULTS: Prefs = { mode: 'dock', follow: true, followKeys: null, chip: true };
+const DEFAULTS: Prefs = { mode: 'dock', follow: true, followKeys: null, theme: 'system', chip: true };
 
 export function readPrefs(): Prefs {
   try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) ?? '{}') }; } catch { return DEFAULTS; }
@@ -36,4 +38,10 @@ function readFloatRect(): [number, number, number, number] | null {
 export function writePrefs(p: Prefs) {
   try { localStorage.setItem(KEY, JSON.stringify(p)); } catch { /* Best effort. */ }
   void invoke('set_prefs', { float: p.mode === 'float', follow: p.follow, followKeys: p.followKeys, chip: p.chip, floatRect: readFloatRect() });
+}
+
+/** Sets light/dark on this window. Both windows (bar and chip) call it; the chip hears changes via storage events. */
+export function applyThemeMode(theme: Prefs['theme']) {
+  if (theme === 'system') delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = theme;
 }
