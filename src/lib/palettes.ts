@@ -7,6 +7,8 @@ export const PALETTES = [
   { id: 'mint', name: '薄荷', day: { bg: '#eff4f1', card: '#ffffff', accent: '#437059' }, night: { bg: '#1f2723', card: '#27302b', accent: '#b0c9bc' } },
   { id: 'glacier', name: '冰川', day: { bg: '#eff3f7', card: '#ffffff', accent: '#34567f' }, night: { bg: '#20252d', card: '#283039', accent: '#adc3dd' } },
   { id: 'lavender', name: '薰衣草', day: { bg: '#f4f1f6', card: '#ffffff', accent: '#5f3d75' }, night: { bg: '#25212b', card: '#2d2933', accent: '#c7b3d4' } },
+  { id: 'copper', name: '铜橙', day: { bg: '#f8f2ee', card: '#ffffff', accent: '#844425' }, night: { bg: '#23150e', card: '#2d1d15', accent: '#de9673' } },
+  { id: 'obsidian', name: '曜石', day: { bg: '#eaecee', card: '#ffffff', accent: '#3c4a5d' }, night: { bg: '#0a0a0a', card: '#171717', accent: '#b0b0b0' } },
 ] as const;
 
 export type PaletteId = typeof PALETTES[number]['id'];
