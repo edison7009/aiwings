@@ -28,6 +28,7 @@ extern "C" {
     fn AXIsProcessTrusted() -> bool;
     fn AXIsProcessTrustedWithOptions(options: CFTypeRef) -> bool;
     fn AXUIElementCreateApplication(pid: i32) -> AXUIElementRef;
+    fn AXUIElementSetMessagingTimeout(el: AXUIElementRef, seconds: f32) -> i32;
     fn AXUIElementSetAttributeValue(el: AXUIElementRef, attr: CFStringRef, value: CFTypeRef) -> i32;
     fn AXUIElementCopyAttributeValue(el: AXUIElementRef, attr: CFStringRef, out: *mut CFTypeRef) -> i32;
     fn AXValueGetValue(value: CFTypeRef, ty: u32, out: *mut c_void) -> bool;
@@ -153,6 +154,9 @@ pub fn dock(app: AppHandle, id: &str) -> Result<(), String> {
     unsafe {
         if let Some(old) = guard.take() { teardown(old); }
         let app_el = AXUIElementCreateApplication(pid);
+        // A hung target would otherwise block each AX read for the 6 s default while holding DOCK,
+        // which the main thread also needs: Wings would freeze with it.
+        AXUIElementSetMessagingTimeout(app_el, 0.5);
         // Electron/Chromium apps (Claude, ChatGPT) only build their AX tree when asked to.
         AXUIElementSetAttributeValue(app_el, cfs("AXManualAccessibility").as_concrete_TypeRef(), CFBoolean::true_value().as_CFTypeRef());
         let mut observer: AXObserverRef = null();

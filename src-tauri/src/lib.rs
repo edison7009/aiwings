@@ -44,7 +44,10 @@ fn paste_note(app: AppHandle, text: String) {
 #[tauri::command]
 fn capture_now(app: AppHandle) {
     std::thread::spawn(move || {
-        if platform::activate_target() { actions::capture(&app); } else { actions::emit_error(&app, "没能切换到目标窗口"); }
+        if !platform::activate_target() { return actions::emit_error(&app, "没能切换到目标窗口"); }
+        // Like paste and clear: without the caret in the input, select-all would grab the whole page.
+        platform::focus_input();
+        actions::capture(&app);
     });
 }
 
