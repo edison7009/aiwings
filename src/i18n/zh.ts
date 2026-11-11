@@ -1,0 +1,68 @@
+// Simplified Chinese, the source language. Every other language has the same keys.
+export const zh = {
+  welcome: (key: string) => `上手三步：
+1. 在 AI 应用的输入框里写下一句话
+2. 按 ${key}，它会被收进这里，输入框清空
+3. 等 AI 空下来，点一下便签，它会被粘贴回输入框（不会自动发送）
+
+看完悬停点右侧垃圾桶删掉这张。`,
+  emptyTitle: '还没有候着的话',
+  emptyBody: (key: string) => `在输入框里写好，按 ${key} 存到这里`,
+  pasted: (pasteKey: string) => `已复制到剪贴板，可 ${pasteKey} 粘贴到任意处`,
+  delete: '删除',
+  layoutFollow: '吸附',
+  layoutLock: '指定',
+  layoutFloat: '悬停',
+  layoutHint: {
+    follow: '自动吸附到正在用的 AI 应用和终端',
+    lock: '只吸附到指定的应用，可选一个或多个',
+    float: '停在任意位置，便签粘贴到最近用过的 AI 应用',
+  },
+  settings: '设置',
+  back: '返回',
+  supportsSave: '已支持',
+  noApps: '没有找到可用的应用',
+  lockCount: (n: number) => `指定 ${n} 个应用`,
+  chipLabel: '输入框上的「保存到 Wings」',
+  show: '显示',
+  hide: '不显示',
+  theme: '外观',
+  palette: '配色',
+  themeSystem: '跟随系统',
+  themeLight: '白天',
+  themeDark: '夜晚',
+  shortcut: '保存快捷键',
+  textSize: '文字大小',
+  smaller: '缩小',
+  larger: '放大',
+  resetSize: '恢复默认',
+  shortcutChange: '点击修改',
+  shortcutPress: '请按下新的组合键…',
+  shortcutCancel: 'Esc 取消',
+  shortcutRuleMac: '请用 ⌥ 或 ⌃ 加一个字母、数字或 F 键',
+  shortcutRuleWin: '请用 Alt 加一个字母、数字或 F 键',
+  saveToWings: '保存到 Wings',
+  clear: '清空',
+  updateDownload: '下载新版本',
+  updateDownloading: '正在下载新版本',
+  updateFailed: '更新下载失败',
+  permTitle: '需要一项系统权限',
+  permBody: 'Wings 要模拟「全选、剪切、粘贴」三个按键，macOS 需要你允许「辅助功能」权限。Wings 不读取其他应用的内容。',
+  permStep1: '点下面的按钮，打开系统设置',
+  permStep2: '在「辅助功能」列表里找到 Wings，打开开关',
+  permStep3: '回到这里，会自动继续',
+  permButton: '打开系统设置',
+  permWaiting: '正在等待授权…',
+  language: '语言',
+  langAuto: '跟随系统',
+  tagline: '预输入',
+  palettes: { basalt: '默认', wings: 'Wings 粉', sakura: '樱花', amber: '琥珀', mint: '薄荷', glacier: '冰川', lavender: '薰衣草', copper: '铜橙', obsidian: '曜石' },
+  trayDocked: (name: string) => `吸附：${name}`,
+  trayIdle: '未吸附（悬停中）',
+  trayShow: '显示 Wings',
+  trayQuit: '退出 Wings',
+  /** Messages from the Rust side arrive in Chinese; each language maps them (or parts of them) to its own words. */
+  errors: {} as Record<string, string>,
+};
+
+export type Strings = typeof zh;

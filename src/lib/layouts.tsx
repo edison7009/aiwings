@@ -11,8 +11,9 @@ const LockIcon = <svg {...svg}><rect x="2" y="2" width="5" height="5" rx="1.4" f
 /** Hover: a small window floating over a larger one. */
 const FloatIcon = <svg {...svg}><rect x="2" y="2.5" width="12" height="9" rx="1.5" strokeDasharray="2 1.6" /><rect x="7" y="7.5" width="7" height="6" rx="1.2" fill="var(--card)" /></svg>;
 
-/** One three-way choice, in the header and in settings alike: icons, with the name as a hover tip. */
-export const LAYOUTS: [Prefs['layout'], string, ReactNode][] = [
+/** One three-way choice, in the header and in settings alike: icons, with the name as a hover tip.
+ *  A function so the names follow the current language. */
+export const layouts = (): [Prefs['layout'], string, ReactNode][] => [
   ['follow', t.layoutFollow, FollowIcon],
   ['lock', t.layoutLock, LockIcon],
   ['float', t.layoutFloat, FloatIcon],

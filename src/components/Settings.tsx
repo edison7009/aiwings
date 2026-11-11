@@ -3,9 +3,9 @@ import { invoke } from '@tauri-apps/api/core';
 import { getVersion } from '@tauri-apps/api/app';
 import { withLayout, type Prefs } from '../lib/prefs';
 import type { Target } from './TargetPicker';
-import { t } from '../strings';
+import { t, LANGS } from '../strings';
 import { Segmented } from './Segmented';
-import { LAYOUTS } from '../lib/layouts';
+import { layouts } from '../lib/layouts';
 import { AppMenu } from './AppMenu';
 import { ShortcutRecorder } from './ShortcutRecorder';
 import { TextSize } from './TextSize';
@@ -33,7 +33,7 @@ export function Settings({ prefs, shortcut, target, onChange, onError, onShortcu
       <div className="panel-body settings">
         {/* Layout first. Only lock mode asks which apps; follow and hover need no setup. */}
         <section>
-          <Segmented value={prefs.layout} options={LAYOUTS} onChange={v => onChange(withLayout(prefs, v, target.key))} />
+          <Segmented value={prefs.layout} options={layouts()} onChange={v => onChange(withLayout(prefs, v, target.key))} />
           <p className="muted small hint">{t.layoutHint[prefs.layout]}</p>
           {prefs.layout === 'lock' && <AppMenu keys={prefs.lockKeys} onChangeKeys={keys => set('lockKeys', keys)} />}
         </section>
@@ -51,6 +51,13 @@ export function Settings({ prefs, shortcut, target, onChange, onError, onShortcu
           <TextSize />
         </section>
         <section>
+          <label>{t.language}</label>
+          <select className="select" value={prefs.lang} onChange={e => set('lang', e.target.value as Prefs['lang'])}>
+            <option value="auto">{t.langAuto}</option>
+            {LANGS.map(([code, name]) => <option key={code} value={code}>{name}</option>)}
+          </select>
+        </section>
+        <section>
           <label>{t.shortcut}</label>
           <ShortcutRecorder label={shortcut} onChange={onShortcut} onError={onError} />
         </section>
@@ -60,7 +67,7 @@ export function Settings({ prefs, shortcut, target, onChange, onError, onShortcu
         <button type="button" onClick={onBack}>‹ {t.back}</button>
         <span className="settings-version">{version ? `v${version}` : ''}</span>
         <button type="button" onClick={() => void invoke('open_url', { url: 'https://aiwings.app' })}>
-          {t.website}
+          aiwings.app
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
           </svg>

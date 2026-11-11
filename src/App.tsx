@@ -9,11 +9,11 @@ import { Settings } from './components/Settings';
 import { savedShortcut } from './components/ShortcutRecorder';
 import { Segmented } from './components/Segmented';
 import { loadNotes, makeNote, saveNotes, type Note } from './lib/notes';
-import { LAYOUTS } from './lib/layouts';
+import { layouts } from './lib/layouts';
 import { applyThemeMode, readPrefs, withLayout, saveFloatRect, writePrefs, type Prefs } from './lib/prefs';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { applyTheme, themeFor } from './lib/theme';
-import { t } from './strings';
+import { t, tr, setLang } from './strings';
 
 const TARGET_KEY = 'wings-target';
 const PASTE_KEY = /Mac/.test(navigator.userAgent) ? '⌘V' : 'Ctrl+V';
@@ -55,12 +55,12 @@ export function App() {
   trustedRef.current = trusted === true;
 
   const flash = useCallback((msg: string, duration = 2600) => {
-    setToast(msg);
+    setToast(tr(msg));
     window.clearTimeout(toastTimer.current);
     toastTimer.current = window.setTimeout(() => setToast(null), duration);
   }, []);
 
-  const changePrefs = useCallback((next: Prefs) => { setPrefs(next); writePrefs(next, idleRef.current); applyThemeMode(next.theme, next.palette); }, []);
+  const changePrefs = useCallback((next: Prefs) => { setLang(next.lang); setPrefs(next); writePrefs(next, idleRef.current); applyThemeMode(next.theme, next.palette); }, []);
 
   useEffect(() => {
     // Re-apply a saved custom shortcut first; if it can no longer be registered, the default stays.
@@ -111,7 +111,9 @@ export function App() {
     });
   }, [trusted, target, idle, choose]);
 
-  useEffect(() => { void invoke('set_tray_target', { name: target?.name ?? null }); }, [target]);
+  useEffect(() => {
+    void invoke('set_tray_labels', { target: target ? t.trayDocked(target.name) : t.trayIdle, docked: !!target, show: t.trayShow, quit: t.trayQuit });
+  }, [target, prefs.lang]);
 
   useEffect(() => { applyTheme(themeFor(target?.key ?? null)); }, [target]);
 
@@ -144,7 +146,7 @@ export function App() {
       {/* Hover mode lets the header drag the bar anywhere; docked, it follows the target instead. */}
       <header className="panel-head" data-tauri-drag-region={floating || undefined}>
         <span className="brand" data-tauri-drag-region={floating || undefined}>{target?.name ?? 'Wings'}</span>
-        <Segmented value={prefs.layout} options={LAYOUTS} onChange={layout => changePrefs(withLayout(prefs, layout, target?.key ?? null))} />
+        <Segmented value={prefs.layout} options={layouts()} onChange={layout => changePrefs(withLayout(prefs, layout, target?.key ?? null))} />
       </header>
       <NoteList
         notes={notes}

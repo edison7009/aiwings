@@ -1,57 +1,49 @@
-// UI copy. Chinese first; kept in one place so other languages can be added later.
-export const t = {
-  welcome: (key: string) => `上手三步：
-1. 在 AI 应用的输入框里写下一句话
-2. 按 ${key}，它会被收进这里，输入框清空
-3. 等 AI 空下来，点一下便签，它会被粘贴回输入框（不会自动发送）
+// UI copy. `t` holds the current language's strings and is swapped in place when the language changes,
+// so every `t.x` read at render time follows. Simplified Chinese (src/i18n/zh.ts) is the source.
+import { zh, type Strings } from './i18n/zh';
+import { zhTW } from './i18n/zhTW';
+import { en } from './i18n/en';
+import { ja } from './i18n/ja';
+import { ko } from './i18n/ko';
+import { es } from './i18n/es';
+import { fr } from './i18n/fr';
+import { de } from './i18n/de';
+import { pt } from './i18n/pt';
+import { ru } from './i18n/ru';
 
-看完悬停点右侧垃圾桶删掉这张。`,
-  emptyTitle: '还没有候着的话',
-  emptyBody: (key: string) => `在输入框里写好，按 ${key} 存到这里`,
-  pasted: (pasteKey: string) => `已复制到剪贴板，可 ${pasteKey} 粘贴到任意处`,
-  delete: '删除',
-  layoutFollow: '吸附',
-  layoutLock: '指定',
-  layoutFloat: '悬停',
-  layoutHint: {
-    follow: '自动吸附到正在用的 AI 应用和终端',
-    lock: '只吸附到指定的应用，可选一个或多个',
-    float: '停在任意位置，便签粘贴到最近用过的 AI 应用',
-  },
-  settings: '设置',
-  back: '返回',
-  supportsSave: '已支持',
-  noApps: '没有找到可用的应用',
-  lockCount: (n: number) => `指定 ${n} 个应用`,
-  chipLabel: '输入框上的「保存到 Wings」',
-  show: '显示',
-  hide: '不显示',
-  theme: '外观',
-  palette: '配色',
-  themeSystem: '跟随系统',
-  themeLight: '白天',
-  themeDark: '夜晚',
-  shortcut: '保存快捷键',
-  textSize: '文字大小',
-  smaller: '缩小',
-  larger: '放大',
-  resetSize: '恢复默认',
-  shortcutChange: '点击修改',
-  shortcutPress: '请按下新的组合键…',
-  shortcutCancel: 'Esc 取消',
-  shortcutRuleMac: '请用 ⌥ 或 ⌃ 加一个字母、数字或 F 键',
-  shortcutRuleWin: '请用 Alt 加一个字母、数字或 F 键',
-  saveToWings: '保存到 Wings',
-  clear: '清空',
-  updateDownload: '下载新版本',
-  updateDownloading: '正在下载新版本',
-  updateFailed: '更新下载失败',
-  website: '官网',
-  permTitle: '需要一项系统权限',
-  permBody: 'Wings 要模拟「全选、剪切、粘贴」三个按键，macOS 需要你允许「辅助功能」权限。Wings 不读取其他应用的内容。',
-  permStep1: '点下面的按钮，打开系统设置',
-  permStep2: '在「辅助功能」列表里找到 Wings，打开开关',
-  permStep3: '回到这里，会自动继续',
-  permButton: '打开系统设置',
-  permWaiting: '正在等待授权…',
-};
+const LOCALES = { zh, 'zh-TW': zhTW, en, ja, ko, es, fr, de, pt, ru } satisfies Record<string, Strings>;
+export type Lang = keyof typeof LOCALES;
+
+/** The language picker's list, each in its own language. */
+export const LANGS: [Lang, string][] = [
+  ['zh', '简体中文'], ['zh-TW', '繁體中文'], ['en', 'English'], ['ja', '日本語'], ['ko', '한국어'],
+  ['es', 'Español'], ['fr', 'Français'], ['de', 'Deutsch'], ['pt', 'Português'], ['ru', 'Русский'],
+];
+
+/** The system's language, or English when Wings has no translation for it. */
+function systemLang(): Lang {
+  const tag = (navigator.language || 'en').toLowerCase();
+  if (tag.startsWith('zh')) return /tw|hk|mo|hant/.test(tag) ? 'zh-TW' : 'zh';
+  const base = tag.split('-')[0];
+  return base in LOCALES ? base as Lang : 'en';
+}
+
+export const t: Strings = { ...zh };
+let errorPattern: RegExp | null = null;
+
+/** Switches every string to `lang` ('auto' follows the system). */
+export function setLang(lang: Lang | 'auto') {
+  const code = lang === 'auto' ? systemLang() : lang;
+  Object.assign(t, LOCALES[code] ?? zh);
+  document.documentElement.lang = code === 'zh' ? 'zh-CN' : code;
+  const keys = Object.keys(t.errors).sort((a, b) => b.length - a.length);
+  errorPattern = keys.length ? new RegExp(keys.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'g') : null;
+}
+
+/** Messages from the Rust side are Chinese; this swaps each known piece for the current language's words. */
+export function tr(msg: string): string {
+  return errorPattern ? msg.replace(errorPattern, m => t.errors[m] ?? m) : msg;
+}
+
+// Set before the first render, from the saved setting (read directly: prefs.ts imports this module).
+try { setLang(JSON.parse(localStorage.getItem('wings-prefs') ?? '{}').lang ?? 'auto'); } catch { setLang('auto'); }

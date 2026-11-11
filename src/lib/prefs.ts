@@ -1,6 +1,7 @@
 // User settings, kept in localStorage and mirrored to the Rust side.
 import { invoke } from '@tauri-apps/api/core';
 import type { PaletteId } from './palettes';
+import type { Lang } from '../strings';
 
 export interface Prefs {
   /**
@@ -17,10 +18,12 @@ export interface Prefs {
   palette: PaletteId;
   /** Show the "save to Wings" chip on the target's input box. */
   chip: boolean;
+  /** UI language; 'auto' follows the system. */
+  lang: Lang | 'auto';
 }
 
 const KEY = 'wings-prefs';
-const DEFAULTS: Prefs = { layout: 'follow', lockKeys: [], theme: 'system', palette: 'basalt', chip: true };
+const DEFAULTS: Prefs = { layout: 'follow', lockKeys: [], theme: 'system', palette: 'basalt', chip: true, lang: 'auto' };
 
 export function readPrefs(): Prefs {
   try {

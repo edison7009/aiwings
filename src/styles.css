@@ -732,3 +732,15 @@ kbd { font: inherit; padding: 1px 6px; border-radius: 4px; border: 1px solid var
   --stone: none;
   color-scheme: dark;
 }
+
+/* Language picker: a plain dropdown, styled like the rows around it. */
+.settings .select {
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}

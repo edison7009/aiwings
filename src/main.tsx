@@ -13,5 +13,13 @@ document.documentElement.dataset.window = isChip ? 'chip' : 'main';
 // The bar's text can be enlarged; the chip keeps its size so it still fits on the input's border.
 if (!isChip) installZoom();
 // The other window saving prefs (the bar's settings) re-themes this one.
-window.addEventListener('storage', e => { if (e.key === 'wings-prefs') { const p = readPrefs(); applyThemeMode(p.theme, p.palette); }; });
+// The chip has two words of text; on a language change it simply reloads.
+let lang = readPrefs().lang;
+window.addEventListener('storage', e => {
+  if (e.key !== 'wings-prefs') return;
+  const p = readPrefs();
+  applyThemeMode(p.theme, p.palette);
+  if (isChip && p.lang !== lang) location.reload();
+  lang = p.lang;
+});
 createRoot(document.getElementById('root')!).render(<StrictMode>{isChip ? <Chip /> : <App />}</StrictMode>);
