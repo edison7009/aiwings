@@ -39,7 +39,8 @@ pub struct Frame { pub x: f64, pub y: f64, pub w: f64, pub h: f64 }
 pub fn place_bar(app: &AppHandle, f: Frame, scale: f64) {
     let Some(win) = app.get_webview_window("main") else { return };
     let bar_w = BAR_WIDTH * scale;
-    let mut x = f.x + f.w;
+    // Tuck 1pt under the target's edge so no sliver of desktop shows between the two windows.
+    let mut x = f.x + f.w - scale;
     if let Ok(Some(m)) = app.monitor_from_point(f.x + f.w / 2.0, f.y + f.h / 2.0) {
         let right = (m.position().x as f64) + m.size().width as f64;
         if x + bar_w > right { x = f.x + f.w - bar_w; }
