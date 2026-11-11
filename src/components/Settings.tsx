@@ -3,7 +3,8 @@ import { invoke } from '@tauri-apps/api/core';
 import { getVersion } from '@tauri-apps/api/app';
 import { withLayout, type Prefs } from '../lib/prefs';
 import type { Target } from './TargetPicker';
-import { t, LANGS } from '../strings';
+import { t } from '../strings';
+import { LangMenu } from './LangMenu';
 import { Segmented } from './Segmented';
 import { layouts } from '../lib/layouts';
 import { AppMenu } from './AppMenu';
@@ -52,10 +53,7 @@ export function Settings({ prefs, shortcut, target, onChange, onError, onShortcu
         </section>
         <section>
           <label>{t.language}</label>
-          <select className="select" value={prefs.lang} onChange={e => set('lang', e.target.value as Prefs['lang'])}>
-            <option value="auto">{t.langAuto}</option>
-            {LANGS.map(([code, name]) => <option key={code} value={code}>{name}</option>)}
-          </select>
+          <LangMenu value={prefs.lang} onChange={v => set('lang', v)} />
         </section>
         <section>
           <label>{t.shortcut}</label>
