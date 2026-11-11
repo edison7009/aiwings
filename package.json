@@ -1,7 +1,7 @@
 {
   "name": "aiwings",
   "private": true,
-  "version": "0.0.2",
+  "version": "0.0.3",
   "homepage": "https://aiwings.app",
   "type": "module",
   "scripts": {
