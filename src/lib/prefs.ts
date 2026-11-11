@@ -10,12 +10,10 @@ export interface Prefs {
   followKeys: string[] | null;
   /** Show the "save to Wings" chip on the target's input box. */
   chip: boolean;
-  /** Background opacity, 0.3–1. */
-  opacity: number;
 }
 
 const KEY = 'wings-prefs';
-const DEFAULTS: Prefs = { mode: 'dock', follow: true, followKeys: null, chip: true, opacity: 0.92 };
+const DEFAULTS: Prefs = { mode: 'dock', follow: true, followKeys: null, chip: true };
 
 export function readPrefs(): Prefs {
   try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) ?? '{}') }; } catch { return DEFAULTS; }

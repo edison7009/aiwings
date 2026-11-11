@@ -26,7 +26,6 @@ export const t = {
   chipLabel: '输入框上的「保存到 Wings」',
   show: '显示',
   hide: '不显示',
-  opacity: '背景不透明度',
   shortcut: '保存快捷键',
   saveToWings: '保存到 Wings',
   clear: '清空',

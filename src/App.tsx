@@ -147,7 +147,7 @@ export function App() {
 
   return (
     <div className={`shell${target ? (prefs.mode === 'dock' ? ' shell--docked' : ' shell--float') : ''}`}>
-      <div className="panel" style={{ '--panel-opacity': prefs.opacity } as React.CSSProperties}>{body}</div>
+      <div className="panel">{body}</div>
       {toast && <div className="toast" role="status">{toast}</div>}
     </div>
   );

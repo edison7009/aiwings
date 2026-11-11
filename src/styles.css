@@ -54,15 +54,13 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
   border-radius: var(--radius);
   overflow: hidden;
 }
-/* Basalt stone (from Coffee CLI) on the theme base; only this layer fades with the opacity setting. */
+/* Basalt stone (from Coffee CLI) on the theme base, fully opaque: the apps Wings sits beside are opaque too. */
 .panel::before {
   content: '';
   position: absolute;
   inset: 0;
   z-index: -1;
   background: var(--stone) center / cover no-repeat, var(--bg);
-  opacity: var(--panel-opacity, 0.92);
-  transition: opacity 0.15s;
 }
 .panel-head {
   display: flex;
@@ -252,29 +250,6 @@ h1 { font-size: 15px; margin: 6px 0 4px; }
 .settings .segmented { display: grid; width: 100%; }
 .settings .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; border-radius: 8px; background: var(--card); }
 .settings .row-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Slider: blue track filled up to a white knob (iOS style). The fill comes from --fill. */
-.settings input[type=range] {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 100%;
-  height: 4px;
-  margin: 8px 0;
-  border-radius: 2px;
-  background: linear-gradient(to right, var(--accent) var(--fill, 100%), var(--line) var(--fill, 100%));
-  outline: none;
-}
-.settings input[type=range]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 16px;
-  height: 16px;
-  border: 0;
-  border-radius: 50%;
-  background: #ffffff;
-  /* A soft shadow, not a rim, keeps the white knob visible on light backgrounds. */
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-  cursor: pointer;
-}
 .small { font-size: 12px; margin: 6px 0 0; }
 .settings .hint { margin: 8px 0 0; }
 /* App menu: opens below its button, never over it. */

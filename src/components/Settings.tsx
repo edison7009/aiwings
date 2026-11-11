@@ -36,11 +36,6 @@ export function Settings({ prefs, shortcut, target, onChange, onPickTarget, onEr
           <Segmented value={prefs.chip ? 'on' : 'off'} options={[['on', t.show], ['off', t.hide]]} onChange={v => set('chip', v === 'on')} />
         </section>
         <section>
-          <label>{t.opacity} <span className="muted">{Math.round(prefs.opacity * 100)}%</span></label>
-          <input type="range" min={30} max={100} value={Math.round(prefs.opacity * 100)}
-            style={{ '--fill': `${((prefs.opacity * 100 - 30) / 70) * 100}%` } as React.CSSProperties} onChange={e => set('opacity', Number(e.target.value) / 100)} />
-        </section>
-        <section>
           <label>{t.shortcut}</label>
           <div className="row"><kbd>{shortcut}</kbd></div>
         </section>
