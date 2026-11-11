@@ -8,6 +8,7 @@ import { Settings } from './components/Settings';
 import { Segmented } from './components/Segmented';
 import { loadNotes, makeNote, saveNotes, type Note } from './lib/notes';
 import { readPrefs, writePrefs, type Prefs } from './lib/prefs';
+import { applyTheme, themeFor } from './lib/theme';
 import { t } from './strings';
 
 const TARGET_KEY = 'wings-target';
@@ -89,6 +90,8 @@ export function App() {
       if (hit) void choose(hit); else setMissing(last.name);
     });
   }, [trusted, target, choose]);
+
+  useEffect(() => { applyTheme(themeFor(target?.key ?? null)); }, [target]);
 
   const switchTarget = () => { void invoke('clear_target'); setTarget(null); setView('notes'); };
 

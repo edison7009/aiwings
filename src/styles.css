@@ -7,6 +7,8 @@
   --muted: #7a776f;
   --line: rgba(0, 0, 0, 0.08);
   --accent: #d97757;
+  /* Neutral glow that follows light/dark; themes may override it (see src/lib/theme.ts). */
+  --hover-glow: rgba(0, 0, 0, 0.06);
   --accent-text: #ffffff;
   --radius: 12px;
   color-scheme: light dark;
@@ -20,6 +22,7 @@
     --text: #ecebe7;
     --muted: #9a978f;
     --line: rgba(255, 255, 255, 0.08);
+    --hover-glow: rgba(255, 255, 255, 0.07);
   }
 }
 
@@ -114,7 +117,7 @@ h1 { font-size: 15px; margin: 6px 0 4px; }
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: radial-gradient(140px circle at var(--glow-x, 50%) 50%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%);
+  background: radial-gradient(140px circle at var(--glow-x, 50%) 50%, var(--hover-glow), transparent 70%);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s;
@@ -154,7 +157,7 @@ h1 { font-size: 15px; margin: 6px 0 4px; }
   pointer-events: none;
   transition: opacity 0.18s, transform 0.18s;
 }
-.note:is(:hover, .is-hover, :focus-within) .note-quick { opacity: 1; transform: none; pointer-events: auto; }
+.note:is(:hover, .is-hover, :has(:focus-visible)) .note-quick { opacity: 1; transform: none; pointer-events: auto; }
 .note-btn {
   width: 26px;
   height: 26px;
