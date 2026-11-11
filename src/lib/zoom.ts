@@ -12,18 +12,30 @@ function apply(z: number) {
   try { localStorage.setItem(KEY, String(z)); } catch { /* Best effort. */ }
 }
 
+let z = 1;
+const listeners = new Set<(z: number) => void>();
+
+export const ZOOM_STEPS = STEPS;
+export function getZoom() { return z; }
+export function setZoom(next: number) {
+  if (next === z) return;
+  z = next; apply(z); listeners.forEach(f => f(z));
+}
+export function onZoom(f: (z: number) => void) { listeners.add(f); return () => { listeners.delete(f); }; }
+export function stepZoom(dir: -1 | 1) {
+  const i = STEPS.indexOf(z);
+  setZoom(STEPS[Math.min(Math.max(i + dir, 0), STEPS.length - 1)]);
+}
+
 export function installZoom() {
-  let z = read();
+  z = read();
   apply(z);
   window.addEventListener('keydown', e => {
     if (!(/Mac/.test(navigator.userAgent) ? e.metaKey : e.ctrlKey) || e.altKey) return;
-    const i = STEPS.indexOf(z);
-    let next = z;
-    if (e.key === '=' || e.key === '+') next = STEPS[Math.min(i + 1, STEPS.length - 1)];
-    else if (e.key === '-' || e.key === '_') next = STEPS[Math.max(i - 1, 0)];
-    else if (e.key === '0') next = 1;
+    if (e.key === '=' || e.key === '+') stepZoom(1);
+    else if (e.key === '-' || e.key === '_') stepZoom(-1);
+    else if (e.key === '0') setZoom(1);
     else return;
     e.preventDefault();
-    if (next !== z) { z = next; apply(z); }
   });
 }

@@ -5,6 +5,7 @@ import { Segmented } from './Segmented';
 import { LAYOUTS } from '../lib/layouts';
 import { AppMenu } from './AppMenu';
 import { ShortcutRecorder } from './ShortcutRecorder';
+import { TextSize } from './TextSize';
 
 interface Props {
   prefs: Prefs;
@@ -38,6 +39,10 @@ export function Settings({ prefs, shortcut, target, onChange, onError, onShortcu
         <section>
           <label>{t.theme}</label>
           <Segmented value={prefs.theme} options={[['system', t.themeSystem], ['light', t.themeLight], ['dark', t.themeDark]]} onChange={v => set('theme', v)} />
+        </section>
+        <section>
+          <label>{t.textSize}</label>
+          <TextSize />
         </section>
         <section>
           <label>{t.shortcut}</label>
