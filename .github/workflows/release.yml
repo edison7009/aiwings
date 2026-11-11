@@ -1,0 +1,56 @@
+# Builds Wings for macOS (Apple silicon and Intel) and Windows when a v* tag is pushed,
+# and publishes the installers to a GitHub release named after the tag.
+# Not yet signed with an Apple Developer ID: macOS builds are ad-hoc signed only.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            args: --target aarch64-apple-darwin
+            rust_target: aarch64-apple-darwin
+          - platform: macos-latest
+            args: --target x86_64-apple-darwin
+            rust_target: x86_64-apple-darwin
+          - platform: windows-latest
+            args: ''
+            rust_target: ''
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+      - run: npm ci
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: Wings ${{ github.ref_name }}
+          releaseBody: |
+            First preview build of Wings.
+
+            - macOS 11+: download the `aarch64` dmg for Apple silicon, `x64` for Intel. The app is not notarized yet: on first launch, right-click Wings in Applications and choose Open.
+            - Windows 10+: run the `setup.exe` installer.
+          releaseDraft: false
+          prerelease: false
+          assetNamePattern: '[name]-[version]-[platform]-[arch][setup][ext]'
+          args: ${{ matrix.args }}
