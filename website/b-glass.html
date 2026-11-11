@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wings 预输入 · AI 在忙，下一句先存着</title>
+<meta name="description" content="Wings 是贴在 Claude、ChatGPT 旁边的一条侧栏。想到的话随手存下，等 AI 回完，点一下就贴回输入框。">
+<link rel="icon" href="assets/wings-icon-1024.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/demo.css">
+<style>
+/* Concept B, Bubblegum Glass: the same pink, grown up. A soft pink light behind frosted glass panels,
+   heavy Chinese type with tight tracking, split hero, bento features. One sticker, used once. */
+:root {
+  --pink: #f84890; --pink-soft: #ffd6e7; --purple: #4a0a78; --ink: #1a1320; --muted: #6d6474; --bg: #fbf6f9;
+  --glass: rgba(255, 255, 255, .62); --glass-line: rgba(255, 255, 255, .9);
+  --ease: cubic-bezier(.22, 1, .36, 1);
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; overflow-x: clip; }
+body { margin: 0; color: var(--ink); background: var(--bg); font: 400 17px/1.7 "Noto Sans SC", system-ui, sans-serif; overflow-x: hidden; }
+a { color: inherit; }
+h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 900; letter-spacing: -.02em; }
+p { text-wrap: pretty; }
+.wrap { width: min(1200px, 100% - 40px); margin-inline: auto; }
+.latin { font-family: "Bricolage Grotesque", "Noto Sans SC", sans-serif; }
+
+/* The light: two blurred blobs, fixed behind everything. */
+.aura { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+.aura i { position: absolute; border-radius: 50%; filter: blur(90px); opacity: .55; }
+.aura i:nth-child(1) { width: 52vw; height: 52vw; right: -12vw; top: -14vw; background: #ff8fbf; }
+.aura i:nth-child(2) { width: 40vw; height: 40vw; left: -14vw; top: 40vh; background: #ffc9a8; opacity: .45; }
+.aura i:nth-child(3) { width: 34vw; height: 34vw; right: 10vw; bottom: -18vw; background: #d9b6ff; opacity: .35; }
+
+.glass { background: var(--glass); border: 1px solid var(--glass-line); backdrop-filter: blur(22px) saturate(1.4); -webkit-backdrop-filter: blur(22px) saturate(1.4); border-radius: 28px; box-shadow: 0 1px 0 rgba(255,255,255,.8) inset, 0 24px 60px -30px rgba(74, 10, 120, .35); }
+
+.nav { position: sticky; top: 14px; z-index: 10; margin-top: 14px; }
+.nav-in { display: flex; align-items: center; justify-content: space-between; padding: 10px 10px 10px 20px; border-radius: 999px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 800; text-decoration: none; }
+.brand img { width: 30px; height: 30px; border-radius: 8px; }
+.nav nav { display: flex; gap: 26px; font-size: 15px; }
+.nav nav a { text-decoration: none; color: var(--muted); transition: color .3s var(--ease); }
+.nav nav a:hover { color: var(--ink); }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 13px 22px; border-radius: 999px; font: 700 16px/1 "Noto Sans SC", sans-serif; text-decoration: none; transition: transform .3s var(--ease), box-shadow .3s var(--ease), background .3s; }
+.btn.primary { background: var(--ink); color: #fff; box-shadow: 0 10px 30px -10px rgba(26, 19, 32, .6); }
+.btn.primary:hover { transform: translateY(-2px); box-shadow: 0 16px 36px -12px rgba(248, 72, 144, .7); background: #2a1d33; }
+.btn.soft { background: rgba(255,255,255,.7); color: var(--ink); border: 1px solid rgba(26,19,32,.08); }
+.btn.soft:hover { background: #fff; }
+.btn:active { transform: translateY(1px); }
+.btn.sm { padding: 10px 18px; font-size: 15px; }
+a:focus-visible { outline: 3px solid var(--pink); outline-offset: 3px; }
+
+/* Split hero. */
+.hero { display: grid; grid-template-columns: .9fr 1.1fr; gap: 56px; align-items: center; min-height: calc(100vh - 80px); padding: 40px 0 64px; }
+.hero h1 { font-size: clamp(40px, 5.2vw, 76px); line-height: 1.08; }
+.nowrap { white-space: nowrap; }
+.hero h1 em { font-style: normal; background: linear-gradient(100deg, var(--pink), #ff7a9e 60%, #c04de0); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hero .sub { margin: 24px 0 32px; font-size: 19px; color: var(--muted); max-width: 520px; }
+.cta { display: flex; gap: 12px; flex-wrap: wrap; }
+.meta { display: flex; gap: 18px; margin-top: 28px; color: var(--muted); font-size: 14px; flex-wrap: wrap; }
+.meta span { display: inline-flex; align-items: center; gap: 6px; }
+.meta span::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--pink); }
+.demo-glass { position: relative; padding: 18px; }
+.demo-glass .wd { --wd-radius: 18px; --wd-shadow: 0 20px 40px -24px rgba(74,10,120,.35); --wd-accent: #007aff; --wd-border: 1px solid rgba(26,19,32,.06); max-width: none; }
+.sticker { position: absolute; width: 190px; right: -26px; top: -46px; rotate: 8deg; filter: drop-shadow(0 12px 18px rgba(74, 10, 120, .3)); transition: rotate .6s var(--ease); }
+.demo-glass:hover .sticker { rotate: 2deg; }
+
+section { padding: 112px 0; }
+.kicker { color: var(--pink); font-weight: 700; font-size: 15px; margin-bottom: 14px; display: block; }
+h2 { font-size: clamp(34px, 4.4vw, 60px); line-height: 1.12; }
+.lede { color: var(--muted); font-size: 19px; max-width: 620px; margin: 18px 0 0; }
+
+/* Before and after, side by side. */
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-top: 48px; }
+.compare .glass { padding: 32px; }
+.compare h3 { font-size: 24px; margin-bottom: 14px; }
+.compare ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; color: var(--muted); }
+.compare li { padding-left: 26px; position: relative; }
+.compare li::before { content: ""; position: absolute; left: 0; top: .62em; width: 12px; height: 2px; background: #c7bccd; }
+.compare .after { background: linear-gradient(160deg, rgba(255,255,255,.8), rgba(255, 214, 231, .7)); }
+.compare .after h3 { color: var(--pink); }
+.compare .after li::before { background: var(--pink); width: 8px; height: 8px; border-radius: 50%; top: .55em; }
+
+/* Steps as a horizontal timeline. */
+.timeline { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin-top: 56px; position: relative; }
+.timeline::before { content: ""; position: absolute; left: 6%; right: 6%; top: 27px; height: 2px; background: linear-gradient(90deg, transparent, rgba(248,72,144,.5), transparent); }
+.tl { padding: 0 22px; text-align: center; }
+.tl .dot { width: 56px; height: 56px; margin: 0 auto 22px; display: grid; place-items: center; border-radius: 50%; background: #fff; box-shadow: 0 10px 24px -10px rgba(248,72,144,.6); font: 800 22px/1 "Bricolage Grotesque", sans-serif; color: var(--pink); position: relative; }
+.tl h3 { font-size: 24px; margin-bottom: 8px; }
+.tl p { color: var(--muted); margin: 0; }
+kbd { font: 700 14px/1 "Bricolage Grotesque", sans-serif; padding: 4px 8px; border-radius: 8px; background: #fff; border: 1px solid rgba(26,19,32,.12); box-shadow: 0 2px 0 rgba(26,19,32,.12); }
+
+/* Bento. */
+.bento { display: grid; grid-template-columns: repeat(12, 1fr); grid-auto-rows: minmax(200px, auto); gap: 18px; margin-top: 48px; }
+.b { padding: 30px; display: flex; flex-direction: column; justify-content: flex-end; position: relative; overflow: hidden; }
+.b h3 { font-size: 26px; margin-bottom: 8px; }
+.b p { margin: 0; color: var(--muted); }
+.b1 { grid-column: span 7; grid-row: span 2; justify-content: space-between; }
+.b2 { grid-column: span 5; }
+.b3 { grid-column: span 5; background: var(--ink); color: #fff; border-color: rgba(255,255,255,.1); }
+.b3 p { color: #cbbfd3; }
+.b4 { grid-column: span 4; }
+.b5 { grid-column: span 4; }
+.b6 { grid-column: span 4; }
+.modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 26px; }
+.mode { border-radius: 18px; background: rgba(255,255,255,.75); padding: 14px; font-size: 14px; color: var(--muted); }
+.mode b { display: block; color: var(--ink); font-size: 18px; margin-bottom: 4px; }
+.mini { display: flex; gap: 4px; height: 70px; margin-bottom: 12px; }
+.mini i { border-radius: 8px; background: #efe6ef; }
+.mini i.w { background: linear-gradient(180deg, #ff9cc6, var(--pink)); }
+.big-key { font: 800 64px/1 "Bricolage Grotesque", sans-serif; letter-spacing: -.03em; margin-bottom: auto; color: var(--pink); }
+
+/* Apps marquee. */
+.marquee { margin-top: 48px; overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); }
+.track { display: flex; gap: 14px; width: max-content; animation: slide 40s linear infinite; }
+.chip { padding: 14px 24px; border-radius: 999px; font: 700 20px/1 "Bricolage Grotesque", "Noto Sans SC", sans-serif; white-space: nowrap; }
+@keyframes slide { to { transform: translateX(-50%); } }
+
+/* FAQ in two columns. */
+.faq { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 48px; }
+.faq .glass { padding: 26px; border-radius: 24px; }
+.faq h3 { font-size: 19px; margin-bottom: 8px; letter-spacing: 0; }
+.faq p { margin: 0; color: var(--muted); font-size: 16px; }
+
+.final { text-align: center; padding: 120px 0 100px; }
+.final .card { padding: 64px 32px; }
+.final img { width: min(440px, 80%); display: block; margin: 0 auto 30px; filter: drop-shadow(0 18px 26px rgba(74, 10, 120, .28)); }
+.final p { color: var(--muted); max-width: 560px; margin: 0 auto 30px; }
+.final p a { color: var(--pink); }
+footer { padding: 0 0 48px; color: var(--muted); font-size: 14px; }
+footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+
+.rise { opacity: 0; transform: translateY(32px); transition: opacity .8s var(--ease), transform .8s var(--ease); }
+.rise.in { opacity: 1; transform: none; }
+.skip { position: absolute; left: -999px; }
+.skip:focus { left: 16px; top: 16px; z-index: 99; background: #fff; padding: 8px 12px; border-radius: 10px; }
+
+@media (max-width: 900px) {
+  .nav nav { display: none; }
+  .hero { grid-template-columns: 1fr; min-height: 0; }
+  .sticker { width: 130px; right: -6px; top: -40px; }
+  .compare, .timeline, .faq { grid-template-columns: 1fr; }
+  .timeline::before { display: none; }
+  .tl { margin-bottom: 32px; }
+  .bento { grid-template-columns: 1fr; }
+  .bento > * { grid-column: auto !important; grid-row: auto !important; }
+  section { padding: 80px 0; }
+}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } .rise { opacity: 1; transform: none; } }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">跳到正文</a>
+<div class="aura" aria-hidden="true"><i></i><i></i><i></i></div>
+
+<header class="nav wrap">
+  <div class="nav-in glass">
+    <a class="brand" href="#"><img src="assets/wings-icon-1024.png" alt=""><span class="latin">Wings</span></a>
+    <nav><a href="#how">怎么用</a><a href="#features">功能</a><a href="#faq">常见问题</a></nav>
+    <a class="btn primary sm" href="https://github.com/edison7009/aiwings/releases">下载</a>
+  </div>
+</header>
+
+<main id="main">
+  <section class="hero wrap">
+    <div>
+      <h1>AI 在忙，<br><span class="nowrap">下一句<em>先存着</em>。</span></h1>
+      <p class="sub">Wings 是贴在 Claude、ChatGPT 旁边的一条侧栏。想到的话随手存下，等 AI 回完，点一下就贴回输入框。</p>
+      <div class="cta">
+        <a class="btn primary" href="https://github.com/edison7009/aiwings/releases">下载 macOS 版</a>
+        <a class="btn soft" href="https://github.com/edison7009/aiwings">在 GitHub 查看</a>
+      </div>
+      <div class="meta"><span>不会替你发送</span><span>便签只存在本机</span><span>macOS 11 起</span></div>
+    </div>
+    <div class="demo-glass glass">
+      <img class="sticker" src="assets/wings-banner.png" alt="">
+      <div data-wings-demo></div>
+    </div>
+  </section>
+
+  <section class="wrap rise">
+    <span class="kicker">为什么需要它</span>
+    <h2>等 AI 的那一两分钟，<br>想法不该没地方放。</h2>
+    <div class="compare">
+      <div class="glass">
+        <h3>现在</h3>
+        <ul>
+          <li>下一句打在输入框里，手一快按了回车，半句话就发出去了。</li>
+          <li>记进备忘录，来回切窗口，回头还得找、还得复制。</li>
+          <li>干脆先忘了，等 AI 回完才想起来没说完。</li>
+        </ul>
+      </div>
+      <div class="glass after">
+        <h3>有了 Wings</h3>
+        <ul>
+          <li>写好就存进旁边的侧栏，输入框马上清空。</li>
+          <li>想到几句存几句，按顺序排好等着。</li>
+          <li>AI 回完，点一下就贴回去，再看一眼再发。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap rise" id="how">
+    <span class="kicker">怎么用</span>
+    <h2>三步，用起来不用想。</h2>
+    <div class="timeline">
+      <div class="tl"><div class="dot">1</div><h3>照常写</h3><p>在 AI 的输入框里写下一句，和平时一样。</p></div>
+      <div class="tl"><div class="dot">2</div><h3>存进 Wings</h3><p>点输入框上方的「保存到 Wings」，或按 <kbd>⌥S</kbd>，这句话收进侧栏。</p></div>
+      <div class="tl"><div class="dot">3</div><h3>点一下贴回</h3><p>AI 回完了，点一下便签，它回到输入框。确认无误再按回车。</p></div>
+    </div>
+  </section>
+
+  <section class="wrap rise" id="features">
+    <span class="kicker">功能</span>
+    <h2>小工具，但想得很细。</h2>
+    <div class="bento">
+      <div class="b b1 glass">
+        <div class="modes">
+          <div class="mode"><div class="mini"><i style="flex:3"></i><i class="w" style="flex:1"></i></div><b>跟随</b>切到哪个 AI，就贴到哪个旁边</div>
+          <div class="mode"><div class="mini"><i style="flex:3"></i><i class="w" style="flex:1"></i></div><b>固定</b>只陪一个应用，切走就隐藏</div>
+          <div class="mode"><div class="mini" style="align-items:center"><i style="flex:3;height:100%"></i><i class="w" style="flex:1;height:60%"></i></div><b>悬停</b>停在你拖到的任何位置</div>
+        </div>
+        <div><h3>跟着你走，也能停下来</h3><p>三种摆法一键切换。切到另一个 AI 应用，侧栏会跟过去贴好。</p></div>
+      </div>
+      <div class="b b2 glass"><div class="big-key latin">↵ ✕</div><h3>绝不替你发送</h3><p>只粘贴，不按回车。发不发，你说了算。</p></div>
+      <div class="b b3 glass"><h3>只在你的电脑上</h3><p>便签存在本机，没有账号，不上传，也不读你和 AI 的对话。</p></div>
+      <div class="b b4 glass"><h3>剪贴板也有一份</h3><p>点过的便签同时留在剪贴板，⌘V 能贴到任何地方。</p></div>
+      <div class="b b5 glass"><h3>图片也能存</h3><p>截图存成图片便签，点一下原样贴回去。</p></div>
+      <div class="b b6 glass"><h3>快捷键随你改</h3><p>默认 ⌥S，换成你顺手的组合也行。</p></div>
+    </div>
+  </section>
+
+  <section class="rise">
+    <div class="wrap"><span class="kicker">适配</span><h2>贴在你常用的 AI 旁边。</h2>
+      <p class="lede">「保存到 Wings」已适配这些应用；其他应用也能跟随和粘贴，在设置里勾上就行。</p></div>
+    <div class="marquee" aria-label="已适配：Claude、ChatGPT、DeepSeek Harness、ZCode、豆包、Kimi、Gemini、Grok">
+      <div class="track" aria-hidden="true">
+        <span class="chip glass">Claude</span><span class="chip glass">ChatGPT</span><span class="chip glass">DeepSeek Harness</span><span class="chip glass">ZCode</span><span class="chip glass">豆包</span><span class="chip glass">Kimi</span><span class="chip glass">Gemini</span><span class="chip glass">Grok</span>
+        <span class="chip glass">Claude</span><span class="chip glass">ChatGPT</span><span class="chip glass">DeepSeek Harness</span><span class="chip glass">ZCode</span><span class="chip glass">豆包</span><span class="chip glass">Kimi</span><span class="chip glass">Gemini</span><span class="chip glass">Grok</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap rise" id="faq">
+    <span class="kicker">常见问题</span>
+    <h2>你可能想问。</h2>
+    <div class="faq">
+      <div class="glass"><h3>会自动帮我把话发出去吗？</h3><p>不会。Wings 只把便签粘贴进输入框，从不按回车。</p></div>
+      <div class="glass"><h3>为什么需要「辅助功能」权限？</h3><p>保存和粘贴要模拟全选、剪切、粘贴这几个按键，macOS 要求先允许。首次打开时会带你一步步开启。</p></div>
+      <div class="glass"><h3>会读取我和 AI 的对话吗？</h3><p>不会。只在保存时剪下输入框里那一句；判断输入框是否为空时在本机看一眼，不保存也不上传。</p></div>
+      <div class="glass"><h3>便签存在哪里？</h3><p>存在你电脑上 Wings 的数据目录里，没有账号，也没有云同步。</p></div>
+      <div class="glass"><h3>在终端里能用吗？</h3><p>能跟随和粘贴，比如 Terminal、iTerm2；终端的输入行由里面的程序管理，所以不支持保存。</p></div>
+      <div class="glass"><h3>支持 Windows 吗？</h3><p>正在适配，完成后会在这里发布。</p></div>
+    </div>
+  </section>
+
+  <section class="final wrap rise">
+    <div class="card glass">
+      <img src="assets/wings-banner.png" alt="Wings: SAVE IT. SEND IT.">
+      <p>来自同一作者的 <a href="https://github.com/edison7009/Coffee-CLI">Coffee CLI</a>「预输入」。这一次，它贴到了所有 AI 桌面应用旁边。</p>
+      <a class="btn primary" href="https://github.com/edison7009/aiwings/releases">下载 macOS 版</a>
+    </div>
+  </section>
+</main>
+
+<footer><div class="wrap"><span>Wings 预输入，aiwings.app</span><a href="https://github.com/edison7009/aiwings">GitHub</a></div></footer>
+
+<script src="assets/demo.js"></script>
+<script>
+// Sections rise once as they arrive.
+(() => {
+  const els = document.querySelectorAll('.rise');
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { els.forEach(e => e.classList.add('in')); return; }
+  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: .12 });
+  els.forEach(e => io.observe(e));
+})();
+</script>
+</body>
+</html>

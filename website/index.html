@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wings 官网方案</title>
+<link rel="icon" href="assets/wings-icon-1024.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+/* Concept chooser for aiwings.app. Not the site itself. */
+* { box-sizing: border-box; }
+body { margin: 0; background: #f6f3f5; color: #19141c; font: 400 16px/1.7 "Noto Sans SC", system-ui, sans-serif; }
+.wrap { width: min(1100px, 100% - 40px); margin: 0 auto; padding: 56px 0 80px; }
+header { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+header img { width: 220px; }
+h1 { font-size: 34px; margin: 0; }
+.lede { color: #6a6070; max-width: 680px; }
+.grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 22px; margin-top: 36px; }
+a.card { display: block; text-decoration: none; color: inherit; background: #fff; border-radius: 22px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 18px 40px -26px rgba(40, 10, 60, .4); transition: transform .4s cubic-bezier(.22,1,.36,1), box-shadow .4s; }
+a.card:hover { transform: translateY(-4px); box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 26px 50px -24px rgba(40, 10, 60, .5); }
+a.card:focus-visible { outline: 3px solid #f84890; outline-offset: 3px; }
+.swatch { height: 150px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 30px; }
+.body { padding: 20px 24px 24px; }
+.body h2 { margin: 0 0 6px; font-size: 22px; }
+.body p { margin: 0; color: #6a6070; }
+.chips { display: flex; gap: 6px; margin-top: 14px; }
+.chips i { width: 22px; height: 22px; border-radius: 50%; border: 1px solid rgba(0,0,0,.08); }
+@media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><img src="assets/wings-banner.png" alt="Wings"><h1>官网方案</h1></header>
+  <p class="lede">四套方案内容相同、风格不同，都延续横幅的粉色贴纸气质。首屏都放了同一个产品演示：AI 在忙时把下一句存进 Wings，AI 回完点一下贴回去。挑一套，或者说说想把哪几套的哪部分混在一起。</p>
+  <div class="grid">
+    <a class="card" href="a-sticker.html">
+      <div class="swatch" style="background:#fff7fb;background-image:radial-gradient(rgba(74,10,120,.16) 1.2px,transparent 1.4px);background-size:22px 22px;color:#f84890;-webkit-text-stroke:2px #15111a;text-shadow:4px 4px 0 #4a0a78">贴纸波普</div>
+      <div class="body"><h2>A 贴纸波普</h2><p>直接延续横幅：黑色粗描边、紫色硬阴影、散落的贴纸、可爱的站酷快乐体。最年轻、最有辨识度。</p>
+        <div class="chips"><i style="background:#f84890"></i><i style="background:#4a0a78"></i><i style="background:#ffe14d"></i><i style="background:#15111a"></i><i style="background:#fff7fb"></i></div></div>
+    </a>
+    <a class="card" href="b-glass.html">
+      <div class="swatch" style="background:radial-gradient(circle at 80% 10%,#ff8fbf,transparent 55%),radial-gradient(circle at 10% 90%,#ffc9a8,transparent 50%),#fbf6f9;color:#1a1320">泡泡糖玻璃</div>
+      <div class="body"><h2>B 泡泡糖玻璃</h2><p>同样的粉，更成熟：柔和光晕、毛玻璃面板、左右分栏的首屏、宫格功能区。最「高级」、最像苹果风。</p>
+        <div class="chips"><i style="background:#f84890"></i><i style="background:#ffd6e7"></i><i style="background:#1a1320"></i><i style="background:#fbf6f9"></i></div></div>
+    </a>
+    <a class="card" href="c-night.html">
+      <div class="swatch" style="background:#100c0f;color:#f84890;font-size:40px">存下它，发出去。</div>
+      <div class="body"><h2>C 夜场波普</h2><p>深色潮牌风：巨大的口号、压在字上的贴纸、倾斜的跑马灯胶带、悬停变粉的大字功能列表。最酷、最有冲击力。</p>
+        <div class="chips"><i style="background:#100c0f"></i><i style="background:#f84890"></i><i style="background:#ffe14d"></i><i style="background:#fff3ea"></i></div></div>
+    </a>
+    <a class="card" href="d-zine.html">
+      <div class="swatch" style="background:#f5f0e6;color:#1c1814;font-family:serif">漫画拼贴</div>
+      <div class="body"><h2>D 漫画拼贴</h2><p>手作杂志感：报纸底、粉色网点、胶带贴住的截图、手写批注，用四格漫画讲「等 AI 时下一句放哪」。最有故事感。</p>
+        <div class="chips"><i style="background:#f5f0e6"></i><i style="background:#1c1814"></i><i style="background:#f84890"></i><i style="background:#ffe14d"></i></div></div>
+    </a>
+  </div>
+</div>
+</body>
+</html>
