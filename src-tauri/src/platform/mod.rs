@@ -114,7 +114,19 @@ static TARGET_KEY: std::sync::Mutex<String> = std::sync::Mutex::new(String::new(
 
 pub fn set_target_key(key: &str) { *TARGET_KEY.lock().unwrap() = key.to_lowercase(); }
 
-pub fn target_is_terminal() -> bool {
-    let key = TARGET_KEY.lock().unwrap();
+pub fn is_terminal(key: &str) -> bool {
+    let key = key.to_lowercase();
     TERMINALS.iter().any(|t| key.starts_with(t))
+}
+
+pub fn target_is_terminal() -> bool { is_terminal(&TARGET_KEY.lock().unwrap()) }
+
+/// Apps Wings has been adapted to save from (input box found, chip placed): the known AI apps, minus terminals.
+/// Everything else can still be followed and pasted into.
+pub fn supports_save(t: &crate::TargetInfo) -> bool { is_ai_app(t) && !is_terminal(&t.key) }
+
+/// Helper bundles that ship inside or beside an app (URL handlers, updaters) are not apps to pick.
+pub fn is_helper(t: &crate::TargetInfo) -> bool {
+    let n = t.name.to_lowercase();
+    ["handler", "helper", "updater", "uninstall", "crash"].iter().any(|w| n.contains(w))
 }

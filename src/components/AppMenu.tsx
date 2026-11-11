@@ -3,7 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import type { Target } from './TargetPicker';
 import { t } from '../strings';
 
-interface MenuApp extends Target { ai: boolean }
+interface MenuApp extends Target { ai: boolean; save: boolean }
 
 type Props =
   | { mode: 'single'; current: Target; onPick: (target: Target) => void; onError: (msg: string) => void }
@@ -12,6 +12,7 @@ type Props =
 /**
  * App menu under the follow switch, opening below its button (the macOS native menu would cover it).
  * Lists AI apps installed here, then any other open app, so someone can also follow WeChat, say.
+ * A blue "supports save" marks apps Wings can save from; the others are send and follow only.
  * single: tick the one app Wings stays with (launched first if it is not open).
  * multi: tick every app Wings follows; by default, all AI apps.
  */
@@ -69,7 +70,7 @@ export function AppMenu(props: Props) {
               <button type="button" role="option" aria-selected={isTicked(app)} onClick={() => void choose(app)}>
                 <span className="app-menu-check" aria-hidden>{isTicked(app) ? '✓' : ''}</span>
                 <span className="row-text">{app.name}</span>
-                {!app.id && <span className="muted small-tag">{t.notOpen}</span>}
+                {app.save && <span className="save-tag">{t.supportsSave}</span>}
               </button>
             </li>
           ))}

@@ -26,17 +26,21 @@ fn list_targets() -> Vec<TargetInfo> {
 }
 
 /// Apps for the settings menu: AI apps installed on this machine, then any other open app (WeChat, say).
-/// `ai` marks the ones followed by default.
+/// `ai` marks the ones followed by default; `save` the ones Wings can also save from (the rest: send and follow).
 #[derive(Serialize, Clone)]
-struct MenuApp { #[serde(flatten)] app: TargetInfo, ai: bool }
+struct MenuApp { #[serde(flatten)] app: TargetInfo, ai: bool, save: bool }
 
 #[tauri::command]
 fn list_menu_apps() -> Vec<MenuApp> {
-    let mut out: Vec<MenuApp> = platform::installed_ai_apps().into_iter().map(|app| MenuApp { app, ai: true }).collect();
-    for app in platform::list_targets() {
-        if let Some(m) = out.iter_mut().find(|m| m.app.key == app.key) { m.app.id = app.id; continue; }
-        let ai = platform::is_ai_app(&app);
-        out.push(MenuApp { app, ai });
+    let mut out: Vec<MenuApp> = Vec::new();
+    for app in platform::installed_ai_apps().into_iter().chain(platform::list_targets()) {
+        if platform::is_helper(&app) { continue; }
+        if let Some(m) = out.iter_mut().find(|m| m.app.key == app.key) {
+            if m.app.id.is_empty() { m.app.id = app.id; }
+            continue;
+        }
+        let (ai, save) = (platform::is_ai_app(&app), platform::supports_save(&app));
+        out.push(MenuApp { app, ai, save });
     }
     out
 }
