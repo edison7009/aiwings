@@ -52,23 +52,23 @@ p { text-wrap: pretty; }
 .btn.sm { padding: 9px 16px; font-size: 15px; }
 .btn:focus-visible, a:focus-visible { outline: 3px solid var(--purple); outline-offset: 3px; }
 
-/* Hero: statement, then the sticker, then the live demo with stickers around it. */
-.hero { text-align: center; padding: 72px 0 40px; }
-.hero h1 { font-size: clamp(44px, 7.4vw, 96px); line-height: 1.05; }
+/* Hero: statement on the left, live demo with stickers on the right. */
+.hero { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 48px; padding: 72px 0 40px; }
+.hero h1 { font-size: clamp(44px, 5.4vw, 80px); line-height: 1.05; }
 .hero h1 .pink { color: var(--pink); -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; text-shadow: 5px 5px 0 var(--purple); }
-.hero .sub { max-width: 640px; margin: 22px auto 30px; font-size: 19px; color: #4b4453; }
-.cta-row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
-.proof { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 22px; }
+.hero .sub { max-width: 520px; margin: 22px 0 30px; font-size: 19px; color: #4b4453; }
+.cta-row { display: flex; gap: 14px; justify-content: flex-start; flex-wrap: wrap; }
+.proof { display: flex; gap: 10px; justify-content: flex-start; flex-wrap: wrap; margin-top: 22px; }
 .tag { padding: 4px 12px; border: 2px solid var(--ink); border-radius: 999px; background: var(--white); font-size: 14px; font-weight: 500; }
 .tag:nth-child(1) { transform: rotate(-3deg); background: var(--lemon); }
 .tag:nth-child(3) { transform: rotate(2deg); }
 
-.stage { position: relative; display: flex; justify-content: center; margin: 64px auto 0; padding: 0 20px; }
+.stage { position: relative; display: flex; justify-content: center; padding: 0 20px; }
 .stage .wd { --wd-border: var(--line); --wd-shadow: 10px 10px 0 var(--deep); --wd-radius: 22px; --wd-accent: #007aff; }
 .sticker { position: absolute; z-index: 2; background: var(--white); border: var(--line); border-radius: 18px; box-shadow: var(--pop); padding: 10px 16px; font-weight: 700; }
-.s1 { left: 2%; top: -28px; transform: rotate(-8deg); background: var(--lemon); }
-.s2 { right: 1%; bottom: 40px; transform: rotate(6deg); }
-.s3 { right: 6%; top: -40px; transform: rotate(5deg); padding: 6px; border-radius: 20px; }
+.s1 { left: -14px; top: -28px; transform: rotate(-8deg); background: var(--lemon); }
+.s2 { right: -10px; bottom: 40px; transform: rotate(6deg); }
+.s3 { right: 0; top: -40px; transform: rotate(5deg); padding: 6px; border-radius: 20px; }
 .s3 img { width: 64px; display: block; border-radius: 14px; }
 .wiggle { animation: wiggle 5s var(--ease) infinite; }
 @keyframes wiggle { 0%, 90%, 100% { rotate: 0deg; } 94% { rotate: -4deg; } 97% { rotate: 3deg; } }
@@ -142,6 +142,12 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
 .skip { position: absolute; left: -999px; }
 .skip:focus { left: 16px; top: 16px; z-index: 99; background: var(--white); padding: 8px 12px; border: var(--line); border-radius: 10px; }
 
+@media (max-width: 1080px) {
+  .hero { grid-template-columns: 1fr; text-align: center; }
+  .hero .sub { margin: 22px auto 30px; }
+  .cta-row, .proof { justify-content: center; }
+  .stage { margin-top: 24px; }
+}
 @media (max-width: 860px) {
   .nav a.link { display: none; }
   .problem, .origin { grid-template-columns: 1fr; }
@@ -170,6 +176,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
 
 <main id="main">
   <section class="hero wrap">
+    <div class="hero-copy">
     <h1 class="cn-display">AI 在忙，<br><span class="pink">下一句先存着。</span></h1>
     <p class="sub">Wings 是贴在 Claude、ChatGPT 旁边的一条侧栏。想到的话随手存下，等 AI 回完，点一下就贴回输入框。</p>
     <div class="cta-row">
@@ -177,6 +184,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
       <a class="btn ghost" href="https://github.com/edison7009/aiwings">在 GitHub 查看</a>
     </div>
     <div class="proof"><span class="tag">不会替你发送</span><span class="tag">便签只存在本机</span><span class="tag">macOS 11 起</span></div>
+    </div>
 
     <div class="stage">
       <span class="sticker s1 wiggle">AI 还在想…</span>
