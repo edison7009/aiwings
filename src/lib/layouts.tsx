@@ -4,8 +4,8 @@ import { t } from '../strings';
 
 const svg = { width: 15, height: 15, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true } as const;
 
-/** Follow: a magnet, it attaches to whichever AI app is in use. */
-const FollowIcon = <svg {...svg}><path d="M4 2.5v5a4 4 0 0 0 8 0v-5" /><path d="M4 5h2.5M9.5 5H12" /><path d="M6.5 2.5v5a1.5 1.5 0 0 0 3 0v-5" /></svg>;
+/** Follow: an app window with Wings docked as a solid strip on its right. */
+const FollowIcon = <svg {...svg}><rect x="1.75" y="2.75" width="9" height="10.5" rx="1.5" /><rect x="12.25" y="2.75" width="2.5" height="10.5" rx="1" fill="currentColor" stroke="none" /></svg>;
 /** Lock: a padlock, it stays with the chosen apps. */
 const LockIcon = <svg {...svg}><rect x="3" y="7" width="10" height="7" rx="1.5" /><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" /></svg>;
 /** Hover: a small window floating over a larger one. */
