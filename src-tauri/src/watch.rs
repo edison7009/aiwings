@@ -20,6 +20,8 @@ pub static CHIP: AtomicBool = AtomicBool::new(true);
 pub fn start(app: AppHandle) {
     std::thread::spawn(move || {
         let mut last_chip: Option<bool> = None;
+        // When the input goes away, the chip first flips down and fades; the window hides once that is over.
+        let mut hide_at: Option<std::time::Instant> = None;
         let mut last_follow = String::new();
         loop {
             std::thread::sleep(Duration::from_millis(300));
@@ -38,6 +40,7 @@ pub fn start(app: AppHandle) {
             let Some(chip) = app.get_webview_window("chip") else { continue };
             match input {
                 Some((frame, has_text)) => {
+                    hide_at = None;
                     let scale = chip.scale_factor().unwrap_or(1.0);
                     let s = if cfg!(target_os = "macos") { scale } else { 1.0 };
                     place_chip(&app, platform::Frame { x: frame.x * s, y: frame.y * s, w: frame.w * s, h: frame.h * s }, scale);
@@ -50,6 +53,10 @@ pub fn start(app: AppHandle) {
                     if last_chip.is_some() {
                         last_chip = None;
                         let _ = chip.emit("wings://chip", false);
+                        hide_at = Some(std::time::Instant::now() + Duration::from_millis(500));
+                    }
+                    if hide_at.is_some_and(|t| std::time::Instant::now() >= t) {
+                        hide_at = None;
                         let _ = chip.hide();
                     }
                 }
