@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Wings 预输入 · Agent 还在跑，新想法先存着</title>
+<title>Wings 预输入 · AI 还在思考中，本就日理万机</title>
 <meta name="description" content="Wings 是贴在 Claude、ChatGPT 旁边的一条侧栏。想到的话随手存下，等 AI 回完，点一下就贴回输入框。">
 <link rel="icon" href="../assets/wings-icon-1024.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Noto+Sans+SC:wght@400;500;700;900&family=ZCOOL+KuaiLe&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Noto+Sans+SC:wght@400;500;700;900&family=ZCOOL+KuaiLe&family=Long+Cang&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/demo.css">
 <style>
 /* Concept A, Sticker Pop: the banner's own language (puffy pink, black outline, purple offset shadow,
@@ -37,8 +37,8 @@ p { text-wrap: pretty; }
 .nav { position: relative; z-index: 10;
   background: rgba(255, 255, 255, .55); border-bottom: 1px solid rgba(26, 19, 32, .06);
   backdrop-filter: blur(22px) saturate(1.4); -webkit-backdrop-filter: blur(22px) saturate(1.4); }
-.nav-in { display: flex; align-items: center; gap: 22px; width: min(1200px, 100% - 40px); margin-inline: auto; padding: 12px 0; }
-.nav img { height: 28px; display: block; }
+.nav-in { display: flex; align-items: center; gap: 22px; width: min(1200px, 100% - 40px); margin-inline: auto; padding: 10px 0; }
+.nav img { height: 40px; display: block; margin-left: -6px; }
 .nav .links { display: flex; gap: 26px; margin-left: 12px; }
 .nav .tools { display: flex; align-items: center; gap: 4px; margin-left: auto; }
 .nav a.link { text-decoration: none; font-weight: 500; font-size: 15px; color: #6d6474; transition: color .3s var(--ease); }
@@ -95,7 +95,7 @@ p { text-wrap: pretty; }
 .meta span { display: inline-flex; align-items: center; gap: 6px; }
 .meta span::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--pink); }
 /* The demo as a taped-in photo with handwritten notes (from concept D). */
-.hand { font-family: "Ma Shan Zheng", cursive; font-weight: 400; }
+.hand { font-family: "Long Cang", cursive; font-weight: 400; }
 .collage { position: relative; min-height: 600px; translate: 0 60px; }
 .polaroid { position: absolute; left: 0; right: 30px; top: 70px; background: #fff; padding: 14px 14px 46px; box-shadow: 0 18px 40px -18px rgba(28, 24, 20, .45); rotate: -2deg; }
 .polaroid .wd { aspect-ratio: 16 / 11.5; --wd-radius: 6px; --wd-shadow: none; --wd-border: 1px solid #e7e0d4; --wd-accent: #007aff; max-width: none; }
@@ -206,7 +206,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
 <a class="skip" href="#main">跳到正文</a>
 <header class="nav">
   <div class="nav-in">
-    <img src="../assets/wings-banner.png" alt="Wings">
+    <img src="../assets/wings-logo.png" alt="Wings">
     <nav class="links">
       <a class="link" href="#how">怎么用</a>
       <a class="link" href="#features">功能</a>
@@ -228,7 +228,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
   <div class="aura" aria-hidden="true"><i></i><i></i><i></i></div>
   <section class="hero wrap">
     <div>
-      <h1><span class="nowrap">Agent 还在跑</span><br><span class="nowrap">新想法<em>先存着</em></span></h1>
+      <h1><span class="nowrap">AI 还在思考中</span><br><span class="nowrap">本就<em>日理万机</em></span></h1>
       <p class="sub">Wings 是贴在 Claude、ChatGPT 旁边的一条侧栏。想到的话随手存下，等 AI 回完，点一下就贴回输入框。</p>
       <div class="cta-row">
         <a class="btn primary" href="https://github.com/edison7009/aiwings/releases">下载 macOS 版</a>
@@ -239,7 +239,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
     <div class="collage">
       <span class="halftone"></span>
       <div class="polaroid">
-        <span class="arrow hand">右边这条就是 Wings
+        <span class="arrow hand">右边这条就是Wings
           <svg width="90" height="64" viewBox="0 0 90 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6 C 50 6, 74 22, 78 56"/><path d="M68 46 L78 58 L86 44"/></svg>
         </span>
         <div data-wings-demo></div>
