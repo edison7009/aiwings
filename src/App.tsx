@@ -158,14 +158,17 @@ export function App() {
           return prev.filter(n => n.id !== id);
         })}
       />
-      <UpdateButton onError={flash} />
       <button type="button" className="gear" aria-label={t.settings} onClick={() => setView('settings')}><GearIcon /></button>
     </>
   );
 
   return (
     <div className={`shell${target || idle ? (floating ? ' shell--float' : ' shell--docked') : ''}`}>
-      <div className="panel">{body}</div>
+      <div className="panel">
+        {body}
+        {/* Mounted for the app's lifetime so a running download keeps its progress while settings is open. */}
+        {trusted && notes !== null && (target || idle) && <UpdateButton hidden={view === 'settings'} onError={flash} />}
+      </div>
       {toast && <div className="toast" role="status">{toast}</div>}
     </div>
   );

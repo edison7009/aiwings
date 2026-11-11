@@ -10,7 +10,7 @@ const C = 2 * Math.PI * R;
 
 /** Red download button beside the gear when a newer version is out, as in EchoBird and Coffee CLI:
  *  click it and the ring spins while finding a source, then fills with the download. */
-export function UpdateButton({ onError }: { onError: (msg: string) => void }) {
+export function UpdateButton({ hidden, onError }: { hidden: boolean; onError: (msg: string) => void }) {
   const [version, setVersion] = useState<string | null>(null);
   const [progress, setProgress] = useState<Progress | null>(null);
 
@@ -22,7 +22,7 @@ export function UpdateButton({ onError }: { onError: (msg: string) => void }) {
     return () => { window.clearInterval(timer); void sub.then(f => f()); };
   }, []);
 
-  if (!version) return null;
+  if (!version || hidden) return null;
   const busy = !!progress && progress.status !== 'error' && progress.status !== 'downloaded';
   const spinning = progress?.status === 'speed_test';
   const download = () => {
