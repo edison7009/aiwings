@@ -23,7 +23,8 @@ pub fn start(app: AppHandle) {
                     }
                 }
             }
-            let input = (CHIP.load(Ordering::SeqCst) && platform::target_is_front()).then(platform::focused_input).flatten();
+            // Always track the focused input (paste uses it to restore the caret); the chip only shows when enabled.
+            let input = platform::target_is_front().then(platform::focused_input).flatten().filter(|_| CHIP.load(Ordering::SeqCst));
             let Some(chip) = app.get_webview_window("chip") else { continue };
             match input {
                 Some((frame, has_text)) => {

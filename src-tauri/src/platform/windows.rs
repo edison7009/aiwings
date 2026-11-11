@@ -254,3 +254,6 @@ pub fn front_app() -> Option<TargetInfo> {
 
 /// Input box detection is not adapted on Windows yet (UI Automation goes here).
 pub fn focused_input() -> Option<(Frame, bool)> { None }
+
+/// Not adapted on Windows yet: the paste goes wherever the target's caret already is.
+pub fn focus_input() {}

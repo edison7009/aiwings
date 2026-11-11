@@ -2,7 +2,7 @@
 
 use super::{float_panel, place_bar, Frame, Key};
 use crate::TargetInfo;
-use core_foundation::base::{CFRelease, CFTypeRef, TCFType};
+use core_foundation::base::{CFRelease, CFRetain, CFTypeRef, TCFType};
 use core_foundation::boolean::CFBoolean;
 use core_foundation::dictionary::CFDictionary;
 use core_foundation::string::{CFString, CFStringRef};
@@ -36,6 +36,7 @@ extern "C" {
     fn AXObserverRemoveNotification(o: AXObserverRef, el: AXUIElementRef, n: CFStringRef) -> i32;
     fn AXObserverGetRunLoopSource(o: AXObserverRef) -> CFRunLoopSourceRef;
     fn CGEventSourceFlagsState(state: i32) -> u64;
+    fn CGWarpMouseCursorPosition(p: core_graphics::geometry::CGPoint) -> i32;
 }
 
 const APP_NOTES: &[&str] = &[
@@ -50,6 +51,8 @@ struct Dock {
     observer: AXObserverRef,
     /// The followed window (owned +1), or null when the app has none.
     window: AXUIElementRef,
+    /// The last text input the user focused in the target (owned +1), or null. Paste puts the caret back here.
+    input: AXUIElementRef,
 }
 // Observer setup and teardown happen on the main thread; AX element reads are thread-safe.
 unsafe impl Send for Dock {}
@@ -137,6 +140,7 @@ unsafe fn teardown(d: Dock) {
     let src = AXObserverGetRunLoopSource(d.observer);
     CFRunLoopRemoveSource(CFRunLoopGetMain(), src, kCFRunLoopDefaultMode);
     if !d.window.is_null() { CFRelease(d.window); }
+    if !d.input.is_null() { CFRelease(d.input); }
     CFRelease(d.observer);
     CFRelease(d.app_el);
 }
@@ -158,7 +162,7 @@ pub fn dock(app: AppHandle, id: &str) -> Result<(), String> {
         }
         for n in APP_NOTES { AXObserverAddNotification(observer, app_el, cfs(n).as_concrete_TypeRef(), std::ptr::null_mut()); }
         CFRunLoopAddSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), kCFRunLoopDefaultMode);
-        let mut d = Dock { app_el, observer, window: null() };
+        let mut d = Dock { app_el, observer, window: null(), input: null() };
         attach_window(&mut d);
         TARGET_PID.store(pid, Ordering::SeqCst);
         refresh_locked(&d);
@@ -289,13 +293,18 @@ pub fn front_app() -> Option<TargetInfo> {
 /// The target's focused text input: the frame (points) of the box drawn around it, and whether it holds any text.
 /// Reads only the character count, never the text itself.
 pub fn focused_input() -> Option<(Frame, bool)> {
-    let guard = DOCK.lock().unwrap();
-    let d = guard.as_ref()?;
+    let mut guard = DOCK.lock().unwrap();
+    let d = guard.as_mut()?;
     unsafe {
         let el = copy_attr(d.app_el, "AXFocusedUIElement")?;
         let role = copy_attr(el, "AXRole").map(|r| CFString::wrap_under_create_rule(r as CFStringRef).to_string());
         let editable = matches!(role.as_deref(), Some("AXTextArea" | "AXTextField" | "AXComboBox"));
         let frame = if editable { frame_of(el) } else { None };
+        if editable && el != d.input {
+            // Remember it, so a paste can put the caret back after focus wandered off.
+            if !d.input.is_null() { CFRelease(d.input); }
+            d.input = CFRetain(el);
+        }
         let count = copy_attr(el, "AXNumberOfCharacters")
             .and_then(|v| core_foundation::number::CFNumber::wrap_under_create_rule(v as _).to_i64())
             .unwrap_or(0);
@@ -336,4 +345,37 @@ unsafe fn input_box(el: AXUIElementRef, text: Frame) -> Frame {
     }
     for o in owned { CFRelease(o); }
     best
+}
+
+unsafe fn focused_is_editable(app_el: AXUIElementRef) -> bool {
+    let Some(el) = copy_attr(app_el, "AXFocusedUIElement") else { return false };
+    let role = copy_attr(el, "AXRole").map(|r| CFString::wrap_under_create_rule(r as CFStringRef).to_string());
+    CFRelease(el);
+    matches!(role.as_deref(), Some("AXTextArea" | "AXTextField" | "AXComboBox"))
+}
+
+/// Makes sure the caret is in the target's input box before a paste. Clicking Wings often leaves the
+/// target active but with nothing focused, and Cmd+V then goes nowhere. Asks the remembered input to
+/// take focus; if the app ignores that, clicks into it and puts the pointer back.
+pub fn focus_input() {
+    let guard = DOCK.lock().unwrap();
+    let Some(d) = guard.as_ref() else { return };
+    unsafe {
+        if focused_is_editable(d.app_el) || d.input.is_null() { return; }
+        AXUIElementSetAttributeValue(d.input, cfs("AXFocused").as_concrete_TypeRef(), CFBoolean::true_value().as_CFTypeRef());
+        std::thread::sleep(Duration::from_millis(80));
+        if focused_is_editable(d.app_el) { return; }
+        let Some(f) = frame_of(d.input) else { return };
+        let Ok(src) = CGEventSource::new(CGEventSourceStateID::HIDSystemState) else { return };
+        let back = CGEvent::new(src.clone()).map(|e| e.location()).ok();
+        // Near the end of the first line: inside the text, past most of it.
+        let at = core_graphics::geometry::CGPoint::new(f.x + (f.w - 12.0).max(4.0), f.y + f.h.min(24.0) / 2.0);
+        use core_graphics::event::{CGEventType, CGMouseButton};
+        for ty in [CGEventType::LeftMouseDown, CGEventType::LeftMouseUp] {
+            if let Ok(e) = CGEvent::new_mouse_event(src.clone(), ty, at, CGMouseButton::Left) { e.post(CGEventTapLocation::HID); }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        if let Some(p) = back { CGWarpMouseCursorPosition(p); }
+        std::thread::sleep(Duration::from_millis(60));
+    }
 }

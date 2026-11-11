@@ -8,7 +8,7 @@ export const t = {
 看完悬停点右侧垃圾桶删掉这张。`,
   emptyTitle: '还没有候着的话',
   emptyBody: (key: string) => `在输入框里写好，按 ${key} 存到这里`,
-  pasted: '已粘贴，确认后按回车发送',
+  pasted: '已粘贴，按回车发送 · 也已复制，可粘贴到别处',
   delete: '删除',
   dock: '吸附',
   float: '悬停',

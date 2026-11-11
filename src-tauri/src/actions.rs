@@ -6,7 +6,6 @@ use std::{thread::sleep, time::{Duration, Instant}};
 use tauri::{AppHandle, Emitter};
 
 const CLIP_WAIT: Duration = Duration::from_millis(700);
-const RESTORE_DELAY: Duration = Duration::from_millis(350);
 
 pub fn emit_error(app: &AppHandle, msg: &str) {
     let _ = app.emit("wings://error", msg.to_string());
@@ -49,26 +48,23 @@ pub fn capture(app: &AppHandle) {
     let _ = app.emit("wings://captured", text);
 }
 
-/// Bring the target forward, paste the note via the clipboard, then restore the clipboard. Never presses Enter.
+/// Bring the target forward, put the caret in its input box and paste the note. Never presses Enter.
+/// The note stays on the clipboard afterwards, so the user can paste it anywhere else too.
 pub fn paste(app: &AppHandle, text: String) {
     if !platform::activate_target() {
         return emit_error(app, "没能切换到目标窗口，请手动点一下它再试");
     }
+    platform::focus_input();
     let Ok(mut cb) = arboard::Clipboard::new() else { return emit_error(app, "无法访问剪贴板") };
-    let saved = clip::snapshot(&mut cb);
     if cb.set_text(text).is_err() {
         return emit_error(app, "无法写入剪贴板");
     }
     sleep(Duration::from_millis(60));
     // Focus guard: re-check right before the keystroke so it never lands in the wrong window.
     if !platform::target_is_front() {
-        clip::restore(&mut cb, saved);
-        return emit_error(app, "目标窗口不在最前面，已取消粘贴");
+        return emit_error(app, "目标窗口不在最前面，已取消粘贴（内容已复制，可手动粘贴）");
     }
-    let res = platform::send_combo(platform::Key::V);
-    sleep(RESTORE_DELAY);
-    clip::restore(&mut cb, saved);
-    if let Err(e) = res {
+    if let Err(e) = platform::send_combo(platform::Key::V) {
         emit_error(app, &e);
     }
 }
