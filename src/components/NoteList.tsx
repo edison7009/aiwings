@@ -25,7 +25,8 @@ function SendIcon() {
 }
 
 /**
- * Notes as in Coffee CLI's pre-input board: one line each; a click opens or closes the whole text.
+ * Notes as in Coffee CLI's pre-input board, but up to three lines each so short notes read in full;
+ * a click opens or closes a longer one.
  * Collapsed, hovering slides delete and send in over the end of the line without moving anything;
  * open, they sit in a row under the text. Send pastes into the target's input box.
  */
@@ -52,7 +53,7 @@ export function NoteList({ notes, shortcut, onPaste, onRemove }: Props) {
             // The hover glow follows the pointer through a CSS variable, no re-render.
             onPointerMove={e => e.currentTarget.style.setProperty('--glow-x', `${Math.round(e.clientX - e.currentTarget.getBoundingClientRect().left)}px`)}
           >
-            <button type="button" className="note-text" aria-expanded={open} onClick={() => toggle(note.id)}>{note.text}</button>
+            <button type="button" className="note-text" aria-expanded={open} onClick={() => toggle(note.id)}><span className="note-clamp">{note.text}</span></button>
             {open
               ? <div className="note-actions">{del}<span className="note-gap" />{send}</div>
               : <span className="note-quick">{del}{send}</span>}

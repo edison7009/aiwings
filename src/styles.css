@@ -130,14 +130,15 @@ h1 { font-size: 15px; margin: 6px 0 4px; }
   word-break: break-word;
 }
 .note-text::after { content: none; }
-/* Collapsed: exactly one line; margin (not padding) so the next line never peeks in. */
-.note.is-collapsed .note-text {
+/* Collapsed: at most three lines. The clamp sits on an inner span: WebKit ignores line-clamp on a <button>.
+   Margin (not padding) so the fourth line never peeks in. */
+.note.is-collapsed .note-text { margin: 9px 11px; width: calc(100% - 22px); }
+.note.is-collapsed .note-clamp {
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 1;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
   overflow: hidden;
-  margin: 9px 11px;
-  width: calc(100% - 22px);
 }
 .note:not(.is-collapsed) .note-text { margin: 9px 11px 2px; width: calc(100% - 22px); }
 /* The line fades out under the hover icons instead of moving. */
