@@ -34,7 +34,7 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 p { text-wrap: pretty; }
 
 /* Nav: a floating sticker pill. */
-.nav { position: sticky; top: 16px; z-index: 10; display: flex; justify-content: center; margin-top: 16px; }
+.nav { position: relative; z-index: 10; display: flex; justify-content: center; margin-top: 16px; }
 .nav-in { display: flex; align-items: center; gap: 22px; padding: 8px 8px 8px 16px; background: var(--white); border: var(--line); border-radius: 999px; box-shadow: 4px 4px 0 var(--deep); }
 .nav img { height: 30px; display: block; }
 .nav a.link { text-decoration: none; font-weight: 500; font-size: 15px; }
@@ -107,13 +107,6 @@ h2 { font-size: clamp(32px, 4.6vw, 56px); line-height: 1.15; }
 .bubble b { color: var(--pink); }
 .bubble:nth-child(2) { margin-left: 48px; transform: rotate(1.5deg); }
 
-/* Tagline reveal. */
-.reveal { text-align: center; }
-.reveal p { margin: 0; font-size: clamp(44px, 8vw, 112px); line-height: 1.1; }
-.reveal .w { color: color-mix(in srgb, var(--ink) 18%, transparent); transition: color .6s var(--ease); }
-.reveal .w.lit { color: var(--ink); }
-.reveal .w.lit.pk { color: var(--pink); }
-.reveal .en { font: 700 clamp(18px, 2.4vw, 28px)/1.4 "Fredoka", sans-serif; letter-spacing: .04em; margin-top: 18px; color: var(--purple); }
 
 /* Steps. */
 .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; margin-top: 48px; }
@@ -185,7 +178,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
   .tape.b { top: 96px; }
   section { padding: 72px 0; }
 }
-@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } .reveal .w { color: var(--ink); } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 </style>
 </head>
 <body>
@@ -241,13 +234,6 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
       <div class="bubble">打在输入框里？手一快按了回车，<b>半句话就发出去了</b>。</div>
       <div class="bubble">记在备忘录里？来回切窗口，<b>回头还得找、还得复制</b>。</div>
     </div>
-  </section>
-
-  <section class="reveal wrap" aria-label="存下它，发出去">
-    <p class="cn-display" data-reveal>
-      <span class="w">存</span><span class="w">下</span><span class="w">它</span><span class="w">，</span><br><span class="w pk">发</span><span class="w pk">出</span><span class="w pk">去</span><span class="w pk">。</span>
-    </p>
-    <div class="en">SAVE IT. SEND IT.</div>
   </section>
 
   <section class="wrap" id="how">
@@ -313,14 +299,5 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
 </footer>
 
 <script src="assets/demo.js"></script>
-<script>
-// Tagline reveal: characters light up in reading order as they cross the middle of the screen.
-(() => {
-  const words = [...document.querySelectorAll('[data-reveal] .w')];
-  if (!words.length || matchMedia('(prefers-reduced-motion: reduce)').matches) { words.forEach(w => w.classList.add('lit')); return; }
-  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('lit'); io.unobserve(e.target); } }), { rootMargin: '0px 0px -45% 0px' });
-  words.forEach((w, i) => { w.style.transitionDelay = `${i * 60}ms`; io.observe(w); });
-})();
-</script>
 </body>
 </html>
