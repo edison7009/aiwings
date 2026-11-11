@@ -1,4 +1,4 @@
-<p align="center"><img src="branding/wings-icon.svg" alt="Wings" width="128"></p>
+<p align="center"><img src="branding/wings-icon-1024.png" alt="Wings" width="160"></p>
 
 # Wings · 预输入
 
