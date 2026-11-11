@@ -1,4 +1,4 @@
-# Builds Wings for macOS (Apple silicon and Intel) and Windows when a v* tag is pushed,
+# Builds Wings for macOS (one universal build for Apple silicon and Intel) and Windows when a v* tag is pushed,
 # and publishes the installers to a GitHub release named after the tag.
 # Not yet signed with an Apple Developer ID: macOS builds are ad-hoc signed only.
 name: Release
@@ -17,11 +17,8 @@ jobs:
       matrix:
         include:
           - platform: macos-latest
-            args: --target aarch64-apple-darwin
-            rust_target: aarch64-apple-darwin
-          - platform: macos-latest
-            args: --target x86_64-apple-darwin
-            rust_target: x86_64-apple-darwin
+            args: --target universal-apple-darwin
+            rust_target: aarch64-apple-darwin,x86_64-apple-darwin
           - platform: windows-latest
             args: ''
             rust_target: ''
@@ -48,8 +45,8 @@ jobs:
           releaseBody: |
             First preview build of Wings.
 
-            - macOS 11+: download the `aarch64` dmg for Apple silicon, `x64` for Intel. The app is not notarized yet: on first launch, right-click Wings in Applications and choose Open.
-            - Windows 10+: run the `setup.exe` installer.
+            - macOS 11+: download the `universal` dmg (Apple silicon and Intel). The app is not notarized yet: on first launch, right-click Wings in Applications and choose Open.
+            - Windows 10+: run the `setup.exe` installer, or just double-click the plain `.exe` (no install).
           releaseDraft: false
           prerelease: false
           assetNamePattern: '[name]-[version]-[platform]-[arch][setup][ext]'
