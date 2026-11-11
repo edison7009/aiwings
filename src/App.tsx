@@ -8,6 +8,7 @@ import { Settings } from './components/Settings';
 import { savedShortcut } from './components/ShortcutRecorder';
 import { Segmented } from './components/Segmented';
 import { loadNotes, makeNote, saveNotes, type Note } from './lib/notes';
+import { LAYOUTS } from './lib/layouts';
 import { applyThemeMode, readPrefs, saveFloatRect, writePrefs, type Prefs } from './lib/prefs';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { applyTheme, themeFor } from './lib/theme';
@@ -83,7 +84,7 @@ export function App() {
     const subs = [
       listen<{ text: string; image: string | null }>('wings://captured', e => update(prev => [...prev, makeNote(e.payload.text, e.payload.image ?? undefined)])),
       listen<string>('wings://error', e => flash(e.payload)),
-      listen<Target>('wings://follow', e => { if (prefsRef.current.follow && trustedRef.current) void choose(e.payload); }),
+      listen<Target>('wings://follow', e => { if (prefsRef.current.layout !== 'pin' && trustedRef.current) void choose(e.payload); }),
     ];
     return () => { subs.forEach(s => void s.then(f => f())); };
   }, [update, flash, choose]);
@@ -105,7 +106,7 @@ export function App() {
   useEffect(() => { applyTheme(themeFor(target?.key ?? null)); }, [target]);
 
   // While hovering, remember where the bar is and how big, so the next switch to hover (or the next launch) returns there.
-  const floating = !!target && prefs.mode === 'float';
+  const floating = !!target && prefs.layout === 'float';
   useEffect(() => {
     if (!floating) return;
     const win = getCurrentWindow();
@@ -131,9 +132,9 @@ export function App() {
   else body = (
     <>
       {/* Hover mode lets the header drag the bar anywhere; docked, it follows the target instead. */}
-      <header className="panel-head" data-tauri-drag-region={prefs.mode === 'float' || undefined}>
-        <span className="brand" data-tauri-drag-region={prefs.mode === 'float' || undefined}>{target.name}</span>
-        <Segmented value={prefs.mode} options={[['dock', t.dock], ['float', t.float]]} onChange={mode => changePrefs({ ...prefs, mode })} />
+      <header className="panel-head" data-tauri-drag-region={floating || undefined}>
+        <span className="brand" data-tauri-drag-region={floating || undefined}>{target.name}</span>
+        <Segmented value={prefs.layout} options={LAYOUTS} onChange={layout => changePrefs({ ...prefs, layout })} />
       </header>
       <NoteList
         notes={notes}
@@ -150,7 +151,7 @@ export function App() {
   );
 
   return (
-    <div className={`shell${target ? (prefs.mode === 'dock' ? ' shell--docked' : ' shell--float') : ''}`}>
+    <div className={`shell${target ? (floating ? ' shell--float' : ' shell--docked') : ''}`}>
       <div className="panel">{body}</div>
       {toast && <div className="toast" role="status">{toast}</div>}
     </div>

@@ -2,6 +2,7 @@ import type { Prefs } from '../lib/prefs';
 import type { Target } from './TargetPicker';
 import { t } from '../strings';
 import { Segmented } from './Segmented';
+import { LAYOUTS } from '../lib/layouts';
 import { AppMenu } from './AppMenu';
 import { ShortcutRecorder } from './ShortcutRecorder';
 
@@ -25,11 +26,11 @@ export function Settings({ prefs, shortcut, target, onChange, onPickTarget, onEr
         <span className="brand" data-tauri-drag-region>{t.settings}</span>
       </header>
       <div className="panel-body settings">
-        {/* Follow first. Under it, ticks choose which apps to follow, or (when off) the one app to stay with. */}
+        {/* Layout first. Under it, ticks choose the apps to follow, or (pinned) the one app to stay with. */}
         <section>
-          <Segmented value={prefs.follow ? 'on' : 'off'} options={[['on', t.followOn], ['off', t.followOff]]} onChange={v => set('follow', v === 'on')} />
-          <p className="muted small hint">{prefs.follow ? t.followOnHint : t.followOffHint}</p>
-          {prefs.follow
+          <Segmented value={prefs.layout} options={LAYOUTS} onChange={v => set('layout', v)} />
+          <p className="muted small hint">{t.layoutHint[prefs.layout]}</p>
+          {prefs.layout !== 'pin'
             ? <AppMenu mode="multi" followKeys={prefs.followKeys} onChangeKeys={keys => set('followKeys', keys)} />
             : <AppMenu mode="single" current={target} onPick={onPickTarget} onError={onError} />}
         </section>

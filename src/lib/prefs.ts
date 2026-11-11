@@ -2,10 +2,12 @@
 import { invoke } from '@tauri-apps/api/core';
 
 export interface Prefs {
-  /** dock: glued to the target's right edge. float: stays where the user drags it. */
-  mode: 'dock' | 'float';
-  /** Re-dock onto whichever followed app the user switches to. */
-  follow: boolean;
+  /**
+   * follow: docked beside the app in use, moving to whichever ticked app the user switches to.
+   * pin: docked beside one chosen app only; hidden when the user is elsewhere.
+   * float: stays wherever the user drags it; notes paste into the ticked app used last.
+   */
+  layout: 'follow' | 'pin' | 'float';
   /** Apps (by key) ticked to follow; null = the default, every AI app. */
   followKeys: string[] | null;
   /** Light, dark, or follow the system. */
@@ -15,10 +17,16 @@ export interface Prefs {
 }
 
 const KEY = 'wings-prefs';
-const DEFAULTS: Prefs = { mode: 'dock', follow: true, followKeys: null, theme: 'system', chip: true };
+const DEFAULTS: Prefs = { layout: 'follow', followKeys: null, theme: 'system', chip: true };
 
 export function readPrefs(): Prefs {
-  try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) ?? '{}') }; } catch { return DEFAULTS; }
+  try {
+    const raw = JSON.parse(localStorage.getItem(KEY) ?? '{}');
+    // Older versions kept dock/float and follow as two separate switches.
+    if (!raw.layout && (raw.mode || raw.follow !== undefined)) raw.layout = raw.mode === 'float' ? 'float' : raw.follow === false ? 'pin' : 'follow';
+    delete raw.mode; delete raw.follow;
+    return { ...DEFAULTS, ...raw };
+  } catch { return DEFAULTS; }
 }
 
 const FLOAT_RECT_KEY = 'wings-float-rect';
@@ -37,7 +45,7 @@ function readFloatRect(): [number, number, number, number] | null {
 
 export function writePrefs(p: Prefs) {
   try { localStorage.setItem(KEY, JSON.stringify(p)); } catch { /* Best effort. */ }
-  void invoke('set_prefs', { float: p.mode === 'float', follow: p.follow, followKeys: p.followKeys, chip: p.chip, floatRect: readFloatRect() });
+  void invoke('set_prefs', { float: p.layout === 'float', follow: p.layout !== 'pin', followKeys: p.followKeys, chip: p.chip, floatRect: readFloatRect() });
 }
 
 /** Sets light/dark on this window. Both windows (bar and chip) call it; the chip hears changes via storage events. */
