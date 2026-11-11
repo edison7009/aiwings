@@ -12,6 +12,7 @@ import { applyTheme, themeFor } from './lib/theme';
 import { t } from './strings';
 
 const TARGET_KEY = 'wings-target';
+const PASTE_KEY = /Mac/.test(navigator.userAgent) ? '⌘V' : 'Ctrl+V';
 
 interface Remembered { key: string; name: string }
 
@@ -112,7 +113,7 @@ export function App() {
       <NoteList
         notes={notes}
         shortcut={shortcut}
-        onPaste={note => { void invoke('paste_note', { text: note.text }); flash(t.pasted); }}
+        onPaste={note => { void invoke('paste_note', { text: note.text }); flash(t.pasted(PASTE_KEY)); }}
         onRemove={id => update(prev => prev.filter(n => n.id !== id))}
       />
       <button type="button" className="gear" aria-label={t.settings} onClick={() => setView('settings')}><GearIcon /></button>
