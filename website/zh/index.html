@@ -1,6 +1,13 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
+<script>
+/* Language: the menu choice is remembered; the English root sends a Chinese browser to /zh/ unless English was picked. */
+try {
+  document.addEventListener('click', e => { const a = e.target.closest && e.target.closest('.lang-menu a'); if (a) localStorage.setItem('wings-site-lang', a.lang.startsWith('zh') ? 'zh' : 'en'); });
+  if (document.documentElement.lang === 'en' && !localStorage.getItem('wings-site-lang') && /^zh\b/i.test(navigator.language || '')) location.replace('zh/' + location.hash);
+} catch (e) {}
+</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Wings 预输入 · AI 正在思考中，朕却日理万机</title>
