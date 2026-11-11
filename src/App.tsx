@@ -5,6 +5,7 @@ import { Onboarding } from './components/Onboarding';
 import { TargetPicker, type Target } from './components/TargetPicker';
 import { NoteList } from './components/NoteList';
 import { Settings } from './components/Settings';
+import { savedShortcut } from './components/ShortcutRecorder';
 import { Segmented } from './components/Segmented';
 import { loadNotes, makeNote, saveNotes, type Note } from './lib/notes';
 import { readPrefs, saveFloatRect, writePrefs, type Prefs } from './lib/prefs';
@@ -54,7 +55,10 @@ export function App() {
   const changePrefs = useCallback((next: Prefs) => { setPrefs(next); writePrefs(next); }, []);
 
   useEffect(() => {
-    void invoke<string>('shortcut_label').then(label => {
+    // Re-apply a saved custom shortcut first; if it can no longer be registered, the default stays.
+    const saved = savedShortcut();
+    const label = saved ? invoke<string>('set_shortcut', { combo: saved }).catch(() => invoke<string>('shortcut_label')) : invoke<string>('shortcut_label');
+    void label.then(label => {
       setShortcut(label);
       void loadNotes(t.welcome(label)).then(setNotes);
     });
@@ -122,7 +126,7 @@ export function App() {
   else if (!trusted) body = <Onboarding onGranted={() => setTrusted(true)} />;
   else if (!target) body = <TargetPicker missing={missing} onPick={choose} />;
   else if (view === 'settings') body = (
-    <Settings prefs={prefs} shortcut={shortcut} target={target} onChange={changePrefs} onPickTarget={next => void choose(next)} onError={flash} onBack={() => setView('notes')} />
+    <Settings prefs={prefs} shortcut={shortcut} target={target} onChange={changePrefs} onPickTarget={next => void choose(next)} onError={flash} onShortcut={setShortcut} onBack={() => setView('notes')} />
   );
   else body = (
     <>

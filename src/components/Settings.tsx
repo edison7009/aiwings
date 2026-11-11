@@ -3,6 +3,7 @@ import type { Target } from './TargetPicker';
 import { t } from '../strings';
 import { Segmented } from './Segmented';
 import { AppMenu } from './AppMenu';
+import { ShortcutRecorder } from './ShortcutRecorder';
 
 interface Props {
   prefs: Prefs;
@@ -11,10 +12,11 @@ interface Props {
   onChange: (p: Prefs) => void;
   onPickTarget: (t: Target) => void;
   onError: (msg: string) => void;
+  onShortcut: (label: string) => void;
   onBack: () => void;
 }
 
-export function Settings({ prefs, shortcut, target, onChange, onPickTarget, onError, onBack }: Props) {
+export function Settings({ prefs, shortcut, target, onChange, onPickTarget, onError, onShortcut, onBack }: Props) {
   const set = <K extends keyof Prefs>(k: K, v: Prefs[K]) => onChange({ ...prefs, [k]: v });
   return (
     <>
@@ -37,7 +39,7 @@ export function Settings({ prefs, shortcut, target, onChange, onPickTarget, onEr
         </section>
         <section>
           <label>{t.shortcut}</label>
-          <div className="row"><kbd>{shortcut}</kbd></div>
+          <ShortcutRecorder label={shortcut} onChange={onShortcut} onError={onError} />
         </section>
       </div>
     </>

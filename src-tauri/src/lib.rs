@@ -9,7 +9,45 @@ use std::sync::atomic::Ordering;
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
+/// Default save shortcut; the user can pick another single modifier + single key in settings.
 pub const SHORTCUT: &str = "Alt+S";
+static CURRENT_SHORTCUT: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
+
+fn register_shortcut(app: &AppHandle, combo: &str) -> Result<(), String> {
+    let handle = app.clone();
+    app.global_shortcut().on_shortcut(combo, move |_, _, ev| {
+        if ev.state == ShortcutState::Pressed {
+            let h = handle.clone();
+            std::thread::spawn(move || actions::capture(&h));
+        }
+    }).map_err(|e| e.to_string())
+}
+
+/// "Alt+S" as the user sees it: ⌥S on macOS, Ctrl+S / Win+S style on Windows.
+fn label_for(combo: &str) -> String {
+    if !cfg!(target_os = "macos") { return combo.replace("Control", "Ctrl").replace("Super", "Win"); }
+    combo.split('+').map(|part| match part {
+        "Alt" => "⌥", "Control" => "⌃", "Shift" => "⇧", "Super" => "⌘", key => key,
+    }.to_string()).collect()
+}
+
+/// Swaps the save shortcut. Accepts exactly one modifier and one key; if the new combination is taken
+/// (by the system or another app) the old one is put back and an error explains why.
+#[tauri::command]
+fn set_shortcut(app: AppHandle, combo: String) -> Result<String, String> {
+    let parts: Vec<&str> = combo.split('+').collect();
+    let valid = parts.len() == 2 && ["Alt", "Control", "Shift", "Super"].contains(&parts[0]) && !parts[1].is_empty();
+    if !valid { return Err("请用一个修饰键加一个键，比如 ⌥S".into()); }
+    let mut current = CURRENT_SHORTCUT.lock().unwrap();
+    if *current == combo { return Ok(label_for(&combo)); }
+    let _ = app.global_shortcut().unregister(current.as_str());
+    if register_shortcut(&app, &combo).is_err() {
+        let _ = register_shortcut(&app, &current);
+        return Err("这个组合已被系统或其他软件占用，请换一个".into());
+    }
+    *current = combo.clone();
+    Ok(label_for(&combo))
+}
 
 #[derive(Serialize, Clone)]
 pub struct TargetInfo {
@@ -120,7 +158,7 @@ fn open_permission_settings() {
 
 #[tauri::command]
 fn shortcut_label() -> String {
-    if cfg!(target_os = "macos") { "⌥S".into() } else { SHORTCUT.into() }
+    label_for(&CURRENT_SHORTCUT.lock().unwrap())
 }
 
 pub fn run() {
@@ -132,13 +170,8 @@ pub fn run() {
         .setup(|app| {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
-            let handle = app.handle().clone();
-            app.global_shortcut().on_shortcut(SHORTCUT, move |_, _, ev| {
-                if ev.state == ShortcutState::Pressed {
-                    let h = handle.clone();
-                    std::thread::spawn(move || actions::capture(&h));
-                }
-            })?;
+            register_shortcut(app.handle(), SHORTCUT)?;
+            *CURRENT_SHORTCUT.lock().unwrap() = SHORTCUT.to_string();
             // The "save to Wings" chip that sits on the target's input box; hidden until an input is focused.
             WebviewWindowBuilder::new(app, "chip", WebviewUrl::App("index.html".into()))
                 .title("Wings")
@@ -163,7 +196,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             list_targets, list_menu_apps, open_ai_app, set_target, clear_target, paste_note, capture_now, clear_input, set_prefs, cursor_in_window,
-            permission_granted, open_permission_settings, shortcut_label,
+            permission_granted, open_permission_settings, shortcut_label, set_shortcut,
             store::load_notes, store::save_notes, store::image_data_url, store::delete_image
         ])
         .run(tauri::generate_context!())
