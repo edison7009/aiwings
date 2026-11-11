@@ -113,14 +113,13 @@ export function App() {
     return () => { window.clearTimeout(timer); subs.forEach(s => void s.then(f => f())); };
   }, [floating]);
 
-  const switchTarget = () => { void invoke('clear_target'); setTarget(null); setView('notes'); };
 
   let body;
   if (trusted === null || notes === null) body = null;
   else if (!trusted) body = <Onboarding onGranted={() => setTrusted(true)} />;
   else if (!target) body = <TargetPicker missing={missing} onPick={choose} />;
   else if (view === 'settings') body = (
-    <Settings prefs={prefs} shortcut={shortcut} targetName={target.name} onChange={changePrefs} onSwitchTarget={switchTarget} onBack={() => setView('notes')} />
+    <Settings prefs={prefs} shortcut={shortcut} target={target} onChange={changePrefs} onPickTarget={next => void choose(next)} onBack={() => setView('notes')} />
   );
   else body = (
     <>
