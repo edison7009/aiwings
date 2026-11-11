@@ -135,6 +135,41 @@ fn clear_input(app: AppHandle) {
     std::thread::spawn(move || actions::clear(&app));
 }
 
+/// Tray (menu bar on macOS) icon: the W on a transparent background. Left click brings the bar back;
+/// the right-click menu is the way to quit.
+fn build_tray(app: &tauri::App) -> tauri::Result<()> {
+    use tauri::menu::{Menu, MenuItem};
+    use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+    let show = MenuItem::with_id(app, "show", "显示 Wings", true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", "退出 Wings", true, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&show, &quit])?;
+    TrayIconBuilder::with_id("wings")
+        .icon(tauri::image::Image::from_bytes(include_bytes!("../icons/tray.png"))?)
+        .tooltip("Wings")
+        .menu(&menu)
+        .show_menu_on_left_click(false)
+        .on_menu_event(|app, e| match e.id.as_ref() {
+            "quit" => app.exit(0),
+            "show" => show_bar(app),
+            _ => {}
+        })
+        .on_tray_icon_event(|tray, e| {
+            if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = e {
+                show_bar(tray.app_handle());
+            }
+        })
+        .build(app)?;
+    Ok(())
+}
+
+fn show_bar(app: &AppHandle) {
+    if let Some(win) = app.get_webview_window("main") {
+        let _ = win.show();
+        let _ = win.unminimize();
+        let _ = win.set_focus();
+    }
+}
+
 #[tauri::command]
 fn set_prefs(app: AppHandle, float: bool, follow: bool, follow_keys: Option<Vec<String>>, chip: bool, float_rect: Option<[f64; 4]>) {
     watch::FOLLOW.store(follow, Ordering::SeqCst);
@@ -180,6 +215,8 @@ pub fn run() {
         .setup(|app| {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+            // Docked beside other apps, Wings has no window chrome or Dock icon: the tray is the one way to quit.
+            build_tray(app)?;
             register_shortcut(app.handle(), SHORTCUT)?;
             *CURRENT_SHORTCUT.lock().unwrap() = SHORTCUT.to_string();
             // The "save to Wings" chip that sits on the target's input box; hidden until an input is focused.
