@@ -39,6 +39,8 @@ export function AppMenu(props: Props) {
   const choose = async (app: MenuApp) => {
     if (props.mode === 'multi') {
       // The menu stays open so several apps can be ticked in a row.
+      // Keep at least one app ticked: an empty list would follow nothing, which looks broken.
+      if (followed.includes(app.key) && followed.length === 1) return;
       props.onChangeKeys(followed.includes(app.key) ? followed.filter(k => k !== app.key) : [...followed, app.key]);
       return;
     }

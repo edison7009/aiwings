@@ -25,6 +25,8 @@ export function readPrefs(): Prefs {
     // Older versions kept dock/float and follow as two separate switches.
     if (!raw.layout && (raw.mode || raw.follow !== undefined)) raw.layout = raw.mode === 'float' ? 'float' : raw.follow === false ? 'pin' : 'follow';
     delete raw.mode; delete raw.follow;
+    // An empty follow list (possible in older versions) follows nothing; fall back to every AI app.
+    if (Array.isArray(raw.followKeys) && raw.followKeys.length === 0) raw.followKeys = null;
     return { ...DEFAULTS, ...raw };
   } catch { return DEFAULTS; }
 }
