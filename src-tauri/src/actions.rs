@@ -98,7 +98,7 @@ pub fn paste(app: &AppHandle, text: String, image: Option<String>) {
         return emit_error(app, "目标窗口不在最前面，已取消粘贴（内容已复制，可手动粘贴）");
     }
     if let Err(e) = platform::send_combo(platform::Key::V) {
-        emit_error(app, &e);
+        emit_error(app, &format!("{e}（内容已复制，可手动粘贴）"));
     }
 }
 

@@ -47,10 +47,10 @@ export function App() {
   prefsRef.current = prefs;
   trustedRef.current = trusted === true;
 
-  const flash = useCallback((msg: string) => {
+  const flash = useCallback((msg: string, duration = 2600) => {
     setToast(msg);
     window.clearTimeout(toastTimer.current);
-    toastTimer.current = window.setTimeout(() => setToast(null), 2600);
+    toastTimer.current = window.setTimeout(() => setToast(null), duration);
   }, []);
 
   const changePrefs = useCallback((next: Prefs) => { setPrefs(next); writePrefs(next); applyThemeMode(next.theme, next.palette); }, []);
@@ -83,7 +83,7 @@ export function App() {
   useEffect(() => {
     const subs = [
       listen<{ text: string; image: string | null }>('wings://captured', e => update(prev => [...prev, makeNote(e.payload.text, e.payload.image ?? undefined)])),
-      listen<string>('wings://error', e => flash(e.payload)),
+      listen<string>('wings://error', e => flash(e.payload, 8000)),
       listen<Target>('wings://follow', e => { if (trustedRef.current) void choose(e.payload); }),
     ];
     return () => { subs.forEach(s => void s.then(f => f())); };
