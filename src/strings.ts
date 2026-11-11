@@ -17,7 +17,7 @@ export const t = {
   followOff: '不跟随',
   followOn: '跟随切换',
   opening: (name: string) => `正在打开 ${name}…`,
-  supportsSave: '支持保存',
+  supportsSave: '已支持',
   noApps: '没有找到可用的应用',
   followNone: '未选择要跟随的应用',
   followCount: (n: number) => `跟随 ${n} 个应用`,
