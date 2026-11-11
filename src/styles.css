@@ -102,36 +102,81 @@ h1 { font-size: 15px; margin: 6px 0 4px; }
 .targets button:hover { background: var(--card-hover); }
 
 .notes { display: flex; flex-direction: column; gap: 6px; padding-bottom: 44px; }
-.note { position: relative; }
-.note-body {
-  width: 100%;
-  text-align: left;
-  padding: 9px 26px 9px 11px;
+.note {
+  position: relative;
   border-radius: 10px;
   background: var(--card);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+/* Collapsed + hovered: a soft glow follows the pointer. */
+.note::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(140px circle at var(--glow-x, 50%) 50%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+.note.is-collapsed:hover::before { opacity: 1; }
+.note-text {
+  position: relative;
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0;
   white-space: pre-wrap;
   word-break: break-word;
+}
+.note-text::after { content: none; }
+/* Collapsed: exactly one line; margin (not padding) so the next line never peeks in. */
+.note.is-collapsed .note-text {
   display: -webkit-box;
-  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
   overflow: hidden;
+  margin: 9px 11px;
+  width: calc(100% - 22px);
 }
-.note-body:hover { background: var(--card-hover); }
-.note-body:active { transform: scale(0.99); }
-.note-delete {
+.note:not(.is-collapsed) .note-text { margin: 9px 11px 2px; width: calc(100% - 22px); }
+/* The line fades out under the hover icons instead of moving. */
+.note.is-collapsed:hover .note-text {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 84px), transparent calc(100% - 50px));
+  mask-image: linear-gradient(to right, #000 calc(100% - 84px), transparent calc(100% - 50px));
+}
+.note-quick {
   position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
-  color: var(--muted);
+  top: 0;
+  right: 5px;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
   opacity: 0;
-  transition: opacity 0.15s;
+  transform: translateX(6px);
+  pointer-events: none;
+  transition: opacity 0.18s, transform 0.18s;
 }
-.note:hover .note-delete { opacity: 1; }
-.note-delete:hover { color: var(--text); background: var(--line); }
+.note:hover .note-quick, .note:focus-within .note-quick { opacity: 1; transform: none; pointer-events: auto; }
+.note-actions { display: flex; align-items: center; padding: 2px 5px 6px; }
+.note-gap { flex: 1; }
+.note-btn {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  color: var(--accent);
+  transition: color 0.15s, background 0.15s, filter 0.15s;
+}
+.note-btn svg { width: 15px; height: 15px; }
+.note-btn:hover { background: var(--line); }
+.note-delete:hover { color: #e5534b; }
+.note-send { border-radius: 50%; color: #fff; background: var(--accent); margin-left: 2px; }
+.note-send svg { width: 11px; height: 11px; margin-left: 2px; }
+.note-send:hover { background: var(--accent); filter: brightness(1.12); }
+@media (prefers-reduced-motion: reduce) { .note-quick, .note::before { transition: none; } .note-quick { transform: none; } }
 
 /* Vertically centred in the list area. */
 .empty { margin: auto 0; text-align: center; padding: 0 8px 20px; }
