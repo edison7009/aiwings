@@ -38,16 +38,34 @@
 .wd-ai { align-self: flex-start; color: var(--wd-app-fg); padding-left: 0; }
 .wd-reply { display: none; }
 .wd-ai.done .wd-reply { display: inline; animation: wd-fade .4s cubic-bezier(.22, 1, .36, 1); }
-.wd-ai.done .wd-dots { display: none; }
-.wd-dots { display: inline-flex; gap: 5px; padding: 8px 0; }
-.wd-dots b { width: 7px; height: 7px; border-radius: 50%; background: var(--wd-app-muted); animation: wd-dot 1.2s infinite ease-in-out; }
-.wd-dots b:nth-child(2) { animation-delay: .15s; }
-.wd-dots b:nth-child(3) { animation-delay: .3s; }
+.wd-ai.done .wd-status { display: none; }
+/* The AI's busy state, said in words, with a light sweeping across them. */
+.wd-status {
+  display: inline-block; padding: 6px 0; font-size: 13px; font-weight: 600;
+  background: linear-gradient(90deg, var(--wd-app-muted) 35%, var(--wd-app-fg) 50%, var(--wd-app-muted) 65%) 0 0 / 300% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: wd-sweep 1.8s linear infinite;
+}
+@keyframes wd-sweep { from { background-position: 100% 0; } to { background-position: 0 0; } }
+/* The input's round button: a stop square while the AI works, a send arrow once it is done. */
+.wd-btn {
+  position: absolute; right: 10px; top: 50%; translate: 0 -50%;
+  width: 30px; height: 30px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--wd-app-fg); color: var(--wd-input-bg);
+  transition: background .3s, opacity .3s;
+}
+.wd-btn svg { width: 16px; height: 16px; }
+.wd-stop { fill: currentColor; }
+.wd-send { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; display: none; }
+.wd-input.idle .wd-stop { display: none; }
+.wd-input.idle .wd-send { display: inline; }
+.wd-input.idle:not(.filled) .wd-btn { opacity: .35; }
 .wd-input {
   position: relative;
   margin: 0 14px 14px;
   min-height: 52px;
-  padding: 14px 16px;
+  padding: 14px 52px 14px 16px;
   border: 1px solid var(--wd-app-line);
   border-radius: 14px;
   background: var(--wd-input-bg);
@@ -89,7 +107,6 @@
 }
 .wd-toast.on { opacity: 1; transform: none; }
 .wd-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-@keyframes wd-dot { 0%, 80%, 100% { opacity: .25; transform: none; } 40% { opacity: 1; transform: translateY(-3px); } }
 @keyframes wd-blink { 50% { opacity: 0; } }
 @keyframes wd-fade { from { opacity: 0; } to { opacity: 1; } }
 @media (max-width: 640px) {

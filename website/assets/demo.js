@@ -11,11 +11,12 @@
         <div class="wd-bar"><i></i><i></i><i></i><span>Claude</span></div>
         <div class="wd-chat">
           <div class="wd-msg wd-user">帮我把登录页重构一下，拆成小组件</div>
-          <div class="wd-msg wd-ai"><span class="wd-dots"><b></b><b></b><b></b></span><span class="wd-reply">好了，拆成了表单、按钮和错误提示三个组件。</span></div>
+          <div class="wd-msg wd-ai"><span class="wd-status">正在工作中…</span><span class="wd-reply">好了，拆成了表单、按钮和错误提示三个组件。</span></div>
         </div>
         <div class="wd-input">
           <span class="wd-text"></span><span class="wd-caret"></span>
           <span class="wd-chip">保存到 Wings</span>
+          <span class="wd-btn"><svg viewBox="0 0 16 16"><rect class="wd-stop" x="4.5" y="4.5" width="7" height="7" rx="1.5"/><path class="wd-send" d="M8 12.5V4M4.5 7.5 8 4l3.5 3.5"/></svg></span>
         </div>
       </div>
       <div class="wd-side" aria-hidden="true">
@@ -30,7 +31,7 @@
 
   function run(root) {
     const $ = s => root.querySelector(s);
-    const text = $('.wd-text'), chip = $('.wd-chip'), notes = $('.wd-notes'), ai = $('.wd-ai'), toast = $('.wd-toast'), input = $('.wd-input');
+    const text = $('.wd-text'), chip = $('.wd-chip'), notes = $('.wd-notes'), ai = $('.wd-ai'), toast = $('.wd-toast'), input = $('.wd-input'), status = $('.wd-status');
     const wait = ms => new Promise(r => setTimeout(r, ms));
 
     async function type(s) {
@@ -53,12 +54,12 @@
 
     async function loop() {
       for (;;) {
-        notes.innerHTML = ''; text.textContent = ''; ai.classList.remove('done'); toast.classList.remove('on');
-        input.classList.remove('filled');
+        notes.innerHTML = ''; text.textContent = ''; ai.classList.remove('done'); input.classList.remove('idle'); toast.classList.remove('on');
+        input.classList.remove('filled'); status.textContent = '正在工作中…';
         await wait(900);
-        for (const s of lines) { await type(s); await save(s); }
+        for (const [i, s] of lines.entries()) { await type(s); await save(s); if (i === 0) status.textContent = '正在执行中…'; }
         await wait(500);
-        ai.classList.add('done');
+        ai.classList.add('done'); input.classList.add('idle');
         await wait(1300);
         const first = notes.firstElementChild;
         first.classList.add('aim');
