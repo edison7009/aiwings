@@ -3,6 +3,8 @@ name = "wings"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
+homepage = "https://aiwings.app"
+repository = "https://github.com/edison7009/aiwings"
 
 [lib]
 name = "wings_lib"
