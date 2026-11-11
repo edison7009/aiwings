@@ -28,7 +28,6 @@ export function Settings({ prefs, shortcut, target, onChange, onError, onShortcu
   return (
     <>
       <header className="panel-head" data-tauri-drag-region>
-        <button type="button" className="ghost" onClick={onBack}>‹ {t.back}</button>
         <span className="brand" data-tauri-drag-region>{t.settings}</span>
       </header>
       <div className="panel-body settings">
@@ -56,8 +55,10 @@ export function Settings({ prefs, shortcut, target, onChange, onError, onShortcu
           <ShortcutRecorder label={shortcut} onChange={onShortcut} onError={onError} />
         </section>
       </div>
+      {/* Back sits where the gear was, so opening and leaving settings is one spot. */}
       <footer className="settings-foot">
-        <span>{version ? `v${version}` : ''}</span>
+        <button type="button" onClick={onBack}>‹ {t.back}</button>
+        <span className="settings-version">{version ? `v${version}` : ''}</span>
         <button type="button" onClick={() => void invoke('open_url', { url: 'https://aiwings.app' })}>
           {t.website}
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
