@@ -23,7 +23,7 @@ export function Onboarding({ onGranted }: { onGranted: () => void }) {
   return (
     <>
       <header className="panel-head" data-tauri-drag-region>
-        <span className="brand" data-tauri-drag-region>Wings · 候话</span>
+        <span className="brand" data-tauri-drag-region>Wings · 预输入</span>
       </header>
       <div className="panel-body onboarding">
         <h1>{t.permTitle}</h1>

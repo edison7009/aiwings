@@ -1,6 +1,6 @@
 <p align="center"><img src="branding/wings-icon.svg" alt="Wings" width="128"></p>
 
-# Wings · 候话
+# Wings · 预输入
 
 AI 正在忙的时候，先把下一句话存起来，等它空了再一键贴回去。
 
