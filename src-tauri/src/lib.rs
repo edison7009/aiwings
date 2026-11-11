@@ -135,14 +135,34 @@ fn clear_input(app: AppHandle) {
     std::thread::spawn(move || actions::clear(&app));
 }
 
-/// Tray (menu bar on macOS) icon: the W on a transparent background. Left click brings the bar back;
-/// the right-click menu is the way to quit.
+/// The tray menu's first line: which app the bar is docked to. Clicking it brings both forward.
+struct TrayTarget(tauri::menu::MenuItem<tauri::Wry>);
+
+fn tray_target_label(name: Option<&str>) -> String {
+    match name {
+        Some(n) => format!("吸附：{n}"),
+        None => "未吸附（悬停中）".into(),
+    }
+}
+
+#[tauri::command]
+fn set_tray_target(app: AppHandle, name: Option<String>) {
+    if let Some(item) = app.try_state::<TrayTarget>() {
+        let _ = item.0.set_text(tray_target_label(name.as_deref()));
+        let _ = item.0.set_enabled(name.is_some());
+    }
+}
+
+/// Tray (menu bar on macOS) icon: the W on its white tile. Left click brings the bar back;
+/// the right-click menu shows the docked app and is the way to quit.
 fn build_tray(app: &tauri::App) -> tauri::Result<()> {
-    use tauri::menu::{Menu, MenuItem};
+    use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
     use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+    let target = MenuItem::with_id(app, "target", tray_target_label(None), false, None::<&str>)?;
     let show = MenuItem::with_id(app, "show", "显示 Wings", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "退出 Wings", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&show, &quit])?;
+    let menu = Menu::with_items(app, &[&target, &PredefinedMenuItem::separator(app)?, &show, &quit])?;
+    app.manage(TrayTarget(target));
     TrayIconBuilder::with_id("wings")
         .icon(tauri::image::Image::from_bytes(include_bytes!("../icons/tray.png"))?)
         .tooltip("Wings")
@@ -151,6 +171,7 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
         .on_menu_event(|app, e| match e.id.as_ref() {
             "quit" => app.exit(0),
             "show" => show_bar(app),
+            "target" => { show_bar(app); platform::activate_target(); }
             _ => {}
         })
         .on_tray_icon_event(|tray, e| {
@@ -245,7 +266,7 @@ pub fn run() {
             if let WindowEvent::Focused(false) = ev { platform::refresh_later(win.app_handle()); }
         })
         .invoke_handler(tauri::generate_handler![
-            list_targets, list_menu_apps, open_ai_app, set_target, clear_target, paste_note, capture_now, clear_input, set_prefs, cursor_in_window,
+            list_targets, list_menu_apps, set_tray_target, open_ai_app, set_target, clear_target, paste_note, capture_now, clear_input, set_prefs, cursor_in_window,
             permission_granted, open_permission_settings, shortcut_label, set_shortcut,
             store::load_notes, store::save_notes, store::image_data_url, store::delete_image
         ])

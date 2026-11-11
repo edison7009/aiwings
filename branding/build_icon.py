@@ -78,14 +78,17 @@ def rounded_mask(size: int, box, radius: int) -> Image.Image:
     return big.resize((size, size), Image.LANCZOS)
 
 
-def icon(mark: Image.Image) -> Image.Image:
+def icon(mark: Image.Image, inset: int = INSET, shadow: bool = True) -> Image.Image:
+    """inset/shadow default to the macOS grid; Windows and tray icons want the tile edge to edge, no shadow."""
+    INSET = inset
+    RADIUS = round(198 * (CANVAS - 2 * inset) / 816)
     c = Image.new("RGBA", (CANVAS, CANVAS), (0, 0, 0, 0))
     box = (INSET, INSET, CANVAS - INSET - 1, CANVAS - INSET - 1)
-    # Soft drop shadow under the tile.
-    sh = rounded_mask(CANVAS, (box[0], box[1] + 14, box[2], box[3] + 14), RADIUS).point(lambda p: p * 0.16)
-    shadow = Image.new("RGBA", c.size, (16, 26, 40, 0))
-    shadow.putalpha(sh.filter(ImageFilter.GaussianBlur(18)))
-    c = Image.alpha_composite(c, shadow)
+    if shadow:  # Soft drop shadow under the tile.
+        sh = rounded_mask(CANVAS, (box[0], box[1] + 14, box[2], box[3] + 14), RADIUS).point(lambda p: p * 0.16)
+        sd = Image.new("RGBA", c.size, (16, 26, 40, 0))
+        sd.putalpha(sh.filter(ImageFilter.GaussianBlur(18)))
+        c = Image.alpha_composite(c, sd)
     # Hairline edge, then the gradient face inset by 3 px.
     edge = Image.new("RGBA", c.size, EDGE + (0,))
     edge.putalpha(rounded_mask(CANVAS, box, RADIUS))

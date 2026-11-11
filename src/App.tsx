@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { Onboarding } from './components/Onboarding';
-import { TargetPicker, type Target } from './components/TargetPicker';
+import type { Target } from './components/TargetPicker';
 import { NoteList } from './components/NoteList';
 import { Settings } from './components/Settings';
 import { savedShortcut } from './components/ShortcutRecorder';
@@ -16,6 +16,9 @@ import { t } from './strings';
 
 const TARGET_KEY = 'wings-target';
 const PASTE_KEY = /Mac/.test(navigator.userAgent) ? '⌘V' : 'Ctrl+V';
+
+/** Stand-in for settings while nothing is docked. */
+const IDLE_TARGET: Target = { id: '', key: '', name: 'Wings' };
 
 interface Remembered { key: string; name: string }
 
@@ -35,7 +38,8 @@ function GearIcon() {
 export function App() {
   const [trusted, setTrusted] = useState<boolean | null>(null);
   const [target, setTarget] = useState<Target | null>(null);
-  const [missing, setMissing] = useState<string | null>(null);
+  // Nothing to dock to at launch: the bar hovers where it was last left until an AI app comes forward.
+  const [idle, setIdle] = useState(false);
   const [notes, setNotes] = useState<Note[] | null>(null);
   const [shortcut, setShortcut] = useState('Alt+S');
   const [prefs, setPrefs] = useState<Prefs>(readPrefs);
@@ -44,6 +48,8 @@ export function App() {
   const toastTimer = useRef<number | undefined>(undefined);
   const prefsRef = useRef(prefs);
   const trustedRef = useRef(false);
+  const idleRef = useRef(false);
+  idleRef.current = idle;
   prefsRef.current = prefs;
   trustedRef.current = trusted === true;
 
@@ -53,7 +59,7 @@ export function App() {
     toastTimer.current = window.setTimeout(() => setToast(null), duration);
   }, []);
 
-  const changePrefs = useCallback((next: Prefs) => { setPrefs(next); writePrefs(next); applyThemeMode(next.theme, next.palette); }, []);
+  const changePrefs = useCallback((next: Prefs) => { setPrefs(next); writePrefs(next, idleRef.current); applyThemeMode(next.theme, next.palette); }, []);
 
   useEffect(() => {
     // Re-apply a saved custom shortcut first; if it can no longer be registered, the default stays.
@@ -74,7 +80,7 @@ export function App() {
     try {
       await invoke('set_target', { id: next.id, key: next.key });
       setTarget(next);
-      setMissing(null);
+      setIdle(false);
       writePrefs(prefsRef.current);
       try { localStorage.setItem(TARGET_KEY, JSON.stringify({ key: next.key, name: next.name })); } catch { /* Best effort. */ }
     } catch (e) { flash(String(e)); }
@@ -92,21 +98,24 @@ export function App() {
   // Hand the saved settings (which apps to follow, among others) to the Rust side as soon as it can act on them.
   useEffect(() => { if (trusted) writePrefs(prefsRef.current); }, [trusted]);
 
-  // Re-dock the remembered app once permission is in place.
+  // Once permission is in place, dock on our own: the remembered app if it is open, else an open AI app.
+  // With neither, hover until one comes forward (following picks it up then).
   useEffect(() => {
-    if (!trusted || target) return;
+    if (!trusted || target || idle) return;
     const last = readRemembered();
-    if (!last) return;
-    void invoke<Target[]>('list_targets').then(list => {
-      const hit = list.find(item => item.key === last.key);
-      if (hit) void choose(hit); else setMissing(last.name);
+    void Promise.all([invoke<Target[]>('list_targets'), invoke<(Target & { ai: boolean })[]>('list_menu_apps')]).then(([open, apps]) => {
+      const hit = (last && open.find(item => item.key === last.key)) || apps.find(a => a.id && (prefsRef.current.layout === 'lock' ? prefsRef.current.lockKeys.includes(a.key) : a.ai));
+      if (hit) void choose({ id: hit.id, key: hit.key, name: hit.name });
+      else { setIdle(true); writePrefs(prefsRef.current, true); }
     });
-  }, [trusted, target, choose]);
+  }, [trusted, target, idle, choose]);
+
+  useEffect(() => { void invoke('set_tray_target', { name: target?.name ?? null }); }, [target]);
 
   useEffect(() => { applyTheme(themeFor(target?.key ?? null)); }, [target]);
 
   // While hovering, remember where the bar is and how big, so the next switch to hover (or the next launch) returns there.
-  const floating = !!target && prefs.layout === 'float';
+  const floating = idle || (!!target && prefs.layout === 'float');
   useEffect(() => {
     if (!floating) return;
     const win = getCurrentWindow();
@@ -125,16 +134,16 @@ export function App() {
   let body;
   if (trusted === null || notes === null) body = null;
   else if (!trusted) body = <Onboarding onGranted={() => setTrusted(true)} />;
-  else if (!target) body = <TargetPicker missing={missing} onPick={choose} />;
+  else if (!target && !idle) body = null;
   else if (view === 'settings') body = (
-    <Settings prefs={prefs} shortcut={shortcut} target={target} onChange={changePrefs} onError={flash} onShortcut={setShortcut} onBack={() => setView('notes')} />
+    <Settings prefs={prefs} shortcut={shortcut} target={target ?? IDLE_TARGET} onChange={changePrefs} onError={flash} onShortcut={setShortcut} onBack={() => setView('notes')} />
   );
   else body = (
     <>
       {/* Hover mode lets the header drag the bar anywhere; docked, it follows the target instead. */}
       <header className="panel-head" data-tauri-drag-region={floating || undefined}>
-        <span className="brand" data-tauri-drag-region={floating || undefined}>{target.name}</span>
-        <Segmented value={prefs.layout} options={LAYOUTS} onChange={layout => changePrefs(withLayout(prefs, layout, target.key))} />
+        <span className="brand" data-tauri-drag-region={floating || undefined}>{target?.name ?? 'Wings'}</span>
+        <Segmented value={prefs.layout} options={LAYOUTS} onChange={layout => changePrefs(withLayout(prefs, layout, target?.key ?? null))} />
       </header>
       <NoteList
         notes={notes}
@@ -151,7 +160,7 @@ export function App() {
   );
 
   return (
-    <div className={`shell${target ? (floating ? ' shell--float' : ' shell--docked') : ''}`}>
+    <div className={`shell${target || idle ? (floating ? ' shell--float' : ' shell--docked') : ''}`}>
       <div className="panel">{body}</div>
       {toast && <div className="toast" role="status">{toast}</div>}
     </div>

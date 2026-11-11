@@ -68,9 +68,10 @@ function readFloatRect(): [number, number, number, number] | null {
   } catch { return null; }
 }
 
-export function writePrefs(p: Prefs) {
+/** idle: nothing docked yet, so the bar hovers whatever the layout says. */
+export function writePrefs(p: Prefs, idle = false) {
   try { localStorage.setItem(KEY, JSON.stringify(p)); } catch { /* Best effort. */ }
-  void invoke('set_prefs', { float: p.layout === 'float', follow: true, followKeys: p.layout === 'lock' && p.lockKeys.length > 0 ? p.lockKeys : null, chip: p.chip, floatRect: readFloatRect() });
+  void invoke('set_prefs', { float: idle || p.layout === 'float', follow: true, followKeys: p.layout === 'lock' && p.lockKeys.length > 0 ? p.lockKeys : null, chip: p.chip, floatRect: readFloatRect() });
 }
 
 /** Sets light/dark on this window. Both windows (bar and chip) call it; the chip hears changes via storage events. */
