@@ -71,7 +71,7 @@ pub fn place_chip(app: &AppHandle, input: Frame, scale: f64) {
     show_no_activate(&chip);
 }
 
-pub const CHIP_W: f64 = 168.0;
+pub const CHIP_W: f64 = 140.0;
 pub const CHIP_H: f64 = 34.0;
 /// Room kept clear for the box's own buttons at its right end.
 pub const CHIP_RIGHT_INSET: f64 = 72.0;
