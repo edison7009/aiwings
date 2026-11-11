@@ -252,7 +252,27 @@ h1 { font-size: 15px; margin: 6px 0 4px; }
 .settings .segmented { display: grid; width: 100%; }
 .settings .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; border-radius: 8px; background: var(--card); }
 .settings .row-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.settings input[type=range] { width: 100%; accent-color: var(--accent); }
+/* Slider: all blue, no white rim. The track is filled up to the thumb via --fill. */
+.settings input[type=range] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  margin: 8px 0;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--accent) var(--fill, 100%), var(--line) var(--fill, 100%));
+  outline: none;
+}
+.settings input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+}
 .small { font-size: 12px; margin: 6px 0 0; }
 .settings .hint { margin: 8px 0 0; }
 /* App menu: opens below its button, never over it. */

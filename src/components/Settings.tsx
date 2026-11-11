@@ -37,7 +37,8 @@ export function Settings({ prefs, shortcut, target, onChange, onPickTarget, onEr
         </section>
         <section>
           <label>{t.opacity} <span className="muted">{Math.round(prefs.opacity * 100)}%</span></label>
-          <input type="range" min={30} max={100} value={Math.round(prefs.opacity * 100)} onChange={e => set('opacity', Number(e.target.value) / 100)} />
+          <input type="range" min={30} max={100} value={Math.round(prefs.opacity * 100)}
+            style={{ '--fill': `${((prefs.opacity * 100 - 30) / 70) * 100}%` } as React.CSSProperties} onChange={e => set('opacity', Number(e.target.value) / 100)} />
         </section>
         <section>
           <label>{t.shortcut}</label>
