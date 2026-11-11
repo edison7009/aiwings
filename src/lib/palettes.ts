@@ -1,6 +1,7 @@
 // Colour palettes for the settings tiles (background, card and accent of each half). Keep in sync with the [data-palette] blocks at the end of styles.css.
 export const PALETTES = [
-  { id: 'basalt', name: '玄武岩', day: { bg: '#f4f2ee', card: '#ffffff', accent: '#007aff' }, night: { bg: '#1d1c1a', card: '#2b2a27', accent: '#007aff' } },
+  // The default's tile is neutral stone grey: its blue accent belongs to the buttons, not to the palette.
+  { id: 'basalt', name: '默认', day: { bg: '#f4f2ee', card: '#ffffff', accent: '#9c978d' }, night: { bg: '#1d1c1a', card: '#2b2a27', accent: '#6b6860' } },
   { id: 'wings', name: 'Wings 粉', day: { bg: '#fbf3f7', card: '#ffffff', accent: '#e0367d' }, night: { bg: '#231a20', card: '#2d2229', accent: '#f84890' } },
   { id: 'sakura', name: '樱花', day: { bg: '#f6f1f3', card: '#ffffff', accent: '#773b4d' }, night: { bg: '#262024', card: '#2f292d', accent: '#dab2be' } },
   { id: 'amber', name: '琥珀', day: { bg: '#f7f3ec', card: '#ffffff', accent: '#7f5c34' }, night: { bg: '#272219', card: '#302a20', accent: '#d2b28e' } },
