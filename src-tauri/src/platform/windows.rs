@@ -261,3 +261,12 @@ pub fn focused_input() -> Option<(Frame, bool)> { None }
 
 /// Not adapted on Windows yet: the paste goes wherever the target's caret already is.
 pub fn focus_input() {}
+
+/// Installed-app detection is not adapted on Windows yet: offer the AI apps that are open.
+pub fn installed_ai_apps() -> Vec<TargetInfo> {
+    list_targets().into_iter().filter(crate::platform::is_ai_app).collect()
+}
+
+pub fn launch_app(key: &str) -> Option<TargetInfo> {
+    list_targets().into_iter().find(|t| t.key == key)
+}

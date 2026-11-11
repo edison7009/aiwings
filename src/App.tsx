@@ -67,7 +67,7 @@ export function App() {
 
   const choose = useCallback(async (next: Target) => {
     try {
-      await invoke('set_target', { id: next.id });
+      await invoke('set_target', { id: next.id, key: next.key });
       setTarget(next);
       setMissing(null);
       writePrefs(prefsRef.current);
@@ -83,6 +83,9 @@ export function App() {
     ];
     return () => { subs.forEach(s => void s.then(f => f())); };
   }, [update, flash, choose]);
+
+  // Hand the saved settings (which apps to follow, among others) to the Rust side as soon as it can act on them.
+  useEffect(() => { if (trusted) writePrefs(prefsRef.current); }, [trusted]);
 
   // Re-dock the remembered app once permission is in place.
   useEffect(() => {
@@ -119,7 +122,7 @@ export function App() {
   else if (!trusted) body = <Onboarding onGranted={() => setTrusted(true)} />;
   else if (!target) body = <TargetPicker missing={missing} onPick={choose} />;
   else if (view === 'settings') body = (
-    <Settings prefs={prefs} shortcut={shortcut} target={target} onChange={changePrefs} onPickTarget={next => void choose(next)} onBack={() => setView('notes')} />
+    <Settings prefs={prefs} shortcut={shortcut} target={target} onChange={changePrefs} onPickTarget={next => void choose(next)} onError={flash} onBack={() => setView('notes')} />
   );
   else body = (
     <>

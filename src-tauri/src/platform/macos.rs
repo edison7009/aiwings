@@ -405,3 +405,61 @@ unsafe fn has_real_text(el: AXUIElementRef) -> bool {
             .is_some_and(|n| n > 0),
     }
 }
+
+fn running_pid(bundle_id: &str) -> Option<i32> {
+    let id = objc2_foundation::NSString::from_str(bundle_id);
+    NSRunningApplication::runningApplicationsWithBundleIdentifier(&id).iter().next().map(|a| a.processIdentifier())
+}
+
+fn bundle_id(app: &std::path::Path) -> Option<String> {
+    let out = std::process::Command::new("/usr/bin/plutil")
+        .args(["-extract", "CFBundleIdentifier", "raw", "-o", "-"])
+        .arg(app.join("Contents/Info.plist"))
+        .output().ok()?;
+    let id = String::from_utf8(out.stdout).ok()?.trim().to_string();
+    (!id.is_empty()).then_some(id)
+}
+
+/// AI apps installed in /Applications or ~/Applications. `id` is the pid when running, empty otherwise.
+pub fn installed_ai_apps() -> Vec<TargetInfo> {
+    let mut dirs = vec![std::path::PathBuf::from("/Applications")];
+    if let Some(home) = std::env::var_os("HOME") { dirs.push(std::path::PathBuf::from(home).join("Applications")); }
+    let mut out = Vec::new();
+    for dir in dirs {
+        let Ok(entries) = std::fs::read_dir(&dir) else { continue };
+        for e in entries.flatten() {
+            let path = e.path();
+            if path.extension().and_then(|x| x.to_str()) != Some("app") { continue; }
+            let name = path.file_stem().and_then(|x| x.to_str()).unwrap_or_default().to_string();
+            if !crate::platform::is_ai_app(&TargetInfo { id: String::new(), key: String::new(), name: name.clone() }) { continue; }
+            let Some(key) = bundle_id(&path) else { continue };
+            if out.iter().any(|t: &TargetInfo| t.key == key) { continue; }
+            let id = running_pid(&key).map(|p| p.to_string()).unwrap_or_default();
+            out.push(TargetInfo { id, key, name });
+        }
+    }
+    crate::platform::sort_targets(&mut out);
+    out
+}
+
+/// Opens an installed app and waits until it is running with a window, so it can be docked.
+pub fn launch_app(key: &str) -> Option<TargetInfo> {
+    if running_pid(key).is_none() {
+        std::process::Command::new("/usr/bin/open").args(["-b", key]).status().ok()?;
+    }
+    let start = Instant::now();
+    while start.elapsed() < Duration::from_secs(20) {
+        if let Some(pid) = running_pid(key) {
+            let el = unsafe { AXUIElementCreateApplication(pid) };
+            let win = unsafe { copy_attr(el, "AXMainWindow").or_else(|| copy_attr(el, "AXFocusedWindow")) };
+            unsafe { if let Some(w) = win { CFRelease(w); } CFRelease(el); }
+            if win.is_some() {
+                let name = NSRunningApplication::runningApplicationWithProcessIdentifier(pid)
+                    .and_then(|a| a.localizedName()).map(|n| n.to_string()).unwrap_or_default();
+                return Some(TargetInfo { id: pid.to_string(), key: key.to_string(), name });
+            }
+        }
+        std::thread::sleep(Duration::from_millis(250));
+    }
+    None
+}

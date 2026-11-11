@@ -21,6 +21,9 @@ pub fn capture(app: &AppHandle) {
     if !platform::has_target() {
         return emit_error(app, "还没选择要吸附的窗口");
     }
+    if platform::target_is_terminal() {
+        return emit_error(app, "终端里不支持保存，只能把便签粘贴进去");
+    }
     if !platform::target_is_front() {
         return emit_error(app, "请先点一下目标窗口的输入框，再按快捷键");
     }

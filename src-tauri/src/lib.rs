@@ -25,9 +25,36 @@ fn list_targets() -> Vec<TargetInfo> {
     platform::list_targets()
 }
 
+/// Apps for the settings menu: AI apps installed on this machine, then any other open app (WeChat, say).
+/// `ai` marks the ones followed by default.
+#[derive(Serialize, Clone)]
+struct MenuApp { #[serde(flatten)] app: TargetInfo, ai: bool }
+
 #[tauri::command]
-fn set_target(app: AppHandle, id: String) -> Result<(), String> {
-    platform::dock(app, &id)
+fn list_menu_apps() -> Vec<MenuApp> {
+    let mut out: Vec<MenuApp> = platform::installed_ai_apps().into_iter().map(|app| MenuApp { app, ai: true }).collect();
+    for app in platform::list_targets() {
+        if let Some(m) = out.iter_mut().find(|m| m.app.key == app.key) { m.app.id = app.id; continue; }
+        let ai = platform::is_ai_app(&app);
+        out.push(MenuApp { app, ai });
+    }
+    out
+}
+
+/// Opens (if needed) an installed AI app and returns it ready to dock. Async: launching can take seconds.
+#[tauri::command]
+async fn open_ai_app(key: String) -> Result<TargetInfo, String> {
+    tauri::async_runtime::spawn_blocking(move || platform::launch_app(&key))
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "没能打开这个应用".to_string())
+}
+
+#[tauri::command]
+fn set_target(app: AppHandle, id: String, key: String) -> Result<(), String> {
+    platform::dock(app, &id)?;
+    platform::set_target_key(&key);
+    Ok(())
 }
 
 #[tauri::command]
@@ -57,8 +84,9 @@ fn clear_input(app: AppHandle) {
 }
 
 #[tauri::command]
-fn set_prefs(app: AppHandle, float: bool, follow: bool, chip: bool, float_rect: Option<[f64; 4]>) {
+fn set_prefs(app: AppHandle, float: bool, follow: bool, follow_keys: Option<Vec<String>>, chip: bool, float_rect: Option<[f64; 4]>) {
     watch::FOLLOW.store(follow, Ordering::SeqCst);
+    *watch::FOLLOW_KEYS.lock().unwrap() = follow_keys;
     watch::CHIP.store(chip, Ordering::SeqCst);
     // Prefs are re-sent on every change (opacity drags too); only an actual mode switch reshapes the window.
     static FLOATING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
@@ -130,7 +158,7 @@ pub fn run() {
             if let WindowEvent::Focused(false) = ev { platform::refresh_later(win.app_handle()); }
         })
         .invoke_handler(tauri::generate_handler![
-            list_targets, set_target, clear_target, paste_note, capture_now, clear_input, set_prefs, cursor_in_window,
+            list_targets, list_menu_apps, open_ai_app, set_target, clear_target, paste_note, capture_now, clear_input, set_prefs, cursor_in_window,
             permission_granted, open_permission_settings, shortcut_label,
             store::load_notes, store::save_notes, store::image_data_url, store::delete_image
         ])

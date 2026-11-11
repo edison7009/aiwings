@@ -6,6 +6,15 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 
 pub static FOLLOW: AtomicBool = AtomicBool::new(true);
+/// Apps (by key) the user ticked to follow; None means the default, every known AI app.
+pub static FOLLOW_KEYS: std::sync::Mutex<Option<Vec<String>>> = std::sync::Mutex::new(None);
+
+fn wants_follow(app: &crate::TargetInfo) -> bool {
+    match FOLLOW_KEYS.lock().unwrap().as_ref() {
+        Some(keys) => keys.iter().any(|k| *k == app.key),
+        None => platform::is_ai_app(app),
+    }
+}
 pub static CHIP: AtomicBool = AtomicBool::new(true);
 
 pub fn start(app: AppHandle) {
@@ -18,14 +27,14 @@ pub fn start(app: AppHandle) {
             if FOLLOW.load(Ordering::SeqCst) {
                 if let Some(front) = platform::front_app() {
                     // Ask the UI to re-dock once per newly focused AI app; docking itself runs on the main thread.
-                    if platform::is_ai_app(&front) && front.id != platform::current_id() && front.id != last_follow {
+                    if wants_follow(&front) && front.id != platform::current_id() && front.id != last_follow {
                         last_follow = front.id.clone();
                         let _ = app.emit("wings://follow", front);
                     }
                 }
             }
             // Always track the focused input (paste uses it to restore the caret); the chip only shows when enabled.
-            let input = platform::target_is_front().then(platform::focused_input).flatten().filter(|_| CHIP.load(Ordering::SeqCst));
+            let input = platform::target_is_front().then(platform::focused_input).flatten().filter(|_| CHIP.load(Ordering::SeqCst) && !platform::target_is_terminal());
             let Some(chip) = app.get_webview_window("chip") else { continue };
             match input {
                 Some((frame, has_text)) => {

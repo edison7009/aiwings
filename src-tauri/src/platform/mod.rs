@@ -101,3 +101,20 @@ pub fn shape_for_mode(app: &AppHandle, float: bool, last: Option<[f64; 4]>) {
 
 /// Default hover height; shorter than a docked bar, which matches the whole target window.
 pub const FLOAT_HEIGHT: f64 = 460.0;
+
+/// Terminals: Wings can follow them and paste into them, but cannot save from them. Select-all grabs the
+/// whole scrollback and cut does nothing, because the line being typed belongs to the program running inside.
+const TERMINALS: &[&str] = &[
+    "com.apple.terminal", "com.googlecode.iterm2", "dev.warp.warp", "com.mitchellh.ghostty", "com.github.wez.wezterm",
+    "org.alacritty", "net.kovidgoyal.kitty", "co.zeit.hyper", "org.tabby",
+    "windowsterminal.exe", "cmd.exe", "powershell.exe", "pwsh.exe", "wezterm-gui.exe", "alacritty.exe", "conhost.exe",
+];
+
+static TARGET_KEY: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
+
+pub fn set_target_key(key: &str) { *TARGET_KEY.lock().unwrap() = key.to_lowercase(); }
+
+pub fn target_is_terminal() -> bool {
+    let key = TARGET_KEY.lock().unwrap();
+    TERMINALS.iter().any(|t| key.starts_with(t))
+}
