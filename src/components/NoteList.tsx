@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type { Note } from '../lib/notes';
 import { t } from '../strings';
@@ -43,7 +43,7 @@ export function NoteList({ notes, shortcut, onPaste, onRemove }: Props) {
           // The hover glow follows the pointer through a CSS variable, no re-render.
           onPointerMove={e => e.currentTarget.style.setProperty('--glow-x', `${Math.round(e.clientX - e.currentTarget.getBoundingClientRect().left)}px`)}
         >
-          <button type="button" className="note-text" onClick={() => onPaste(note)}><span className="note-clamp">{note.text}</span></button>
+          <button type="button" className="note-text" onClick={() => onPaste(note)}>{note.image ? <NoteImage id={note.image} /> : <span className="note-clamp">{note.text}</span>}</button>
           <span className="note-quick">
             <button type="button" className="note-btn note-delete" aria-label={t.delete} onClick={() => onRemove(note.id)}><DeleteIcon /></button>
           </span>
@@ -85,4 +85,16 @@ function useHoverWhileInactive() {
     return () => { window.clearInterval(timer); clear(); };
   }, []);
   return ref;
+}
+
+// Thumbnails load once per session; the PNG itself stays with the Rust side.
+const imageCache = new Map<string, string>();
+
+function NoteImage({ id }: { id: string }) {
+  const [src, setSrc] = useState(() => imageCache.get(id) ?? null);
+  useEffect(() => {
+    if (src) return;
+    void invoke<string>('image_data_url', { id }).then(url => { imageCache.set(id, url); setSrc(url); }, () => {});
+  }, [id, src]);
+  return src ? <img className="note-image" src={src} alt="" draggable={false} /> : <span className="note-image note-image--loading" />;
 }

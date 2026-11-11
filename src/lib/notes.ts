@@ -5,12 +5,14 @@ export interface Note {
   id: string;
   text: string;
   createdAt: number;
+  /** Image notes: id of the PNG kept by the Rust side (text is then empty). */
+  image?: string;
 }
 
 const SEEDED_KEY = 'wings-seeded';
 
-export function makeNote(text: string): Note {
-  return { id: crypto.randomUUID(), text, createdAt: Date.now() };
+export function makeNote(text: string, image?: string): Note {
+  return image ? { id: image, text: '', createdAt: Date.now(), image } : { id: crypto.randomUUID(), text, createdAt: Date.now() };
 }
 
 export async function loadNotes(welcome: string): Promise<Note[]> {

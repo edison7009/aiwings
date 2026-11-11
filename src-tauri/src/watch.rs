@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 
-pub static FOLLOW: AtomicBool = AtomicBool::new(false);
+pub static FOLLOW: AtomicBool = AtomicBool::new(true);
 pub static CHIP: AtomicBool = AtomicBool::new(true);
 
 pub fn start(app: AppHandle) {
@@ -14,7 +14,8 @@ pub fn start(app: AppHandle) {
         let mut last_follow = String::new();
         loop {
             std::thread::sleep(Duration::from_millis(300));
-            if FOLLOW.load(Ordering::SeqCst) && platform::has_target() {
+            // No target yet is fine: following is also how a first launch finds its AI app on its own.
+            if FOLLOW.load(Ordering::SeqCst) {
                 if let Some(front) = platform::front_app() {
                     // Ask the UI to re-dock once per newly focused AI app; docking itself runs on the main thread.
                     if platform::is_ai_app(&front) && front.id != platform::current_id() && front.id != last_follow {

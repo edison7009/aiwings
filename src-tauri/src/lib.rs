@@ -36,8 +36,8 @@ fn clear_target(app: AppHandle) {
 }
 
 #[tauri::command]
-fn paste_note(app: AppHandle, text: String) {
-    std::thread::spawn(move || actions::paste(&app, text));
+fn paste_note(app: AppHandle, text: String, image: Option<String>) {
+    std::thread::spawn(move || actions::paste(&app, text, image));
 }
 
 /// Clicked from the chip: the click moved focus to Wings, so hand it back before cutting.
@@ -132,7 +132,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             list_targets, set_target, clear_target, paste_note, capture_now, clear_input, set_prefs, cursor_in_window,
             permission_granted, open_permission_settings, shortcut_label,
-            store::load_notes, store::save_notes
+            store::load_notes, store::save_notes, store::image_data_url, store::delete_image
         ])
         .run(tauri::generate_context!())
         .expect("error while running Wings");
