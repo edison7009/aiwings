@@ -314,12 +314,13 @@ kbd { font: inherit; padding: 1px 6px; border-radius: 4px; border: 1px solid var
   height: 22px;
   padding: 0 10px;
   border-radius: 11px;
-  background: var(--accent);
-  color: var(--accent-text);
+  /* Always iOS blue, whatever the palette: it sits on other apps' windows, not in Wings. */
+  background: #007aff;
+  color: #ffffff;
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
-  box-shadow: 0 1px 3px color-mix(in srgb, var(--accent) 35%, transparent);
+  box-shadow: 0 1px 3px rgba(0, 122, 255, 0.35);
   /* Fade in while rising 4px: only opacity and transform, so it stays smooth even when the page is throttled,
      on macOS and Windows alike. */
   animation: chip-in 0.18s cubic-bezier(0.2, 0.8, 0.2, 1) both;
