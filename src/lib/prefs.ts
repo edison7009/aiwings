@@ -35,6 +35,8 @@ export function readPrefs(): Prefs {
       raw.lockKeys = raw.followKeys;
     }
     delete raw.followKeys;
+    // Lock mode needs at least one app; with none (no app remembered yet), plain follow is what it would do anyway.
+    if (raw.layout === 'lock' && !(Array.isArray(raw.lockKeys) && raw.lockKeys.length > 0)) raw.layout = 'follow';
     return { ...DEFAULTS, ...raw };
   } catch { return DEFAULTS; }
 }
