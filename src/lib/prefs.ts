@@ -13,7 +13,7 @@ export interface Prefs {
 }
 
 const KEY = 'wings-prefs';
-const DEFAULTS: Prefs = { mode: 'dock', follow: false, chip: true, opacity: 0.92 };
+const DEFAULTS: Prefs = { mode: 'dock', follow: true, chip: true, opacity: 0.92 };
 
 export function readPrefs(): Prefs {
   try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) ?? '{}') }; } catch { return DEFAULTS; }

@@ -41,7 +41,9 @@ export function App() {
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
   const prefsRef = useRef(prefs);
+  const trustedRef = useRef(false);
   prefsRef.current = prefs;
+  trustedRef.current = trusted === true;
 
   const flash = useCallback((msg: string) => {
     setToast(msg);
@@ -75,9 +77,9 @@ export function App() {
 
   useEffect(() => {
     const subs = [
-      listen<string>('wings://captured', e => update(prev => [...prev, makeNote(e.payload)])),
+      listen<{ text: string; image: string | null }>('wings://captured', e => update(prev => [...prev, makeNote(e.payload.text, e.payload.image ?? undefined)])),
       listen<string>('wings://error', e => flash(e.payload)),
-      listen<Target>('wings://follow', e => { if (prefsRef.current.follow) void choose(e.payload); }),
+      listen<Target>('wings://follow', e => { if (prefsRef.current.follow && trustedRef.current) void choose(e.payload); }),
     ];
     return () => { subs.forEach(s => void s.then(f => f())); };
   }, [update, flash, choose]);
@@ -130,8 +132,12 @@ export function App() {
       <NoteList
         notes={notes}
         shortcut={shortcut}
-        onPaste={note => { void invoke('paste_note', { text: note.text }); flash(t.pasted(PASTE_KEY)); }}
-        onRemove={id => update(prev => prev.filter(n => n.id !== id))}
+        onPaste={note => { void invoke('paste_note', { text: note.text, image: note.image ?? null }); flash(t.pasted(PASTE_KEY)); }}
+        onRemove={id => update(prev => {
+          const gone = prev.find(n => n.id === id);
+          if (gone?.image) void invoke('delete_image', { id: gone.image });
+          return prev.filter(n => n.id !== id);
+        })}
       />
       <button type="button" className="gear" aria-label={t.settings} onClick={() => setView('settings')}><GearIcon /></button>
     </>
