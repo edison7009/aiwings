@@ -68,3 +68,14 @@ pub fn paste(app: &AppHandle, text: String) {
         emit_error(app, &e);
     }
 }
+
+/// Empties the target's input box: select all, then Delete. Clicked from the chip, so focus is handed back first.
+pub fn clear(app: &AppHandle) {
+    if !platform::activate_target() {
+        return emit_error(app, "没能切换到目标窗口");
+    }
+    platform::focus_input();
+    let res = platform::send_combo(platform::Key::A)
+        .and_then(|_| { sleep(Duration::from_millis(60)); platform::send_combo(platform::Key::Delete) });
+    if let Err(e) = res { emit_error(app, &e); }
+}

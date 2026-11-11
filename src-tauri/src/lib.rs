@@ -49,6 +49,11 @@ fn capture_now(app: AppHandle) {
 }
 
 #[tauri::command]
+fn clear_input(app: AppHandle) {
+    std::thread::spawn(move || actions::clear(&app));
+}
+
+#[tauri::command]
 fn set_prefs(app: AppHandle, float: bool, follow: bool, chip: bool) {
     watch::FOLLOW.store(follow, Ordering::SeqCst);
     watch::CHIP.store(chip, Ordering::SeqCst);
@@ -122,7 +127,7 @@ pub fn run() {
             if let WindowEvent::Focused(false) = ev { platform::refresh_later(win.app_handle()); }
         })
         .invoke_handler(tauri::generate_handler![
-            list_targets, set_target, clear_target, paste_note, capture_now, set_prefs, cursor_in_window,
+            list_targets, set_target, clear_target, paste_note, capture_now, clear_input, set_prefs, cursor_in_window,
             permission_granted, open_permission_settings, shortcut_label,
             store::load_notes, store::save_notes
         ])

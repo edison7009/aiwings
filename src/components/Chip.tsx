@@ -5,7 +5,7 @@ import { t } from '../strings';
 
 const FLIP_OUT_MS = 450;
 
-/** "Save to Wings" on the target's input box: flips up from face down when there is text, back down when it goes. */
+/** "Save to Wings" and "Clear" on the target's input box: flips up from face down when there is text, back down when it goes. */
 export function Chip() {
   const [shown, setShown] = useState(false);
   const [leaving, setLeaving] = useState(false);
@@ -27,6 +27,10 @@ export function Chip() {
     <div className="chip-ground">
       <button type="button" className={`chip-save${shown ? '' : ' is-leaving'}`} onMouseDown={e => e.preventDefault()} onClick={shown ? () => void invoke('capture_now') : undefined}>
         <span className="chip-face">{t.saveToWings}</span>
+      </button>
+      {/* Clearing by hand is slow; this selects all and deletes in the target's input box. */}
+      <button type="button" className={`chip-save chip-clear${shown ? '' : ' is-leaving'}`} onMouseDown={e => e.preventDefault()} onClick={shown ? () => void invoke('clear_input') : undefined}>
+        <span className="chip-face">{t.clear}</span>
       </button>
     </div>
   );

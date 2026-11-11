@@ -258,6 +258,7 @@ kbd { font: inherit; padding: 1px 6px; border-radius: 4px; border: 1px solid var
   right: 4px;
   bottom: 6px;
   display: flex;
+  gap: 6px;
   perspective: 300px;
   /* The ground line: while the slip flips up from face down, nothing below its bottom edge shows. */
   clip-path: inset(-60px -60px 0 -60px);
@@ -280,6 +281,11 @@ kbd { font: inherit; padding: 1px 6px; border-radius: 4px; border: 1px solid var
   transition: background 0.15s;
 }
 .chip-save:hover { background: #0a84ff; }
+/* Clear: the secondary pill, white with grey text, flipping up a beat after Save. */
+.chip-save.chip-clear { background: #ffffff; color: #6e6e73; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18); animation-delay: 0.06s; }
+.chip-save.chip-clear:hover { background: #f2f2f7; color: #e5534b; }
+.chip-save.chip-clear:active { background: #e5e5ea; }
+.chip-save.chip-clear::after { background: #d1d1d6; }
 .chip-save:active { background: #0062cc; }
 .chip-face { display: block; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
 /* The slip's back, seen while it still lies face down. */

@@ -220,11 +220,12 @@ pub fn wait_modifiers_released() {
 
 pub fn send_combo(key: Key) -> Result<(), String> {
     if !unsafe { AXIsProcessTrusted() } { return Err("需要先授予辅助功能权限".into()); }
-    let code: u16 = match key { Key::A => 0, Key::X => 7, Key::V => 9 };
+    let code: u16 = match key { Key::A => 0, Key::X => 7, Key::V => 9, Key::Delete => 51 };
+    let flags = if matches!(key, Key::Delete) { CGEventFlags::CGEventFlagNull } else { CGEventFlags::CGEventFlagCommand };
     let src = CGEventSource::new(CGEventSourceStateID::HIDSystemState).map_err(|_| "无法模拟按键")?;
     for down in [true, false] {
         let ev = CGEvent::new_keyboard_event(src.clone(), code, down).map_err(|_| "无法模拟按键")?;
-        ev.set_flags(CGEventFlags::CGEventFlagCommand);
+        ev.set_flags(flags);
         ev.post(CGEventTapLocation::HID);
         std::thread::sleep(Duration::from_millis(10));
     }

@@ -27,6 +27,7 @@ export const t = {
   opacity: '背景不透明度',
   shortcut: '保存快捷键',
   saveToWings: '保存到 Wings',
+  clear: '清空',
   pickTitle: '选一个要吸附的窗口',
   pickHint: 'Wings 会贴在它的右边，跟着它移动',
   pickEmpty: '没有找到可用的窗口，先打开 Claude、ChatGPT 等应用',

@@ -167,8 +167,12 @@ fn key_input(vk: VIRTUAL_KEY, up: bool) -> INPUT {
 pub fn send_combo(key: Key) -> Result<(), String> {
     // Focus guard before every keystroke: Windows focus is easy to lose mid-sequence.
     if !target_owns_foreground() { return Err("目标窗口不在最前面，已取消".into()); }
-    let vk = VIRTUAL_KEY(match key { Key::A => 0x41, Key::X => 0x58, Key::V => 0x56 });
-    let inputs = [key_input(VK_CONTROL, false), key_input(vk, false), key_input(vk, true), key_input(VK_CONTROL, true)];
+    let vk = VIRTUAL_KEY(match key { Key::A => 0x41, Key::X => 0x58, Key::V => 0x56, Key::Delete => 0x08 });
+    let inputs: Vec<INPUT> = if matches!(key, Key::Delete) {
+        vec![key_input(vk, false), key_input(vk, true)]
+    } else {
+        vec![key_input(VK_CONTROL, false), key_input(vk, false), key_input(vk, true), key_input(VK_CONTROL, true)]
+    };
     let sent = unsafe { SendInput(&inputs, std::mem::size_of::<INPUT>() as i32) };
     if (sent as usize) < inputs.len() {
         // UIPI: an elevated target silently rejects input from a normal process.
