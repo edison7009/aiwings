@@ -2,7 +2,7 @@
 
 use super::{float_panel, place_bar, Frame, Key};
 use crate::TargetInfo;
-use core_foundation::base::{CFRelease, CFRetain, CFTypeRef, TCFType};
+use core_foundation::base::{CFEqual, CFRelease, CFRetain, CFTypeRef, TCFType};
 use core_foundation::boolean::CFBoolean;
 use core_foundation::dictionary::CFDictionary;
 use core_foundation::string::{CFString, CFStringRef};
@@ -95,6 +95,7 @@ fn front_pid() -> i32 {
 }
 
 unsafe fn attach_window(d: &mut Dock) {
+    if !d.input.is_null() { CFRelease(d.input); d.input = null(); }
     if !d.window.is_null() {
         for n in WINDOW_NOTES { AXObserverRemoveNotification(d.observer, d.window, cfs(n).as_concrete_TypeRef()); }
         CFRelease(d.window);
@@ -228,6 +229,7 @@ pub fn wait_modifiers_released() {
 
 pub fn send_combo(key: Key) -> Result<(), String> {
     if !unsafe { AXIsProcessTrusted() } { return Err("需要先授予辅助功能权限".into()); }
+    if !target_is_front() { return Err("目标窗口不在最前面，已取消".into()); }
     let code: u16 = match key { Key::A => 0, Key::X => 7, Key::V => 9, Key::Delete => 51 };
     let flags = if matches!(key, Key::Delete) { CGEventFlags::CGEventFlagNull } else { CGEventFlags::CGEventFlagCommand };
     let src = CGEventSource::new(CGEventSourceStateID::HIDSystemState).map_err(|_| "无法模拟按键")?;
@@ -307,7 +309,7 @@ pub fn focused_input() -> Option<(Frame, bool)> {
     unsafe {
         let el = copy_attr(d.app_el, "AXFocusedUIElement")?;
         let role = copy_attr(el, "AXRole").map(|r| CFString::wrap_under_create_rule(r as CFStringRef).to_string());
-        let editable = matches!(role.as_deref(), Some("AXTextArea" | "AXTextField" | "AXComboBox"));
+        let editable = editable_input(el, role.as_deref());
         let frame = if editable { frame_of(el) } else { None };
         if editable && el != d.input {
             // Remember it, so a paste can put the caret back after focus wandered off.
@@ -330,6 +332,9 @@ unsafe fn frame_of(el: AXUIElementRef) -> Option<Frame> {
 /// an ancestor that grows with it. Climb to the outermost ancestor that still hugs the text region,
 /// so the chip rides the box's top edge as the box grows. See docs/input-box.md.
 unsafe fn input_box(el: AXUIElementRef, text: Frame) -> Frame {
+    let prefer_inner = super::target_prefers_inner_box();
+    let key = super::TARGET_KEY.lock().unwrap().clone();
+    let min_padding = if super::apps::is_qoder(&super::TARGET_KEY.lock().unwrap()) { 2.0 } else { 8.0 };
     let mut best = text;
     let mut cur = el;
     let mut owned: Vec<CFTypeRef> = Vec::new();
@@ -338,10 +343,11 @@ unsafe fn input_box(el: AXUIElementRef, text: Frame) -> Frame {
         owned.push(parent);
         cur = parent;
         let Some(f) = frame_of(parent) else { continue };
+        let width_slack = super::apps::input_width_slack(&key, text.h, f.h, 1.0);
         let hugs = f.y <= text.y + 1.0
             && f.x <= text.x + 1.0
             && f.x + f.w >= text.x + text.w - 1.0
-            && f.w <= text.w + 160.0
+            && f.w <= text.w + width_slack
             // Toolbar row under the text, at most.
             && f.y + f.h <= text.y + text.h + 140.0
             // Attachments (images, files) sit above the text inside the box, so the top may rise a lot;
@@ -349,31 +355,50 @@ unsafe fn input_box(el: AXUIElementRef, text: Frame) -> Frame {
             && f.h <= text.h + 420.0;
         if !hugs { break; }
         best = f;
+        if prefer_inner && super::input_box_has_toolbar(text, f, 1.0, min_padding) { break; }
     }
     for o in owned { CFRelease(o); }
     best
 }
 
-unsafe fn focused_is_editable(app_el: AXUIElementRef) -> bool {
-    let Some(el) = copy_attr(app_el, "AXFocusedUIElement") else { return false };
-    let role = copy_attr(el, "AXRole").map(|r| CFString::wrap_under_create_rule(r as CFStringRef).to_string());
+unsafe fn editable_input(el: AXUIElementRef, role: Option<&str>) -> bool {
+    if !matches!(role, Some("AXTextArea" | "AXTextField" | "AXComboBox")) { return false; }
+    if let Some(v) = copy_attr(el, "AXSubrole") {
+        let cf = core_foundation::base::CFType::wrap_under_create_rule(v);
+        if cf.downcast::<CFString>().is_some_and(|s| s.to_string() == "AXSecureTextField") { return false; }
+    }
+    let mut hints = String::new();
+    for attr in ["AXDescription", "AXTitle", "AXHelp", "AXIdentifier", "AXPlaceholderValue"] {
+        if let Some(v) = copy_attr(el, attr) {
+            let cf = core_foundation::base::CFType::wrap_under_create_rule(v);
+            if let Some(s) = cf.downcast::<CFString>() { hints.push_str(&s.to_string()); hints.push(' '); }
+        }
+    }
+    let key = super::TARGET_KEY.lock().unwrap().clone();
+    super::apps::is_chat_input_for_app(&key, super::target_is_ide(), &hints)
+}
+
+unsafe fn input_is_focused(d: &Dock) -> bool {
+    let Some(el) = copy_attr(d.app_el, "AXFocusedUIElement") else { return false };
+    let same = !d.input.is_null() && CFEqual(el, d.input) != 0;
     CFRelease(el);
-    matches!(role.as_deref(), Some("AXTextArea" | "AXTextField" | "AXComboBox"))
+    same
 }
 
 /// Makes sure the caret is in the target's input box before a paste. Clicking Wings often leaves the
 /// target active but with nothing focused, and Cmd+V then goes nowhere. Asks the remembered input to
 /// take focus; if the app ignores that, clicks into it and puts the pointer back.
-pub fn focus_input() {
+pub fn focus_input() -> bool {
     let guard = DOCK.lock().unwrap();
-    let Some(d) = guard.as_ref() else { return };
+    let Some(d) = guard.as_ref() else { return false };
     unsafe {
-        if focused_is_editable(d.app_el) || d.input.is_null() { return; }
+        if !target_is_front() || d.input.is_null() { return false; }
+        if input_is_focused(d) { return true; }
         AXUIElementSetAttributeValue(d.input, cfs("AXFocused").as_concrete_TypeRef(), CFBoolean::true_value().as_CFTypeRef());
         std::thread::sleep(Duration::from_millis(80));
-        if focused_is_editable(d.app_el) { return; }
-        let Some(f) = frame_of(d.input) else { return };
-        let Ok(src) = CGEventSource::new(CGEventSourceStateID::HIDSystemState) else { return };
+        if input_is_focused(d) { return true; }
+        let Some(f) = frame_of(d.input) else { return false };
+        let Ok(src) = CGEventSource::new(CGEventSourceStateID::HIDSystemState) else { return false };
         let back = CGEvent::new(src.clone()).map(|e| e.location()).ok();
         // Near the end of the first line: inside the text, past most of it.
         let at = core_graphics::geometry::CGPoint::new(f.x + (f.w - 12.0).max(4.0), f.y + f.h.min(24.0) / 2.0);
@@ -384,6 +409,7 @@ pub fn focus_input() {
         }
         if let Some(p) = back { CGWarpMouseCursorPosition(p); }
         std::thread::sleep(Duration::from_millis(60));
+        input_is_focused(d)
     }
 }
 
@@ -397,8 +423,7 @@ unsafe fn has_real_text(el: AXUIElementRef) -> bool {
     });
     match read("AXValue") {
         Some(value) => {
-            let value = value.trim();
-            !value.is_empty() && read("AXPlaceholderValue").map_or(true, |p| p.trim() != value)
+            super::apps::has_input_text(&value, read("AXPlaceholderValue").as_deref())
         }
         None => copy_attr(el, "AXNumberOfCharacters")
             .and_then(|v| core_foundation::number::CFNumber::wrap_under_create_rule(v as _).to_i64())

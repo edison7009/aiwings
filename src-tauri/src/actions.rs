@@ -18,6 +18,9 @@ struct Captured { text: String, image: Option<String> }
 
 /// Select-all + cut in the target, keep what landed on the clipboard, then restore the clipboard.
 pub fn capture(app: &AppHandle) {
+    if platform::target_input_unsupported() {
+        return emit_error(app, "此应用暂不支持输入框操作");
+    }
     if !platform::has_target() {
         return emit_error(app, "还没选择要吸附的窗口");
     }
@@ -28,6 +31,9 @@ pub fn capture(app: &AppHandle) {
         return emit_error(app, "请先点一下目标窗口的输入框，再按快捷键");
     }
     platform::wait_modifiers_released();
+    if platform::focused_input().is_none() {
+        return emit_error(app, "请先点一下目标应用的聊天输入框");
+    }
     let Ok(mut cb) = arboard::Clipboard::new() else { return emit_error(app, "无法访问剪贴板") };
     let saved = clip::snapshot(&mut cb);
     let _ = cb.clear();
@@ -75,7 +81,9 @@ pub fn paste(app: &AppHandle, text: String, image: Option<String>) {
     if !platform::activate_target() {
         return emit_error(app, "没能切换到目标窗口，请手动点一下它再试");
     }
-    platform::focus_input();
+    if !platform::target_is_terminal() && !platform::focus_input() {
+        return emit_error(app, "没能定位聊天输入框，请先点一下输入框再试");
+    }
     let Ok(mut cb) = arboard::Clipboard::new() else { return emit_error(app, "无法访问剪贴板") };
     let written = match image {
         Some(id) => store::load_image(app, &id).and_then(|img| cb.set_image(img).map_err(|e| e.to_string())),
@@ -96,10 +104,16 @@ pub fn paste(app: &AppHandle, text: String, image: Option<String>) {
 
 /// Empties the target's input box: select all, then Delete. Clicked from the chip, so focus is handed back first.
 pub fn clear(app: &AppHandle) {
+    if platform::target_input_unsupported() {
+        return emit_error(app, "此应用暂不支持输入框操作");
+    }
+    if platform::target_is_terminal() { return emit_error(app, "终端里不支持清空"); }
     if !platform::activate_target() {
         return emit_error(app, "没能切换到目标窗口");
     }
-    platform::focus_input();
+    if !platform::focus_input() {
+        return emit_error(app, "没能定位聊天输入框，请先点一下输入框再试");
+    }
     let res = platform::send_combo(platform::Key::A)
         .and_then(|_| { sleep(Duration::from_millis(60)); platform::send_combo(platform::Key::Delete) });
     if let Err(e) = res { emit_error(app, &e); }

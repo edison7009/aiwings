@@ -303,8 +303,9 @@ kbd { font: inherit; padding: 1px 6px; border-radius: 4px; border: 1px solid var
 [data-window="chip"] .shell { padding: 0; }
 .chip-ground {
   position: absolute;
-  right: 4px;
-  bottom: 6px;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
   gap: 6px;
 }

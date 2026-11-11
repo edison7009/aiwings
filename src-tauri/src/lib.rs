@@ -117,10 +117,15 @@ fn paste_note(app: AppHandle, text: String, image: Option<String>) {
 /// Clicked from the chip: the click moved focus to Wings, so hand it back before cutting.
 #[tauri::command]
 fn capture_now(app: AppHandle) {
+    if platform::target_input_unsupported() {
+        return actions::emit_error(&app, "此应用暂不支持输入框操作");
+    }
     std::thread::spawn(move || {
         if !platform::activate_target() { return actions::emit_error(&app, "没能切换到目标窗口"); }
         // Like paste and clear: without the caret in the input, select-all would grab the whole page.
-        platform::focus_input();
+        if !platform::focus_input() {
+            return actions::emit_error(&app, "没能定位聊天输入框，请先点一下输入框再试");
+        }
         actions::capture(&app);
     });
 }

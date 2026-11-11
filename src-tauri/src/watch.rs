@@ -36,7 +36,7 @@ pub fn start(app: AppHandle) {
                 }
             }
             // Always track the focused input (paste uses it to restore the caret); the chip only shows when enabled.
-            let input = platform::target_is_front().then(platform::focused_input).flatten().filter(|_| CHIP.load(Ordering::SeqCst) && !platform::target_is_terminal());
+            let input = (platform::target_is_front() && !platform::target_input_unsupported()).then(platform::focused_input).flatten().filter(|_| CHIP.load(Ordering::SeqCst) && !platform::target_is_terminal());
             let Some(chip) = app.get_webview_window("chip") else { continue };
             match input {
                 Some((frame, has_text)) => {

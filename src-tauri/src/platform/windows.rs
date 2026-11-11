@@ -55,6 +55,10 @@ fn target_owns_foreground() -> bool {
     let t = target();
     if t.0.is_null() { return false; }
     let fg = unsafe { GetForegroundWindow() };
+    let mut pid = 0;
+    unsafe { GetWindowThreadProcessId(fg, Some(&mut pid)); }
+    // Wings is an owned window too, but must never receive the target's shortcuts.
+    if pid == unsafe { GetCurrentProcessId() } { return false; }
     fg == t || unsafe { GetAncestor(fg, GA_ROOTOWNER) } == t
 }
 
@@ -256,11 +260,147 @@ pub fn front_app() -> Option<TargetInfo> {
     unsafe { info_of(GetAncestor(GetForegroundWindow(), GA_ROOTOWNER)) }
 }
 
-/// Input box detection is not adapted on Windows yet (UI Automation goes here).
-pub fn focused_input() -> Option<(Frame, bool)> { None }
+enum InputRequest {
+    Inspect(std::sync::mpsc::Sender<Option<(Frame, bool)>>),
+    Focus(std::sync::mpsc::Sender<bool>),
+}
 
-/// Not adapted on Windows yet: the paste goes wherever the target's caret already is.
-pub fn focus_input() {}
+// UIA elements stay on one long-lived MTA thread, including SetFocus and identity checks.
+// Bounded requests keep a stalled accessibility provider from building an unbounded queue.
+fn input_worker() -> &'static std::sync::mpsc::SyncSender<InputRequest> {
+    static WORKER: OnceLock<std::sync::mpsc::SyncSender<InputRequest>> = OnceLock::new();
+    WORKER.get_or_init(|| {
+        let (tx, rx) = std::sync::mpsc::sync_channel(1);
+        std::thread::spawn(move || unsafe {
+            use windows::Win32::System::Com::*;
+            use windows::Win32::UI::Accessibility::*;
+            if CoInitializeEx(None, COINIT_MULTITHREADED).is_err() { return; }
+            let uia: Result<IUIAutomation, _> = CoCreateInstance(&CUIAutomation, None, CLSCTX_INPROC_SERVER);
+            if let Ok(uia) = uia {
+                let mut remembered: Option<(isize, IUIAutomationElement)> = None;
+                for request in rx {
+                    match request {
+                        InputRequest::Inspect(reply) => {
+                            let result = inspect_input(&uia).map(|(element, frame, has_text)| {
+                                remembered = Some((TARGET.load(Ordering::SeqCst), element));
+                                (frame, has_text)
+                            });
+                            let _ = reply.send(result);
+                        }
+                        InputRequest::Focus(reply) => {
+                            let ok = (|| {
+                                if !target_owns_foreground() { return None; }
+                                let (hwnd, el) = remembered.as_ref()?;
+                                if *hwnd != TARGET.load(Ordering::SeqCst) || !belongs_to_target(&uia, el) { return None; }
+                                // Never replace the remembered composer with an arbitrary editor's caret.
+                                input_value(el)?;
+                                el.SetFocus().ok()?;
+                                std::thread::sleep(Duration::from_millis(60));
+                                let focused = uia.GetFocusedElement().ok()?;
+                                uia.CompareElements(el, &focused).ok()?.as_bool().then_some(())
+                            })().is_some();
+                            let _ = reply.send(ok);
+                        }
+                    }
+                }
+            }
+            CoUninitialize();
+        });
+        tx
+    })
+}
+
+unsafe fn belongs_to_target(uia: &windows::Win32::UI::Accessibility::IUIAutomation,
+    el: &windows::Win32::UI::Accessibility::IUIAutomationElement) -> bool {
+    let Ok(walker) = uia.ControlViewWalker() else { return false };
+    let mut cur = el.clone();
+    for _ in 0..32 {
+        if cur.CurrentNativeWindowHandle().ok() == Some(target()) { return true; }
+        let Ok(parent) = walker.GetParentElement(&cur) else { return false };
+        cur = parent;
+    }
+    false
+}
+
+unsafe fn input_value(el: &windows::Win32::UI::Accessibility::IUIAutomationElement) -> Option<String> {
+    use windows::Win32::UI::Accessibility::*;
+    if !el.CurrentIsEnabled().ok()?.as_bool() || el.CurrentIsOffscreen().ok()?.as_bool()
+        || el.CurrentIsPassword().ok()?.as_bool() { return None; }
+    let kind = el.CurrentControlType().ok()?;
+    let hints = format!("{} {} {}", el.CurrentName().ok()?, el.CurrentAutomationId().ok()?, el.CurrentHelpText().ok()?);
+    let key = super::TARGET_KEY.lock().unwrap().clone();
+    let named_chat = super::apps::is_chat_input_for_app(&key, true, &hints);
+    let minimax = key == "minimax code.exe";
+    let rich_group = kind == UIA_GroupControlTypeId && minimax && named_chat;
+    if kind != UIA_EditControlTypeId && !(kind == UIA_ComboBoxControlTypeId && named_chat) && !rich_group { return None; }
+    if !super::apps::is_chat_input_for_app(&key, super::target_is_ide(), &hints) { return None; }
+    if let Ok(value) = el.GetCurrentPatternAs::<IUIAutomationValuePattern>(UIA_ValuePatternId) {
+        if value.CurrentIsReadOnly().ok()?.as_bool() { return None; }
+        return Some(value.CurrentValue().ok()?.to_string());
+    }
+    // MiniMax's named rich-text group exposes text rather than ValuePattern.
+    // Do not use this path for generic groups, document bodies, or read-only text.
+    if !rich_group || !el.CurrentIsKeyboardFocusable().ok()?.as_bool() { return None; }
+    let pattern: IUIAutomationTextPattern = el.GetCurrentPatternAs(UIA_TextPatternId).ok()?;
+    let range = pattern.DocumentRange().ok()?;
+    if bool::try_from(&range.GetAttributeValue(UIA_IsReadOnlyAttributeId).ok()?).ok()? { return None; }
+    Some(range.GetText(-1).ok()?.to_string())
+}
+
+unsafe fn inspect_input(uia: &windows::Win32::UI::Accessibility::IUIAutomation)
+    -> Option<(windows::Win32::UI::Accessibility::IUIAutomationElement, Frame, bool)> {
+    if !target_owns_foreground() { return None; }
+    let el = uia.GetFocusedElement().ok()?;
+    if !belongs_to_target(uia, &el) { return None; }
+    let text = input_value(&el)?;
+    let r = el.CurrentBoundingRectangle().ok()?;
+    if r.right <= r.left || r.bottom <= r.top { return None; }
+    let scale = APP.get().and_then(|a| a.get_webview_window("main"))
+        .and_then(|w| w.scale_factor().ok()).unwrap_or(1.0);
+    let prefer_inner = super::target_prefers_inner_box();
+    let text_frame = Frame { x: r.left as f64, y: r.top as f64,
+        w: (r.right - r.left) as f64, h: (r.bottom - r.top) as f64 };
+    let key = super::TARGET_KEY.lock().unwrap().clone();
+    let clipped_input = matches!(key.as_str(), "qwenworkcn.exe" | "kimi.exe");
+    let min_padding = if super::apps::is_qoder(&key) { 2.0 } else { 8.0 };
+    let mut best = r;
+    let walker = uia.RawViewWalker().ok()?;
+    let mut cur = el.clone();
+    for _ in 0..6 {
+        let Ok(parent) = walker.GetParentElement(&cur) else { break };
+        cur = parent.clone();
+        let Ok(f) = parent.CurrentBoundingRectangle() else { continue };
+        if f.right <= f.left || f.bottom <= f.top { continue; }
+        // Qwen/Kimi have a clipping wrapper slightly narrower than the editable child.
+        // It is not the painted composer; keep climbing rather than stopping here.
+        if clipped_input && f.left == r.left && f.top == r.top && f.bottom == r.bottom
+            && f.right < r.right && r.right - f.right <= (16.0 * scale).ceil() as i32 { continue; }
+        let width_slack = super::apps::input_width_slack(&key,
+            (r.bottom - r.top) as f64, (f.bottom - f.top) as f64, scale);
+        if f.left > r.left + 1 || f.top > r.top + 1 || f.right < r.right - 1
+            || f.bottom < r.bottom - 1 || f.right - f.left > r.right - r.left + (width_slack * scale) as i32
+            || f.bottom > r.bottom + (140.0 * scale) as i32
+            || f.bottom - f.top > r.bottom - r.top + (420.0 * scale) as i32 { break; }
+        best = f;
+        let candidate = Frame { x: f.left as f64, y: f.top as f64,
+            w: (f.right - f.left) as f64, h: (f.bottom - f.top) as f64 };
+        if prefer_inner && super::input_box_has_toolbar(text_frame, candidate, scale, min_padding) { break; }
+    }
+    Some((el, Frame { x: best.left as f64, y: best.top as f64,
+        w: (best.right - best.left) as f64, h: (best.bottom - best.top) as f64 }, super::apps::has_input_text(&text, None)))
+}
+
+pub fn focused_input() -> Option<(Frame, bool)> {
+    let (tx, rx) = std::sync::mpsc::channel();
+    input_worker().try_send(InputRequest::Inspect(tx)).ok()?;
+    rx.recv_timeout(Duration::from_millis(600)).ok().flatten()
+}
+
+pub fn focus_input() -> bool {
+    let (tx, rx) = std::sync::mpsc::channel();
+    if input_worker().try_send(InputRequest::Focus(tx)).is_err() { return false; }
+    rx.recv_timeout(Duration::from_millis(600)).unwrap_or(false)
+}
 
 /// Installed-app detection is not adapted on Windows yet: offer the AI apps that are open.
 pub fn installed_ai_apps() -> Vec<TargetInfo> {

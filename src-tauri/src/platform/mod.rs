@@ -16,6 +16,19 @@ use tauri::{AppHandle, LogicalSize, Manager, PhysicalPosition, PhysicalSize};
 /// A, X, V go with Cmd/Ctrl; Delete (Backspace) is sent bare.
 pub enum Key { A, X, V, Delete }
 
+// These home screens wrap the composer in a larger project/header surface.
+// Stop at the first padded ancestor that also contains the toolbar below the editor.
+pub fn target_prefers_inner_box() -> bool {
+    let key = TARGET_KEY.lock().unwrap();
+    key.contains("zcode") || key.contains("opencode") || key.contains("antigravity")
+        || key.contains("kilo") || apps::is_qoder(&key)
+}
+
+pub fn input_box_has_toolbar(text: Frame, candidate: Frame, scale: f64, min_padding: f64) -> bool {
+    candidate.w >= text.w + min_padding * scale
+        && candidate.y + candidate.h >= text.y + text.h + 24.0 * scale
+}
+
 pub const BAR_WIDTH: f64 = 280.0;
 
 /// Target window frame in physical pixels, top-left origin.
@@ -44,15 +57,14 @@ pub fn float_panel(app: &AppHandle) {
     }
 }
 
-const AI_APPS: &[&str] = &["claude", "chatgpt", "codex", "grok", "gemini", "deepseek", "zcode", "kimi", "doubao", "豆包", "perplexity", "copilot", "元宝", "通义"];
+mod apps;
 
-fn ai_rank(t: &crate::TargetInfo) -> usize {
-    let n = format!("{} {}", t.name, t.key).to_lowercase();
-    AI_APPS.iter().position(|k| n.contains(k)).unwrap_or(AI_APPS.len())
-}
+fn ai_rank(t: &crate::TargetInfo) -> usize { apps::rank(&t.name, &t.key) }
 
 /// Whether an app is one of the AI apps Wings follows when "follow" is on.
-pub fn is_ai_app(t: &crate::TargetInfo) -> bool { ai_rank(t) < AI_APPS.len() }
+pub fn is_ai_app(t: &crate::TargetInfo) -> bool { apps::is_ai(&t.name, &t.key) }
+
+pub fn target_is_ide() -> bool { apps::is_ide("", &TARGET_KEY.lock().unwrap()) }
 
 /// Known AI desktop apps float to the top of the picker; the rest stay alphabetical.
 pub fn sort_targets(list: &mut [crate::TargetInfo]) {
@@ -60,7 +72,7 @@ pub fn sort_targets(list: &mut [crate::TargetInfo]) {
 }
 
 /// Places the "save to Wings" chip astride the input box's top border, left of the box's
-/// right-hand buttons (send/stop, mic) so it never sits right above them.
+/// mic and send/stop buttons, reserving two icon widths.
 /// Returns true when the chip window was hidden and has just been shown.
 /// Only touches the window when its spot changes or it was hidden: re-setting the frame and re-ordering
 /// it every tick makes the button stutter.
@@ -69,11 +81,19 @@ pub fn place_chip(app: &AppHandle, input: Frame, scale: f64) -> bool {
     let Some(chip) = app.get_webview_window("chip") else { return false };
     let (w, h) = (CHIP_W * scale, CHIP_H * scale);
     // The button's centre is the window's vertical centre, so half the window above the line centres it on the border.
-    let x = input.x + input.w - w - CHIP_RIGHT_INSET * scale;
+    // Preserve Grok Bot's verified 96-point inset independently of the shared default.
+    let key = TARGET_KEY.lock().unwrap();
+    let inset = if key.contains("grok bot") || key.contains("grokbot") || key.contains("grok-bot") {
+        96.0
+    } else { CHIP_RIGHT_INSET };
+    drop(key);
+    let x = input.x + input.w - w - inset * scale;
     let spot = (x.round() as i32, (input.y - h / 2.0).round() as i32, w.round() as u32, h.round() as u32);
     let mut placed = PLACED.lock().unwrap();
-    if *placed != Some(spot) {
+    if placed.is_none_or(|p| (p.2, p.3) != (spot.2, spot.3)) {
         let _ = chip.set_size(PhysicalSize::new(spot.2, spot.3));
+    }
+    if placed.is_none_or(|p| (p.0, p.1) != (spot.0, spot.1)) {
         let _ = chip.set_position(PhysicalPosition::new(spot.0, spot.1));
     }
     let was_hidden = !chip.is_visible().unwrap_or(false);
@@ -85,7 +105,7 @@ pub fn place_chip(app: &AppHandle, input: Frame, scale: f64) -> bool {
 pub const CHIP_W: f64 = 140.0;
 pub const CHIP_H: f64 = 34.0;
 /// Room kept clear for the box's own buttons at its right end.
-pub const CHIP_RIGHT_INSET: f64 = 72.0;
+pub const CHIP_RIGHT_INSET: f64 = 64.0;
 
 /// Hover returns to where (and how big) it was last hovering, or on first use keeps the docked
 /// width and trims the height. It is resizable by the edges; docked, the target sets the size again.
@@ -132,12 +152,41 @@ pub fn is_terminal(key: &str) -> bool {
 
 pub fn target_is_terminal() -> bool { is_terminal(&TARGET_KEY.lock().unwrap()) }
 
-/// Apps Wings has been adapted to save from (input box found, chip placed): the known AI apps, minus terminals.
+// Confirmed unsupported Windows inputs; do not keep probing them.
+fn input_unsupported(key: &str) -> bool {
+    cfg!(windows) && matches!(key.to_lowercase().as_str(), "doubao.exe" | "doubaowork.exe" | "trae cn.exe")
+}
+
+pub fn target_input_unsupported() -> bool { input_unsupported(&TARGET_KEY.lock().unwrap()) }
+
+/// Apps eligible for saving; the focused input must also pass runtime accessibility checks.
 /// Everything else can still be followed and pasted into.
-pub fn supports_save(t: &crate::TargetInfo) -> bool { is_ai_app(t) && !is_terminal(&t.key) }
+pub fn supports_save(t: &crate::TargetInfo) -> bool { is_ai_app(t) && !is_terminal(&t.key) && !input_unsupported(&t.key) }
 
 /// Helper bundles that ship inside or beside an app (URL handlers, updaters) are not apps to pick.
 pub fn is_helper(t: &crate::TargetInfo) -> bool {
     let n = t.name.to_lowercase();
     ["handler", "helper", "updater", "uninstall", "crash"].iter().any(|w| n.contains(w))
+}
+
+#[cfg(test)]
+mod input_box_tests {
+    use super::*;
+
+    #[test]
+    fn inner_composer_requires_padding_and_toolbar() {
+        let text = Frame { x: 30.0, y: 200.0, w: 640.0, h: 40.0 };
+        assert!(!input_box_has_toolbar(text, text, 1.0, 8.0));
+        let padded_text = Frame { x: 18.0, y: 188.0, w: 664.0, h: 64.0 };
+        assert!(!input_box_has_toolbar(text, padded_text, 1.0, 8.0));
+        let composer = Frame { h: 106.0, ..padded_text };
+        assert!(input_box_has_toolbar(text, composer, 1.0, 8.0));
+        // Qoder's text control fills the box except for its 1px border on each side.
+        let qoder = Frame { x: 29.0, y: 199.0, w: 642.0, h: 120.0 };
+        assert!(input_box_has_toolbar(text, qoder, 1.0, 2.0));
+        assert!(!input_box_has_toolbar(text, qoder, 1.0, 8.0));
+        let scale = |f: Frame| Frame { x: f.x * 1.5, y: f.y * 1.5, w: f.w * 1.5, h: f.h * 1.5 };
+        assert!(input_box_has_toolbar(scale(text), scale(composer), 1.5, 8.0));
+        assert!(!input_box_has_toolbar(scale(text), scale(padded_text), 1.5, 8.0));
+    }
 }
