@@ -114,4 +114,6 @@ if __name__ == "__main__":
     mark = sticker(Image.open(SRC).convert("RGB"))
     mark.save(OUT_MARK)
     icon(mark).save(OUT_ICON)
+    # Edge to edge, no shadow: the Windows .ico (npx tauri icon branding/wings-icon-full-1024.png).
+    icon(mark, inset=8, shadow=False).save(ROOT / "wings-icon-full-1024.png")
     print("wrote", OUT_MARK.name, mark.size, "and", OUT_ICON.name)
