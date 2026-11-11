@@ -5,7 +5,7 @@ import { t } from '../strings';
 const svg = { width: 15, height: 15, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true } as const;
 
 /** Follow: an app window with Wings docked as a solid strip on its right. */
-const FollowIcon = <svg {...svg}><rect x="1.75" y="2.75" width="9" height="10.5" rx="1.5" /><rect x="12.25" y="2.75" width="2.5" height="10.5" rx="1" fill="currentColor" stroke="none" /></svg>;
+const FollowIcon = <svg {...svg}><rect x="1.25" y="2.75" width="8" height="10.5" rx="1.5" /><rect x="10.75" y="2" width="4.5" height="12" rx="1.25" fill="currentColor" stroke="none" /></svg>;
 /** Lock: a padlock, it stays with the chosen apps. */
 const LockIcon = <svg {...svg}><rect x="3" y="7" width="10" height="7" rx="1.5" /><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" /></svg>;
 /** Hover: a small window floating over a larger one. */
