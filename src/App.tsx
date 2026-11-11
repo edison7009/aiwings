@@ -53,7 +53,7 @@ export function App() {
     toastTimer.current = window.setTimeout(() => setToast(null), 2600);
   }, []);
 
-  const changePrefs = useCallback((next: Prefs) => { setPrefs(next); writePrefs(next); applyThemeMode(next.theme); }, []);
+  const changePrefs = useCallback((next: Prefs) => { setPrefs(next); writePrefs(next); applyThemeMode(next.theme, next.palette); }, []);
 
   useEffect(() => {
     // Re-apply a saved custom shortcut first; if it can no longer be registered, the default stays.

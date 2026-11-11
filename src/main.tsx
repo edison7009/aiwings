@@ -9,9 +9,9 @@ import './styles.css';
 
 const isChip = getCurrentWindow().label === 'chip';
 document.documentElement.dataset.window = isChip ? 'chip' : 'main';
-applyThemeMode(readPrefs().theme);
+{ const p = readPrefs(); applyThemeMode(p.theme, p.palette); };
 // The bar's text can be enlarged; the chip keeps its size so it still fits on the input's border.
 if (!isChip) installZoom();
 // The other window saving prefs (the bar's settings) re-themes this one.
-window.addEventListener('storage', e => { if (e.key === 'wings-prefs') applyThemeMode(readPrefs().theme); });
+window.addEventListener('storage', e => { if (e.key === 'wings-prefs') { const p = readPrefs(); applyThemeMode(p.theme, p.palette); }; });
 createRoot(document.getElementById('root')!).render(<StrictMode>{isChip ? <Chip /> : <App />}</StrictMode>);

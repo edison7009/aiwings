@@ -27,6 +27,7 @@ export const t = {
   show: '显示',
   hide: '不显示',
   theme: '外观',
+  palette: '配色',
   themeSystem: '跟随系统',
   themeLight: '白天',
   themeDark: '夜晚',

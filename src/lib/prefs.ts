@@ -1,5 +1,6 @@
 // User settings, kept in localStorage and mirrored to the Rust side.
 import { invoke } from '@tauri-apps/api/core';
+import type { PaletteId } from './palettes';
 
 export interface Prefs {
   /**
@@ -12,12 +13,14 @@ export interface Prefs {
   lockKeys: string[];
   /** Light, dark, or follow the system. */
   theme: 'system' | 'light' | 'dark';
+  /** Colour family; the theme above picks its day or night half. */
+  palette: PaletteId;
   /** Show the "save to Wings" chip on the target's input box. */
   chip: boolean;
 }
 
 const KEY = 'wings-prefs';
-const DEFAULTS: Prefs = { layout: 'follow', lockKeys: [], theme: 'system', chip: true };
+const DEFAULTS: Prefs = { layout: 'follow', lockKeys: [], theme: 'system', palette: 'basalt', chip: true };
 
 export function readPrefs(): Prefs {
   try {
@@ -71,7 +74,8 @@ export function writePrefs(p: Prefs) {
 }
 
 /** Sets light/dark on this window. Both windows (bar and chip) call it; the chip hears changes via storage events. */
-export function applyThemeMode(theme: Prefs['theme']) {
-  if (theme === 'system') delete document.documentElement.dataset.theme;
-  else document.documentElement.dataset.theme = theme;
+export function applyThemeMode(theme: Prefs['theme'], palette: Prefs['palette']) {
+  const root = document.documentElement.dataset;
+  if (theme === 'system') delete root.theme; else root.theme = theme;
+  if (palette === 'basalt') delete root.palette; else root.palette = palette;
 }

@@ -339,7 +339,7 @@ kbd { font: inherit; padding: 1px 6px; border-radius: 4px; border: 1px solid var
 
 /* Icon options in a segmented switch. The name shows as a themed tip on hover (Coffee CLI's style). */
 .segmented button.icon { display: grid; place-items: center; padding: 4px 10px; }
-:is(.segmented, .text-size) button[data-tip]:is(:hover, :focus-visible)::after {
+:is(.segmented, .text-size, .swatches) button[data-tip]:is(:hover, :focus-visible)::after {
   content: attr(data-tip);
   position: absolute;
   z-index: 100;
@@ -361,10 +361,259 @@ kbd { font: inherit; padding: 1px 6px; border-radius: 4px; border: 1px solid var
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 6px 20px rgba(0, 0, 0, 0.22);
 }
 /* Keep the tip inside the narrow bar at both ends. */
-:is(.segmented, .text-size) button[data-tip]:first-of-type::after { left: 0; transform: none; }
-:is(.segmented, .text-size) button[data-tip]:last-of-type::after { left: auto; right: 0; transform: none; }
+:is(.segmented, .text-size, .swatches) button[data-tip]:first-of-type::after { left: 0; transform: none; }
+:is(.segmented, .text-size, .swatches) button[data-tip]:last-of-type::after { left: auto; right: 0; transform: none; }
 
 /* Text size: − 100% + */
 .text-size button { position: relative; min-width: 32px; font-size: 16px; line-height: 1; padding: 4px 8px; }
 .text-size button:disabled { opacity: 0.35; }
 .text-size .text-size-value { font-size: 13px; font-variant-numeric: tabular-nums; }
+
+/* Palette swatches: background with an accent dot, a ring on the chosen one. */
+.swatches { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.swatch { position: relative; width: 24px; height: 24px; padding: 0; border-radius: 50%; background: var(--sw-bg); border: 1px solid var(--line); box-shadow: inset 0 0 0 6px var(--sw-bg), inset 0 0 0 12px var(--sw-accent); transition: transform 0.15s; }
+.swatch:hover { transform: scale(1.08); }
+.swatch.active { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Colour palettes (after Coffee CLI's families): each has a day and a night half; the light/dark/system
+   choice picks the half. Basalt, the default, is the stone background above and sets no data-palette. */
+/* Wings 粉 */
+:root[data-palette="wings"] {
+  --bg: #fbf3f7;
+  --card: #ffffff;
+  --card-hover: #fdf0f6;
+  --text: #2a1d24;
+  --muted: #85707b;
+  --line: rgba(42,29,36,0.09);
+  --accent: #e0367d;
+  --accent-text: #ffffff;
+  --hover-glow: rgba(224,54,125,0.08);
+  --stone: none;
+}
+@media (prefers-color-scheme: dark) {
+:root[data-palette="wings"]:not([data-theme="light"]) {
+    --bg: #231a20;
+    --card: #2d2229;
+    --card-hover: #372a32;
+    --text: #f0e4ea;
+    --muted: #bba3b0;
+    --line: rgba(240,228,234,0.09);
+    --accent: #f84890;
+    --accent-text: #ffffff;
+    --hover-glow: rgba(248,72,144,0.12);
+    --stone: none;
+  }
+}
+:root[data-palette="wings"][data-theme="dark"] {
+  --bg: #231a20;
+  --card: #2d2229;
+  --card-hover: #372a32;
+  --text: #f0e4ea;
+  --muted: #bba3b0;
+  --line: rgba(240,228,234,0.09);
+  --accent: #f84890;
+  --accent-text: #ffffff;
+  --hover-glow: rgba(248,72,144,0.12);
+  --stone: none;
+  color-scheme: dark;
+}
+/* 樱花 */
+:root[data-palette="sakura"] {
+  --bg: #f6f1f3;
+  --card: #ffffff;
+  --card-hover: #f9f1f4;
+  --text: #372f31;
+  --muted: #7d6a70;
+  --line: rgba(55,47,49,0.10);
+  --accent: #773b4d;
+  --accent-text: #ffffff;
+  --hover-glow: rgba(119,59,77,0.07);
+  --stone: none;
+}
+@media (prefers-color-scheme: dark) {
+:root[data-palette="sakura"]:not([data-theme="light"]) {
+    --bg: #262024;
+    --card: #2f292d;
+    --card-hover: #383236;
+    --text: #e8e1e5;
+    --muted: #b3a3ae;
+    --line: rgba(232,225,229,0.09);
+    --accent: #dab2be;
+    --accent-text: #262024;
+    --hover-glow: rgba(218,178,190,0.10);
+    --stone: none;
+  }
+}
+:root[data-palette="sakura"][data-theme="dark"] {
+  --bg: #262024;
+  --card: #2f292d;
+  --card-hover: #383236;
+  --text: #e8e1e5;
+  --muted: #b3a3ae;
+  --line: rgba(232,225,229,0.09);
+  --accent: #dab2be;
+  --accent-text: #262024;
+  --hover-glow: rgba(218,178,190,0.10);
+  --stone: none;
+  color-scheme: dark;
+}
+/* 琥珀 */
+:root[data-palette="amber"] {
+  --bg: #f7f3ec;
+  --card: #ffffff;
+  --card-hover: #f8f2e9;
+  --text: #39332d;
+  --muted: #7d7264;
+  --line: rgba(57,51,45,0.10);
+  --accent: #7f5c34;
+  --accent-text: #ffffff;
+  --hover-glow: rgba(127,92,52,0.07);
+  --stone: none;
+}
+@media (prefers-color-scheme: dark) {
+:root[data-palette="amber"]:not([data-theme="light"]) {
+    --bg: #272219;
+    --card: #302a20;
+    --card-hover: #393228;
+    --text: #ece4d6;
+    --muted: #b3a690;
+    --line: rgba(236,228,214,0.09);
+    --accent: #d2b28e;
+    --accent-text: #272219;
+    --hover-glow: rgba(210,178,142,0.10);
+    --stone: none;
+  }
+}
+:root[data-palette="amber"][data-theme="dark"] {
+  --bg: #272219;
+  --card: #302a20;
+  --card-hover: #393228;
+  --text: #ece4d6;
+  --muted: #b3a690;
+  --line: rgba(236,228,214,0.09);
+  --accent: #d2b28e;
+  --accent-text: #272219;
+  --hover-glow: rgba(210,178,142,0.10);
+  --stone: none;
+  color-scheme: dark;
+}
+/* 薄荷 */
+:root[data-palette="mint"] {
+  --bg: #eff4f1;
+  --card: #ffffff;
+  --card-hover: #eef5f1;
+  --text: #2c3631;
+  --muted: #66776e;
+  --line: rgba(44,54,49,0.10);
+  --accent: #437059;
+  --accent-text: #ffffff;
+  --hover-glow: rgba(67,112,89,0.07);
+  --stone: none;
+}
+@media (prefers-color-scheme: dark) {
+:root[data-palette="mint"]:not([data-theme="light"]) {
+    --bg: #1f2723;
+    --card: #27302b;
+    --card-hover: #2f3833;
+    --text: #e0e8e4;
+    --muted: #a3b5ac;
+    --line: rgba(224,232,228,0.09);
+    --accent: #b0c9bc;
+    --accent-text: #1f2723;
+    --hover-glow: rgba(176,201,188,0.10);
+    --stone: none;
+  }
+}
+:root[data-palette="mint"][data-theme="dark"] {
+  --bg: #1f2723;
+  --card: #27302b;
+  --card-hover: #2f3833;
+  --text: #e0e8e4;
+  --muted: #a3b5ac;
+  --line: rgba(224,232,228,0.09);
+  --accent: #b0c9bc;
+  --accent-text: #1f2723;
+  --hover-glow: rgba(176,201,188,0.10);
+  --stone: none;
+  color-scheme: dark;
+}
+/* 冰川 */
+:root[data-palette="glacier"] {
+  --bg: #eff3f7;
+  --card: #ffffff;
+  --card-hover: #eef3f9;
+  --text: #2b323b;
+  --muted: #657283;
+  --line: rgba(43,50,59,0.10);
+  --accent: #34567f;
+  --accent-text: #ffffff;
+  --hover-glow: rgba(52,86,127,0.07);
+  --stone: none;
+}
+@media (prefers-color-scheme: dark) {
+:root[data-palette="glacier"]:not([data-theme="light"]) {
+    --bg: #20252d;
+    --card: #283039;
+    --card-hover: #303843;
+    --text: #e1e6ee;
+    --muted: #a6b2c2;
+    --line: rgba(225,230,238,0.09);
+    --accent: #adc3dd;
+    --accent-text: #20252d;
+    --hover-glow: rgba(173,195,221,0.10);
+    --stone: none;
+  }
+}
+:root[data-palette="glacier"][data-theme="dark"] {
+  --bg: #20252d;
+  --card: #283039;
+  --card-hover: #303843;
+  --text: #e1e6ee;
+  --muted: #a6b2c2;
+  --line: rgba(225,230,238,0.09);
+  --accent: #adc3dd;
+  --accent-text: #20252d;
+  --hover-glow: rgba(173,195,221,0.10);
+  --stone: none;
+  color-scheme: dark;
+}
+/* 薰衣草 */
+:root[data-palette="lavender"] {
+  --bg: #f4f1f6;
+  --card: #ffffff;
+  --card-hover: #f5f0f8;
+  --text: #332d38;
+  --muted: #74697d;
+  --line: rgba(51,45,56,0.10);
+  --accent: #5f3d75;
+  --accent-text: #ffffff;
+  --hover-glow: rgba(95,61,117,0.07);
+  --stone: none;
+}
+@media (prefers-color-scheme: dark) {
+:root[data-palette="lavender"]:not([data-theme="light"]) {
+    --bg: #25212b;
+    --card: #2d2933;
+    --card-hover: #36313d;
+    --text: #e4e1eb;
+    --muted: #aca5b7;
+    --line: rgba(228,225,235,0.09);
+    --accent: #c7b3d4;
+    --accent-text: #25212b;
+    --hover-glow: rgba(199,179,212,0.10);
+    --stone: none;
+  }
+}
+:root[data-palette="lavender"][data-theme="dark"] {
+  --bg: #25212b;
+  --card: #2d2933;
+  --card-hover: #36313d;
+  --text: #e4e1eb;
+  --muted: #aca5b7;
+  --line: rgba(228,225,235,0.09);
+  --accent: #c7b3d4;
+  --accent-text: #25212b;
+  --hover-glow: rgba(199,179,212,0.10);
+  --stone: none;
+  color-scheme: dark;
+}
