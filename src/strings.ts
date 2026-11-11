@@ -10,11 +10,11 @@ export const t = {
   emptyBody: (key: string) => `在输入框里写好，按 ${key} 存到这里`,
   pasted: (pasteKey: string) => `已复制到剪贴板，可 ${pasteKey} 粘贴到任意处`,
   delete: '删除',
-  layoutFollow: '跟随',
+  layoutFollow: '吸附',
   layoutLock: '指定',
   layoutFloat: '悬停',
   layoutHint: {
-    follow: '自动跟随所有支持的 AI 应用',
+    follow: '自动吸附到正在用的 AI 应用',
     lock: '只跟随指定的应用，可选一个或多个',
     float: '停在任意位置，便签粘贴到最近用过的 AI 应用',
   },
