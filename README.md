@@ -1,4 +1,4 @@
-<p align="center"><img src="branding/wings-wordmark.svg" alt="Wings" width="320"></p>
+<p align="center"><img src="branding/wings-icon.svg" alt="Wings" width="128"></p>
 
 # Wings · 候话
 
