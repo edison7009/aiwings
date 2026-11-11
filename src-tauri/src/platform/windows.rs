@@ -7,10 +7,10 @@ use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Manager};
 use windows::core::PWSTR;
-use windows::Win32::Foundation::{BOOL, CloseHandle, HWND, LPARAM, RECT, WPARAM};
+use windows::Win32::Foundation::{BOOL, CloseHandle, HANDLE, HWND, LPARAM, RECT, WPARAM};
 use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_CLOAKED, DWMWA_EXTENDED_FRAME_BOUNDS};
 use windows::Win32::System::Threading::{
-    GetCurrentProcessId, GetCurrentThreadId, OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32,
+    GetCurrentProcessId, GetCurrentThreadId, OpenProcess, OpenProcessToken, QueryFullProcessImageNameW, PROCESS_NAME_WIN32,
     PROCESS_QUERY_LIMITED_INFORMATION,
 };
 use windows::Win32::UI::Accessibility::{SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK};
@@ -168,9 +168,40 @@ fn key_input(vk: VIRTUAL_KEY, up: bool) -> INPUT {
     }
 }
 
+fn process_is_elevated(pid: u32) -> Option<bool> {
+    use windows::Win32::Security::{GetTokenInformation, TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY};
+    unsafe {
+        let process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid).ok()?;
+        let mut token = HANDLE::default();
+        let opened = OpenProcessToken(process, TOKEN_QUERY, &mut token);
+        let _ = CloseHandle(process);
+        opened.ok()?;
+        let mut elevation = TOKEN_ELEVATION::default();
+        let mut returned = 0;
+        let read = GetTokenInformation(token, TokenElevation,
+            Some((&mut elevation as *mut TOKEN_ELEVATION).cast()),
+            std::mem::size_of::<TOKEN_ELEVATION>() as u32, &mut returned);
+        let _ = CloseHandle(token);
+        read.ok()?;
+        Some(elevation.TokenIsElevated != 0)
+    }
+}
+
 pub fn send_combo(key: Key) -> Result<(), String> {
     // Focus guard before every keystroke: Windows focus is easy to lose mid-sequence.
     if !target_owns_foreground() { return Err("目标窗口不在最前面，已取消".into()); }
+    let mut foreground_pid = 0;
+    unsafe { GetWindowThreadProcessId(GetForegroundWindow(), Some(&mut foreground_pid)); }
+    if process_is_elevated(foreground_pid) == Some(true)
+        && process_is_elevated(unsafe { GetCurrentProcessId() }) == Some(false) {
+        let is_powershell = unsafe { info_of(target()) }.is_some_and(|t|
+            matches!(t.key.as_str(), "powershell.exe" | "pwsh.exe")
+                || (super::is_terminal(&t.key) && t.name.to_ascii_lowercase().contains("powershell")));
+        if is_powershell {
+            return Err("发送到 PowerShell 需要管理员权限，右键 Wings 以管理员身份运行或右键「属性」→「兼容性」→ 勾选「以管理员身份运行此程序」".into());
+        }
+        return Err("目标以管理员身份运行，当前 Wings 权限不足。请用普通权限打开目标，或手动以管理员身份启动 Wings".into());
+    }
     let vk = VIRTUAL_KEY(match key { Key::A => 0x41, Key::X => 0x58, Key::V => 0x56, Key::Delete => 0x08 });
     let inputs: Vec<INPUT> = if matches!(key, Key::Delete) {
         vec![key_input(vk, false), key_input(vk, true)]
@@ -179,8 +210,8 @@ pub fn send_combo(key: Key) -> Result<(), String> {
     };
     let sent = unsafe { SendInput(&inputs, std::mem::size_of::<INPUT>() as i32) };
     if (sent as usize) < inputs.len() {
-        // UIPI: an elevated target silently rejects input from a normal process.
-        return Err("目标应用以管理员身份运行，Wings 无法向它输入。请用普通方式打开它".into());
+        // SendInput's return value alone does not identify UIPI as the failure cause.
+        return Err("模拟输入未成功，请检查目标窗口和权限".into());
     }
     Ok(())
 }
@@ -409,4 +440,14 @@ pub fn installed_ai_apps() -> Vec<TargetInfo> {
 
 pub fn launch_app(key: &str) -> Option<TargetInfo> {
     list_targets().into_iter().find(|t| t.key == key)
+}
+
+#[cfg(test)]
+mod token_tests {
+    use super::*;
+
+    #[test]
+    fn own_elevation_token_is_readable() {
+        assert!(process_is_elevated(unsafe { GetCurrentProcessId() }).is_some());
+    }
 }

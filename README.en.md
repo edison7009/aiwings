@@ -15,7 +15,7 @@ Queue your next prompt while the AI is busy, then paste it back in one click. Wi
 - **Save**: write in the input box, then click "Save to Wings" above it, or press **Alt+S** (⌥S on macOS). The text (or an image) goes into Wings and the input box is cleared.
 - **Send**: click an item in Wings to paste it back into the input box. It is never sent automatically, and it stays on the clipboard so you can paste it elsewhere too.
 - **Follow**: switch to another AI app and Wings follows it. You can also keep it with one app, or let it hover anywhere.
-- **Terminals**: Wings can follow and paste into terminals, but cannot save from them.
+- **Terminals**: Windows Terminal, PowerShell 5/7, and cmd support following and pasting notes. Wings never presses Enter to run commands and does not support saving or clearing terminal input. If you have a custom follow list, tick the terminal in settings.
 
 ## Development
 

@@ -64,6 +64,11 @@ fn ai_rank(t: &crate::TargetInfo) -> usize { apps::rank(&t.name, &t.key) }
 /// Whether an app is one of the AI apps Wings follows when "follow" is on.
 pub fn is_ai_app(t: &crate::TargetInfo) -> bool { apps::is_ai(&t.name, &t.key) }
 
+/// Windows terminal hosts use docking and paste only; they are followed by default too.
+pub fn follows_by_default(t: &crate::TargetInfo) -> bool {
+    is_ai_app(t) || (cfg!(windows) && is_terminal(&t.key))
+}
+
 pub fn target_is_ide() -> bool { apps::is_ide("", &TARGET_KEY.lock().unwrap()) }
 
 /// Known AI desktop apps float to the top of the picker; the rest stay alphabetical.
@@ -138,7 +143,7 @@ pub const FLOAT_HEIGHT: f64 = 460.0;
 const TERMINALS: &[&str] = &[
     "com.apple.terminal", "com.googlecode.iterm2", "dev.warp.warp", "com.mitchellh.ghostty", "com.github.wez.wezterm",
     "org.alacritty", "net.kovidgoyal.kitty", "co.zeit.hyper", "org.tabby",
-    "windowsterminal.exe", "cmd.exe", "powershell.exe", "pwsh.exe", "wezterm-gui.exe", "alacritty.exe", "conhost.exe",
+    "windowsterminal.exe", "openconsole.exe", "cmd.exe", "powershell.exe", "pwsh.exe", "wezterm-gui.exe", "alacritty.exe", "conhost.exe",
 ];
 
 static TARGET_KEY: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
@@ -172,6 +177,19 @@ pub fn is_helper(t: &crate::TargetInfo) -> bool {
 #[cfg(test)]
 mod input_box_tests {
     use super::*;
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_terminals_follow_without_save() {
+        for key in ["WindowsTerminal.exe", "powershell.exe", "pwsh.exe", "cmd.exe", "OpenConsole.exe", "conhost.exe"] {
+            let terminal = crate::TargetInfo { id: "123".into(), key: key.into(), name: "PowerShell".into() };
+            assert!(is_terminal(key), "{key}");
+            assert!(follows_by_default(&terminal), "{key}");
+            assert!(!supports_save(&terminal), "{key}");
+        }
+        let document = crate::TargetInfo { id: "456".into(), key: "notepad.exe".into(), name: "PowerShell notes".into() };
+        assert!(!follows_by_default(&document));
+    }
 
     #[test]
     fn inner_composer_requires_padding_and_toolbar() {

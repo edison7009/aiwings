@@ -8,7 +8,7 @@ export interface Prefs {
    * float: stays wherever the user drags it; notes paste into the ticked app used last.
    */
   layout: 'follow' | 'pin' | 'float';
-  /** Apps (by key) ticked to follow; null = the default, every AI app. */
+  /** Apps (by key) ticked to follow; null = the default, AI apps and Windows terminals. */
   followKeys: string[] | null;
   /** Light, dark, or follow the system. */
   theme: 'system' | 'light' | 'dark';

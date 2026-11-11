@@ -1,4 +1,4 @@
-// Background watcher: follows the frontmost AI app (when enabled) and drives the "save to Wings" chip.
+// Background watcher: follows selected apps and drives the "save to Wings" chip.
 
 use crate::platform::{self, place_chip};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -6,13 +6,13 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 
 pub static FOLLOW: AtomicBool = AtomicBool::new(true);
-/// Apps (by key) the user ticked to follow; None means the default, every known AI app.
+/// Apps (by key) the user ticked to follow; None means AI apps and Windows terminals.
 pub static FOLLOW_KEYS: std::sync::Mutex<Option<Vec<String>>> = std::sync::Mutex::new(None);
 
 fn wants_follow(app: &crate::TargetInfo) -> bool {
     match FOLLOW_KEYS.lock().unwrap().as_ref() {
         Some(keys) => keys.iter().any(|k| *k == app.key),
-        None => platform::is_ai_app(app),
+        None => platform::follows_by_default(app),
     }
 }
 pub static CHIP: AtomicBool = AtomicBool::new(true);
@@ -35,8 +35,9 @@ pub fn start(app: AppHandle) {
                     }
                 }
             }
-            // Always track the focused input (paste uses it to restore the caret); the chip only shows when enabled.
-            let input = (platform::target_is_front() && !platform::target_input_unsupported()).then(platform::focused_input).flatten().filter(|_| CHIP.load(Ordering::SeqCst) && !platform::target_is_terminal());
+            // Track editable-app inputs for caret restoration; terminals need docking and paste only.
+            let input = (platform::target_is_front() && !platform::target_input_unsupported() && !platform::target_is_terminal())
+                .then(platform::focused_input).flatten().filter(|_| CHIP.load(Ordering::SeqCst));
             let Some(chip) = app.get_webview_window("chip") else { continue };
             match input {
                 Some((frame, has_text)) => {
@@ -66,4 +67,20 @@ pub fn start(app: AppHandle) {
             }
         }
     });
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn terminal_follow_respects_explicit_selection() {
+        let terminal = crate::TargetInfo { id: "123".into(), key: "powershell.exe".into(), name: "PowerShell".into() };
+        assert!(wants_follow(&terminal));
+        *FOLLOW_KEYS.lock().unwrap() = Some(vec!["claude.exe".into()]);
+        assert!(!wants_follow(&terminal));
+        *FOLLOW_KEYS.lock().unwrap() = Some(vec![terminal.key.clone()]);
+        assert!(wants_follow(&terminal));
+        *FOLLOW_KEYS.lock().unwrap() = None;
+    }
 }

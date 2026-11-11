@@ -82,7 +82,7 @@ fn list_menu_apps() -> Vec<MenuApp> {
             if m.app.id.is_empty() { m.app.id = app.id; }
             continue;
         }
-        let (ai, save) = (platform::is_ai_app(&app), platform::supports_save(&app));
+        let (ai, save) = (platform::follows_by_default(&app), platform::supports_save(&app));
         out.push(MenuApp { app, ai, save });
     }
     out

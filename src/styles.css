@@ -203,9 +203,8 @@ h1 { font-size: 15px; margin: 6px 0 4px; }
   color: var(--bg);
   font-size: 12px;
   text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
 }
 

@@ -14,7 +14,7 @@ type Props =
  * Lists AI apps installed here, then any other open app, so someone can also follow WeChat, say.
  * A blue "supports save" marks apps Wings can save from; the others are send and follow only.
  * single: tick the one app Wings stays with (launched first if it is not open).
- * multi: tick every app Wings follows; by default, all AI apps.
+ * multi: tick every app Wings follows; by default, AI apps and Windows terminals.
  */
 export function AppMenu(props: Props) {
   const [open, setOpen] = useState(false);
