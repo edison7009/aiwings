@@ -38,6 +38,11 @@ fn set_shortcut(app: AppHandle, combo: String) -> Result<String, String> {
     let parts: Vec<&str> = combo.split('+').collect();
     let valid = parts.len() == 2 && ["Alt", "Control", "Shift", "Super"].contains(&parts[0]) && !parts[1].is_empty();
     if !valid { return Err("请用一个修饰键加一个键，比如 ⌥S".into()); }
+    // The platform's command key (⌘ on macOS, Ctrl on Windows) would shadow Copy, Paste, Save… in every app.
+    let command_key = if cfg!(target_os = "macos") { "Super" } else { "Control" };
+    if parts[0] == command_key {
+        return Err(if cfg!(target_os = "macos") { "⌘ 组合会覆盖各软件自带的快捷键（如 ⌘C），请用 ⌥ 或 ⌃" } else { "Ctrl 组合会覆盖各软件自带的快捷键（如 Ctrl+C），请用 Alt" }.into());
+    }
     let mut current = CURRENT_SHORTCUT.lock().unwrap();
     if *current == combo { return Ok(label_for(&combo)); }
     let _ = app.global_shortcut().unregister(current.as_str());

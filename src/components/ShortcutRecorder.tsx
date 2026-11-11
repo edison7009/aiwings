@@ -9,11 +9,14 @@ export function savedShortcut(): string | null {
   try { return localStorage.getItem(SHORTCUT_KEY); } catch { return null; }
 }
 
-/** Turns a key press into "Modifier+Key": exactly one of ⌥ ⌃ ⌘ plus a letter, digit or F-key. Shift alone
- *  is refused: Shift+letter is how capitals are typed. */
+const IS_MAC = /Mac/.test(navigator.userAgent);
+
+/** Turns a key press into "Modifier+Key": exactly one modifier plus a letter, digit or F-key. Refused: Shift
+ *  (Shift+letter types capitals) and the command key, ⌘ on macOS or Ctrl on Windows (it would shadow Copy,
+ *  Paste… everywhere; the Rust side refuses it too). */
 function comboOf(e: KeyboardEvent): string | null {
   const mods = [e.altKey && 'Alt', e.ctrlKey && 'Control', e.metaKey && 'Super', e.shiftKey && 'Shift'].filter(Boolean) as string[];
-  if (mods.length !== 1 || mods[0] === 'Shift') return null;
+  if (mods.length !== 1 || mods[0] === 'Shift' || mods[0] === (IS_MAC ? 'Super' : 'Control')) return null;
   const m = /^(?:Key([A-Z])|Digit([0-9])|(F[0-9]{1,2}))$/.exec(e.code);
   const key = m?.[1] ?? m?.[2] ?? m?.[3];
   return key ? `${mods[0]}+${key}` : null;
@@ -30,7 +33,7 @@ export function ShortcutRecorder({ label, onChange, onError }: { label: string; 
       if (e.key === 'Escape') { setRecording(false); return; }
       if (['Alt', 'Control', 'Meta', 'Shift'].includes(e.key)) return; // still holding just the modifier
       const combo = comboOf(e);
-      if (!combo) { onError(t.shortcutRule); return; }
+      if (!combo) { onError(IS_MAC ? t.shortcutRuleMac : t.shortcutRuleWin); return; }
       setRecording(false);
       void invoke<string>('set_shortcut', { combo }).then(next => {
         try { localStorage.setItem(SHORTCUT_KEY, combo); } catch { /* Best effort. */ }
