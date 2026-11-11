@@ -52,6 +52,9 @@ fn capture_now(app: AppHandle) {
 fn set_prefs(app: AppHandle, float: bool, follow: bool, chip: bool) {
     watch::FOLLOW.store(follow, Ordering::SeqCst);
     watch::CHIP.store(chip, Ordering::SeqCst);
+    // Prefs are re-sent on every change (opacity drags too); only an actual mode switch reshapes the window.
+    static FLOATING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+    if FLOATING.swap(float, Ordering::SeqCst) != float { platform::shape_for_mode(&app, float); }
     platform::set_float(&app, float);
 }
 

@@ -37,6 +37,8 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .shell { height: 100%; padding: 6px; position: relative; }
 /* Docked: top and bottom line up with the target window; only a small gap on the side facing it. */
 .shell--docked { padding: 0 0 0 6px; }
+/* Hover: same horizontal inset as docked, so switching modes never changes the bar's width. */
+.shell--float { padding: 0 0 0 6px; }
 
 .panel {
   position: relative;

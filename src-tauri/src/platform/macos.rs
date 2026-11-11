@@ -312,7 +312,7 @@ unsafe fn frame_of(el: AXUIElementRef) -> Option<Frame> {
 
 /// Web apps (Claude, ChatGPT) report only the editable text region; the rounded box the user sees is
 /// an ancestor that grows with it. Climb to the outermost ancestor that still hugs the text region,
-/// so the chip rides the box's top edge as the box grows.
+/// so the chip rides the box's top edge as the box grows. See docs/input-box.md.
 unsafe fn input_box(el: AXUIElementRef, text: Frame) -> Frame {
     let mut best = text;
     let mut cur = el;
@@ -326,8 +326,11 @@ unsafe fn input_box(el: AXUIElementRef, text: Frame) -> Frame {
             && f.x <= text.x + 1.0
             && f.x + f.w >= text.x + text.w - 1.0
             && f.w <= text.w + 160.0
+            // Toolbar row under the text, at most.
             && f.y + f.h <= text.y + text.h + 140.0
-            && f.y >= text.y - 140.0;
+            // Attachments (images, files) sit above the text inside the box, so the top may rise a lot;
+            // the height cap is what stops the climb at the box instead of the whole conversation column.
+            && f.h <= text.h + 420.0;
         if !hugs { break; }
         best = f;
     }

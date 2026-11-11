@@ -58,14 +58,36 @@ pub fn sort_targets(list: &mut [crate::TargetInfo]) {
     list.sort_by(|a, b| ai_rank(a).cmp(&ai_rank(b)).then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase())));
 }
 
-/// Places the "save to Wings" chip just above the input box's top-right corner.
+/// Places the "save to Wings" chip astride the input box's top border, left of the box's
+/// right-hand buttons (send/stop, mic) so it never sits right above them.
 pub fn place_chip(app: &AppHandle, input: Frame, scale: f64) {
     let Some(chip) = app.get_webview_window("chip") else { return };
     let (w, h) = (CHIP_W * scale, CHIP_H * scale);
     let _ = chip.set_size(PhysicalSize::new(w.round() as u32, h.round() as u32));
-    let _ = chip.set_position(PhysicalPosition::new((input.x + input.w - w).round() as i32, (input.y - h).round() as i32));
+    // The button's centre is the window's vertical centre, so half the window above the line centres it on the border.
+    let x = input.x + input.w - w - CHIP_RIGHT_INSET * scale;
+    let _ = chip.set_position(PhysicalPosition::new(x.round() as i32, (input.y - h / 2.0).round() as i32));
     show_no_activate(&chip);
 }
 
 pub const CHIP_W: f64 = 120.0;
 pub const CHIP_H: f64 = 34.0;
+/// Room kept clear for the box's own buttons at its right end.
+pub const CHIP_RIGHT_INSET: f64 = 72.0;
+
+/// Hover keeps the docked width, trims the height, and lets the user resize by the edges.
+/// Docked, the size comes from the target window again.
+pub fn shape_for_mode(app: &AppHandle, float: bool) {
+    let Some(win) = app.get_webview_window("main") else { return };
+    let _ = win.set_resizable(float);
+    if !float { return; }
+    let _ = win.set_min_size(Some(LogicalSize::new(200.0, 240.0)));
+    let scale = win.scale_factor().unwrap_or(1.0);
+    if let Ok(size) = win.inner_size() {
+        let h = (size.height as f64).min(FLOAT_HEIGHT * scale);
+        let _ = win.set_size(PhysicalSize::new(size.width, h.round() as u32));
+    }
+}
+
+/// Default hover height; shorter than a docked bar, which matches the whole target window.
+pub const FLOAT_HEIGHT: f64 = 460.0;
