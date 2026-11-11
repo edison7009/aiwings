@@ -29,8 +29,10 @@ export function Chip() {
         <span className="chip-face">{t.saveToWings}</span>
       </button>
       {/* Clearing by hand is slow; this selects all and deletes in the target's input box. */}
-      <button type="button" className={`chip-save chip-clear${shown ? '' : ' is-leaving'}`} onMouseDown={e => e.preventDefault()} onClick={shown ? () => void invoke('clear_input') : undefined}>
-        <span className="chip-face">{t.clear}</span>
+      <button type="button" className={`chip-save chip-clear${shown ? '' : ' is-leaving'}`} aria-label={t.clear} onMouseDown={e => e.preventDefault()} onClick={shown ? () => void invoke('clear_input') : undefined}>
+        <span className="chip-face">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden><path d="M7 7l10 10M17 7L7 17" /></svg>
+        </span>
       </button>
     </div>
   );
