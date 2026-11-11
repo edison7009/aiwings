@@ -44,7 +44,7 @@ pub fn float_panel(app: &AppHandle) {
     }
 }
 
-const AI_APPS: &[&str] = &["claude", "chatgpt", "grok", "gemini", "deepseek", "kimi", "doubao", "豆包", "perplexity", "copilot", "元宝", "通义"];
+const AI_APPS: &[&str] = &["claude", "chatgpt", "codex", "grok", "gemini", "deepseek", "zcode", "kimi", "doubao", "豆包", "perplexity", "copilot", "元宝", "通义"];
 
 fn ai_rank(t: &crate::TargetInfo) -> usize {
     let n = format!("{} {}", t.name, t.key).to_lowercase();
