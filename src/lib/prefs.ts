@@ -3,13 +3,13 @@ import { invoke } from '@tauri-apps/api/core';
 
 export interface Prefs {
   /**
-   * follow: docked beside the app in use, moving to whichever ticked app the user switches to.
-   * pin: docked beside one chosen app only; hidden when the user is elsewhere.
-   * float: stays wherever the user drags it; notes paste into the ticked app used last.
+   * follow: docked beside the AI app in use, moving to whichever AI app the user switches to.
+   * lock: the same, but only among the apps the user chose (one or more).
+   * float: stays wherever the user drags it; notes paste into the AI app used last.
    */
-  layout: 'follow' | 'pin' | 'float';
-  /** Apps (by key) ticked to follow; null = the default, every AI app. */
-  followKeys: string[] | null;
+  layout: 'follow' | 'lock' | 'float';
+  /** Apps (by key) chosen for lock mode; never empty while locked. */
+  lockKeys: string[];
   /** Light, dark, or follow the system. */
   theme: 'system' | 'light' | 'dark';
   /** Show the "save to Wings" chip on the target's input box. */
@@ -17,7 +17,7 @@ export interface Prefs {
 }
 
 const KEY = 'wings-prefs';
-const DEFAULTS: Prefs = { layout: 'follow', followKeys: null, theme: 'system', chip: true };
+const DEFAULTS: Prefs = { layout: 'follow', lockKeys: [], theme: 'system', chip: true };
 
 export function readPrefs(): Prefs {
   try {
@@ -25,10 +25,28 @@ export function readPrefs(): Prefs {
     // Older versions kept dock/float and follow as two separate switches.
     if (!raw.layout && (raw.mode || raw.follow !== undefined)) raw.layout = raw.mode === 'float' ? 'float' : raw.follow === false ? 'pin' : 'follow';
     delete raw.mode; delete raw.follow;
-    // An empty follow list (possible in older versions) follows nothing; fall back to every AI app.
-    if (Array.isArray(raw.followKeys) && raw.followKeys.length === 0) raw.followKeys = null;
+    // Older versions had "pin" (one app) and a follow list. Both become lock mode with the same apps.
+    if (raw.layout === 'pin') {
+      raw.layout = 'lock';
+      const last = rememberedKey();
+      raw.lockKeys = last ? [last] : [];
+    } else if (raw.layout === 'follow' && Array.isArray(raw.followKeys) && raw.followKeys.length > 0) {
+      raw.layout = 'lock';
+      raw.lockKeys = raw.followKeys;
+    }
+    delete raw.followKeys;
     return { ...DEFAULTS, ...raw };
   } catch { return DEFAULTS; }
+}
+
+function rememberedKey(): string | null {
+  try { return JSON.parse(localStorage.getItem('wings-target') ?? 'null')?.key ?? null; } catch { return null; }
+}
+
+/** Switches layout. Entering lock mode with nothing chosen locks onto the current app. */
+export function withLayout(p: Prefs, layout: Prefs['layout'], currentKey: string | null): Prefs {
+  const lockKeys = layout === 'lock' && p.lockKeys.length === 0 && currentKey ? [currentKey] : p.lockKeys;
+  return { ...p, layout, lockKeys };
 }
 
 const FLOAT_RECT_KEY = 'wings-float-rect';
@@ -47,7 +65,7 @@ function readFloatRect(): [number, number, number, number] | null {
 
 export function writePrefs(p: Prefs) {
   try { localStorage.setItem(KEY, JSON.stringify(p)); } catch { /* Best effort. */ }
-  void invoke('set_prefs', { float: p.layout === 'float', follow: p.layout !== 'pin', followKeys: p.followKeys, chip: p.chip, floatRect: readFloatRect() });
+  void invoke('set_prefs', { float: p.layout === 'float', follow: true, followKeys: p.layout === 'lock' && p.lockKeys.length > 0 ? p.lockKeys : null, chip: p.chip, floatRect: readFloatRect() });
 }
 
 /** Sets light/dark on this window. Both windows (bar and chip) call it; the chip hears changes via storage events. */

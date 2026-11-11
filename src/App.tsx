@@ -9,7 +9,7 @@ import { savedShortcut } from './components/ShortcutRecorder';
 import { Segmented } from './components/Segmented';
 import { loadNotes, makeNote, saveNotes, type Note } from './lib/notes';
 import { LAYOUTS } from './lib/layouts';
-import { applyThemeMode, readPrefs, saveFloatRect, writePrefs, type Prefs } from './lib/prefs';
+import { applyThemeMode, readPrefs, withLayout, saveFloatRect, writePrefs, type Prefs } from './lib/prefs';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { applyTheme, themeFor } from './lib/theme';
 import { t } from './strings';
@@ -84,7 +84,7 @@ export function App() {
     const subs = [
       listen<{ text: string; image: string | null }>('wings://captured', e => update(prev => [...prev, makeNote(e.payload.text, e.payload.image ?? undefined)])),
       listen<string>('wings://error', e => flash(e.payload)),
-      listen<Target>('wings://follow', e => { if (prefsRef.current.layout !== 'pin' && trustedRef.current) void choose(e.payload); }),
+      listen<Target>('wings://follow', e => { if (trustedRef.current) void choose(e.payload); }),
     ];
     return () => { subs.forEach(s => void s.then(f => f())); };
   }, [update, flash, choose]);
@@ -127,14 +127,14 @@ export function App() {
   else if (!trusted) body = <Onboarding onGranted={() => setTrusted(true)} />;
   else if (!target) body = <TargetPicker missing={missing} onPick={choose} />;
   else if (view === 'settings') body = (
-    <Settings prefs={prefs} shortcut={shortcut} target={target} onChange={changePrefs} onPickTarget={next => void choose(next)} onError={flash} onShortcut={setShortcut} onBack={() => setView('notes')} />
+    <Settings prefs={prefs} shortcut={shortcut} target={target} onChange={changePrefs} onError={flash} onShortcut={setShortcut} onBack={() => setView('notes')} />
   );
   else body = (
     <>
       {/* Hover mode lets the header drag the bar anywhere; docked, it follows the target instead. */}
       <header className="panel-head" data-tauri-drag-region={floating || undefined}>
         <span className="brand" data-tauri-drag-region={floating || undefined}>{target.name}</span>
-        <Segmented value={prefs.layout} options={LAYOUTS} onChange={layout => changePrefs({ ...prefs, layout })} />
+        <Segmented value={prefs.layout} options={LAYOUTS} onChange={layout => changePrefs(withLayout(prefs, layout, target.key))} />
       </header>
       <NoteList
         notes={notes}

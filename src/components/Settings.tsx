@@ -1,4 +1,4 @@
-import type { Prefs } from '../lib/prefs';
+import { withLayout, type Prefs } from '../lib/prefs';
 import type { Target } from './TargetPicker';
 import { t } from '../strings';
 import { Segmented } from './Segmented';
@@ -11,13 +11,12 @@ interface Props {
   shortcut: string;
   target: Target;
   onChange: (p: Prefs) => void;
-  onPickTarget: (t: Target) => void;
   onError: (msg: string) => void;
   onShortcut: (label: string) => void;
   onBack: () => void;
 }
 
-export function Settings({ prefs, shortcut, target, onChange, onPickTarget, onError, onShortcut, onBack }: Props) {
+export function Settings({ prefs, shortcut, target, onChange, onError, onShortcut, onBack }: Props) {
   const set = <K extends keyof Prefs>(k: K, v: Prefs[K]) => onChange({ ...prefs, [k]: v });
   return (
     <>
@@ -26,13 +25,11 @@ export function Settings({ prefs, shortcut, target, onChange, onPickTarget, onEr
         <span className="brand" data-tauri-drag-region>{t.settings}</span>
       </header>
       <div className="panel-body settings">
-        {/* Layout first. Under it, ticks choose the apps to follow, or (pinned) the one app to stay with. */}
+        {/* Layout first. Only lock mode asks which apps; follow and hover need no setup. */}
         <section>
-          <Segmented value={prefs.layout} options={LAYOUTS} onChange={v => set('layout', v)} />
+          <Segmented value={prefs.layout} options={LAYOUTS} onChange={v => onChange(withLayout(prefs, v, target.key))} />
           <p className="muted small hint">{t.layoutHint[prefs.layout]}</p>
-          {prefs.layout !== 'pin'
-            ? <AppMenu mode="multi" followKeys={prefs.followKeys} onChangeKeys={keys => set('followKeys', keys)} />
-            : <AppMenu mode="single" current={target} onPick={onPickTarget} onError={onError} />}
+          {prefs.layout === 'lock' && <AppMenu keys={prefs.lockKeys} onChangeKeys={keys => set('lockKeys', keys)} />}
         </section>
         <section>
           <label>{t.chipLabel}</label>
