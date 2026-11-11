@@ -252,7 +252,7 @@ h1 { font-size: 15px; margin: 6px 0 4px; }
 .settings .segmented { display: grid; width: 100%; }
 .settings .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; border-radius: 8px; background: var(--card); }
 .settings .row-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Slider: all blue, no white rim. The track is filled up to the thumb via --fill. */
+/* Slider: blue track filled up to a white knob (iOS style). The fill comes from --fill. */
 .settings input[type=range] {
   -webkit-appearance: none;
   appearance: none;
@@ -266,11 +266,13 @@ h1 { font-size: 15px; margin: 6px 0 4px; }
 .settings input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   border: 0;
   border-radius: 50%;
-  background: var(--accent);
+  background: #ffffff;
+  /* A soft shadow, not a rim, keeps the white knob visible on light backgrounds. */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   cursor: pointer;
 }
 .small { font-size: 12px; margin: 6px 0 0; }
