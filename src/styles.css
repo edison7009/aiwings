@@ -401,13 +401,13 @@ kbd { font: inherit; padding: 1px 6px; border-radius: 4px; border: 1px solid var
 .text-size button:disabled { opacity: 0.35; }
 .text-size .text-size-value { font-size: 13px; font-variant-numeric: tabular-nums; }
 
-/* Palette tiles, as in EchoBird: a 3×3 grid of soft diagonal gradients, the name below, an accent border and check on the chosen one. */
+/* Palette tiles, as in EchoBird: a 3×3 grid of soft diagonal gradients, the name below, a check on the chosen one. */
 .swatches { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
 .swatch { position: relative; display: block; min-width: 0; padding: 0; background: none; }
-.swatch-tile { position: relative; display: block; height: 38px; border-radius: 8px; border: 2px solid transparent; transition: border-color 0.15s; }
+/* No border: a transparent one let the gradient repeat under it and read as a frame. The check marks the choice. */
+.swatch-tile { position: relative; display: block; height: 38px; border-radius: 8px; }
 .swatch-name { display: block; margin-top: 4px; font-size: 11px; text-align: center; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .swatch.active .swatch-name { color: var(--text); }
-.swatch.active .swatch-tile { border-color: var(--accent); }
 .swatch-check { position: absolute; top: 3px; right: 3px; }
 
 /* Colour palettes (after Coffee CLI's families): each has a day and a night half; the light/dark/system
