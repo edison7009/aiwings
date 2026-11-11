@@ -1,7 +1,8 @@
 # Builds Wings for macOS (one universal build for Apple silicon and Intel) and Windows when a v* tag is pushed,
 # and uploads the installers to the DRAFT release named after the tag (created by hand first: the workflow
-# token cannot create releases here). The maintainer reviews it and clicks Publish, which marks it Latest
-# and fires mirror-release.yml, like the sister projects.
+# token cannot create releases here). Once every installer is up, the publish job makes it the Latest
+# release and runs mirror-release.yml (a release published by the workflow token fires no release event,
+# so the mirror is called directly).
 # Not yet signed with an Apple Developer ID: macOS builds are ad-hoc signed only.
 name: Release
 
@@ -59,3 +60,24 @@ jobs:
     uses: ./.github/workflows/portable.yml
     with:
       tag: ${{ github.ref_name }}
+
+  publish:
+    needs: portable
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Publish the draft as Latest
+        run: |
+          set -euo pipefail
+          tag="${{ github.ref_name }}"
+          count=$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets -q '[.assets[].name | select(test("\\.(exe|dmg)$"))] | length')
+          if [ "$count" -lt 3 ]; then echo "::error::$tag has $count installers, expected 3"; exit 1; fi
+          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+
+  mirror:
+    needs: publish
+    uses: ./.github/workflows/mirror-release.yml
+    with:
+      tag: ${{ github.ref_name }}
+    secrets: inherit

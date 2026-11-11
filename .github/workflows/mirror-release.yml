@@ -9,15 +9,21 @@ name: Mirror release to China
 # Each run force-pushes ONE orphan commit holding only the latest installers plus manifest.json, so the
 # mirror repos never grow with old versions. These repos hold nothing else; never point this at a source repo.
 #
-# Runs when the maintainer publishes the (draft) release, once CI has uploaded every installer, and can
-# be re-run by hand for any tag. A mirror failure never blocks or undoes the GitHub release.
+# Called by the Release workflow once it publishes the release, fires on a release published by hand, and
+# can be re-run by hand for any tag. A mirror failure never blocks or undoes the GitHub release.
 #
 # Secrets: CNB_TOKEN (git user "cnb"), GITCODE_TOKEN (git user "edison7009"),
 # each with write access to its mirror repo only.
 
 on:
+  # A release published by hand (the release workflow calls this directly when it publishes).
   release:
     types: [published]
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: true
   workflow_dispatch:
     inputs:
       tag:
