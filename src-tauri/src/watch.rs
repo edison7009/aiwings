@@ -6,7 +6,7 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 
 pub static FOLLOW: AtomicBool = AtomicBool::new(true);
-/// Apps (by key) the user ticked to follow; None means AI apps and Windows terminals.
+/// Apps (by key) the user ticked to follow; None means AI apps and terminals.
 pub static FOLLOW_KEYS: std::sync::Mutex<Option<Vec<String>>> = std::sync::Mutex::new(None);
 
 fn wants_follow(app: &crate::TargetInfo) -> bool {

@@ -65,9 +65,9 @@ fn ai_rank(t: &crate::TargetInfo) -> usize { apps::rank(&t.name, &t.key) }
 /// Whether an app is one of the AI apps Wings follows when "follow" is on.
 pub fn is_ai_app(t: &crate::TargetInfo) -> bool { apps::is_ai(&t.name, &t.key) }
 
-/// Windows terminal hosts use docking and paste only; they are followed by default too.
+/// Terminals (Windows and macOS hosts) use docking and paste only; they are followed by default too.
 pub fn follows_by_default(t: &crate::TargetInfo) -> bool {
-    is_ai_app(t) || (cfg!(windows) && is_terminal(&t.key))
+    is_ai_app(t) || is_terminal(&t.key)
 }
 
 pub fn target_is_ide() -> bool { apps::is_ide("", &TARGET_KEY.lock().unwrap()) }
@@ -178,6 +178,15 @@ pub fn is_helper(t: &crate::TargetInfo) -> bool {
 #[cfg(test)]
 mod input_box_tests {
     use super::*;
+
+    #[test]
+    fn macos_terminals_follow_without_save() {
+        for key in ["com.apple.Terminal", "com.googlecode.iterm2", "dev.warp.Warp-Stable", "com.mitchellh.ghostty"] {
+            let terminal = crate::TargetInfo { id: "123".into(), key: key.into(), name: "Terminal".into() };
+            assert!(follows_by_default(&terminal), "{key}");
+            assert!(!supports_save(&terminal), "{key}");
+        }
+    }
 
     #[cfg(windows)]
     #[test]

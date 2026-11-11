@@ -14,7 +14,7 @@ export const t = {
   layoutLock: '指定',
   layoutFloat: '悬停',
   layoutHint: {
-    follow: '自动吸附到正在用的 AI 应用',
+    follow: '自动吸附到正在用的 AI 应用和终端',
     lock: '只吸附到指定的应用，可选一个或多个',
     float: '停在任意位置，便签粘贴到最近用过的 AI 应用',
   },
