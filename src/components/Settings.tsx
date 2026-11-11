@@ -60,14 +60,16 @@ export function Settings({ prefs, shortcut, target, onChange, onError, onShortcu
           <ShortcutRecorder label={shortcut} onChange={onShortcut} onError={onError} />
         </section>
       </div>
-      {/* Back sits where the gear was, so opening and leaving settings is one spot. */}
       <footer className="settings-foot">
-        <button type="button" onClick={onBack}>‹ {t.back}</button>
-        <span className="settings-version">{version ? `v${version}` : ''}</span>
-        <button className="settings-site" type="button" onClick={() => void invoke('open_url', { url: 'https://aiwings.app' })}>
-          aiwings.app
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
+        <span className="settings-about">
+          {version ? `v${version}` : ''}
+          {version && <span aria-hidden> · </span>}
+          <button type="button" onClick={() => void invoke('open_url', { url: 'https://aiwings.app' })}>aiwings.app</button>
+        </span>
+        {/* Round back button in the gear's spot: settings opens and closes from the same place. */}
+        <button type="button" className="gear settings-back" aria-label={t.back} onClick={onBack}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
           </svg>
         </button>
       </footer>

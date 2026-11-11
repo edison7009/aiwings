@@ -274,20 +274,11 @@ h1 { font-size: 15px; margin: 6px 0 4px; }
 .update .spin { animation: update-spin 0.9s linear infinite; }
 @keyframes update-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .update .spin { animation: none; } }
-/* Settings foot: back left (under the gear); version and website together on the right. */
-.settings-foot {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border-top: 1px solid var(--border, rgba(127, 127, 127, 0.18));
-  font-size: 12px;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-.settings-version { margin-left: auto; }
-.settings-foot button { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); }
-.settings-foot button:hover { color: var(--text); }
+/* Settings foot: version and site as one quiet line, the round back button where the gear sits. */
+.settings-foot { position: relative; height: 50px; flex-shrink: 0; display: flex; align-items: center; padding: 0 12px; font-size: 12px; color: var(--muted); }
+.settings-about button { color: inherit; }
+.settings-about button:hover { color: var(--text); }
+.settings-back:hover { transform: none; }
 
 .settings section { margin: 4px 0 16px; }
 .settings label { display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 6px; }
