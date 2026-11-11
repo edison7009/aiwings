@@ -17,6 +17,14 @@ Queue your next prompt while the AI is busy, then paste it back in one click. Wi
 - **Follow**: switch to another AI app and Wings follows it. You can also keep it with one app, or let it hover anywhere.
 - **Terminals**: Windows Terminal, PowerShell 5/7, and cmd support following and pasting notes. Wings never presses Enter to run commands and does not support saving or clearing terminal input. If you have a custom follow list, tick the terminal in settings.
 
+## Supported apps
+
+Docks, saves and pastes: Claude, ChatGPT, Codex, Grok, Gemini, DeepSeek Harness, ZCode, Kimi, Doubao, Perplexity, GitHub Copilot, Yuanbao, Qwen, DuMate, Cline, OpenCode, Trae, MiniMax, Antigravity, Cue, Muse, WorkBuddy, Kilo Code, Cursor, Xiaomi MiMo, CodeArts, Devin, Hermes, KreoCrew, Kiro Crew, Qoder, VS Code.
+
+Terminals can be followed and pasted into (no saving): Terminal, iTerm2, Warp, Ghostty, WezTerm, Alacritty, kitty, Hyper, Tabby, Windows Terminal, PowerShell, cmd.
+
+On Windows, Doubao and Trae CN can be followed and pasted into but not saved from yet. Any other app can be followed and pasted into after ticking it under Pick in Settings.
+
 ## Development
 
 ```bash

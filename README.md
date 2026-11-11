@@ -17,6 +17,14 @@ AI 正忙时，先把下一句话存进 Wings，等它空了，点一下就贴�
 - **跟随**：切到别的 AI 应用，Wings 跟过去；也可以固定陪着某一个应用，或改成悬停在任意位置。
 - **终端**：Windows Terminal、PowerShell 5/7、cmd 可跟随并粘贴便签，不按回车执行；不支持保存和清空。已有自选跟随名单时，在设置中勾选终端。
 
+## 支持的应用
+
+自动吸附、一键保存和粘贴：Claude、ChatGPT、Codex、Grok、Gemini、DeepSeek Harness、ZCode、Kimi、豆包、Perplexity、GitHub Copilot、元宝、通义千问、DuMate、Cline、OpenCode、Trae、MiniMax、Antigravity、Cue、Muse、WorkBuddy、Kilo Code、Cursor、Xiaomi MiMo、CodeArts、Devin、Hermes、KreoCrew、Kiro Crew、Qoder、VS Code。
+
+终端可以跟随和粘贴（不支持保存）：Terminal、iTerm2、Warp、Ghostty、WezTerm、Alacritty、kitty、Hyper、Tabby、Windows Terminal、PowerShell、cmd。
+
+Windows 上的豆包和 Trae CN 暂不支持保存，可以跟随和粘贴。其他应用在设置的「指定」里勾上也能跟随和粘贴。
+
 ## 开发
 
 ```bash

@@ -149,6 +149,8 @@ kbd { font: 600 15px/1 "Fredoka", sans-serif; padding: 3px 8px; border: 2px soli
 
 /* Apps. */
 .apps { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; margin-top: 36px; }
+.apps.terms { margin-top: 18px; gap: 10px; }
+.apps.terms .app { padding: 8px 14px; font-size: 15px; box-shadow: none; }
 .app { padding: 10px 18px; border: var(--line); border-radius: 16px; background: var(--white); font: 600 18px/1 "Fredoka", "Noto Sans SC", sans-serif; box-shadow: 3px 3px 0 var(--deep); }
 .app:nth-child(odd) { rotate: -2deg; }
 .app:nth-child(3n) { rotate: 2deg; background: #ffe6f1; }
@@ -288,8 +290,9 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
 
   <section class="wrap center">
     <h2 class="cn-display">贴在你常用的 AI 旁边</h2>
-    <p class="muted">「保存到 Wings」按钮已适配下面这些应用；其他应用也能跟随和粘贴，在设置里勾上就行。</p>
-    <div class="apps"><span class="app">Claude</span><span class="app">ChatGPT</span><span class="app">DeepSeek Harness</span><span class="app">ZCode</span><span class="app">豆包</span><span class="app">Kimi</span><span class="app">Gemini</span><span class="app">Grok</span></div>
+    <p class="muted">下面这些 AI 应用都能自动吸附、一键保存和粘贴；终端可以跟随和粘贴。其他应用在设置里勾上也能用。</p>
+    <div class="apps"><span class="app">Claude</span><span class="app">ChatGPT</span><span class="app">Codex</span><span class="app">Grok</span><span class="app">Gemini</span><span class="app">DeepSeek Harness</span><span class="app">ZCode</span><span class="app">Kimi</span><span class="app">豆包</span><span class="app">Perplexity</span><span class="app">GitHub Copilot</span><span class="app">元宝</span><span class="app">通义千问</span><span class="app">DuMate</span><span class="app">Cline</span><span class="app">OpenCode</span><span class="app">Trae</span><span class="app">MiniMax</span><span class="app">Antigravity</span><span class="app">Cue</span><span class="app">Muse</span><span class="app">WorkBuddy</span><span class="app">Kilo Code</span><span class="app">Cursor</span><span class="app">Xiaomi MiMo</span><span class="app">CodeArts</span><span class="app">Devin</span><span class="app">Hermes</span><span class="app">KreoCrew</span><span class="app">Kiro Crew</span><span class="app">Qoder</span><span class="app">VS Code</span></div>
+    <div class="apps terms"><span class="app">Terminal</span><span class="app">iTerm2</span><span class="app">Warp</span><span class="app">Ghostty</span><span class="app">WezTerm</span><span class="app">Alacritty</span><span class="app">kitty</span><span class="app">Hyper</span><span class="app">Tabby</span><span class="app">Windows Terminal</span><span class="app">PowerShell</span><span class="app">cmd</span></div>
   </section>
 
   <section class="wrap" id="faq">
