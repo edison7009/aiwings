@@ -58,6 +58,16 @@ fn set_prefs(app: AppHandle, float: bool, follow: bool, chip: bool) {
     platform::set_float(&app, float);
 }
 
+/// Cursor position inside the window, in CSS pixels. macOS sends no mouse-move events to a window of an
+/// inactive app, so the UI polls this to keep hover effects working while the target has focus.
+#[tauri::command]
+fn cursor_in_window(window: tauri::WebviewWindow) -> Option<(f64, f64)> {
+    let c = window.cursor_position().ok()?;
+    let p = window.inner_position().ok()?;
+    let s = window.scale_factor().ok()?;
+    Some(((c.x - p.x as f64) / s, (c.y - p.y as f64) / s))
+}
+
 #[tauri::command]
 fn permission_granted(prompt: bool) -> bool {
     platform::accessibility_trusted(prompt)
@@ -101,6 +111,7 @@ pub fn run() {
                 .skip_taskbar(true)
                 .focused(false)
                 .focusable(false)
+                .accept_first_mouse(true)
                 .visible(false)
                 .build()?;
             watch::start(app.handle().clone());
@@ -111,7 +122,7 @@ pub fn run() {
             if let WindowEvent::Focused(false) = ev { platform::refresh_later(win.app_handle()); }
         })
         .invoke_handler(tauri::generate_handler![
-            list_targets, set_target, clear_target, paste_note, capture_now, set_prefs,
+            list_targets, set_target, clear_target, paste_note, capture_now, set_prefs, cursor_in_window,
             permission_granted, open_permission_settings, shortcut_label,
             store::load_notes, store::save_notes
         ])
