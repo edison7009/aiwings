@@ -122,6 +122,8 @@ jobs:
           TOKEN: ${{ secrets.CNB_TOKEN }}
         run: |
           set -euo pipefail
+          # A token pasted with a trailing newline breaks the Basic auth header; drop any whitespace.
+          TOKEN=$(printf %s "$TOKEN" | tr -d '[:space:]')
           [ -n "$TOKEN" ] || { echo "::error::CNB_TOKEN secret is not set"; exit 1; }
           auth=$(printf 'cnb:%s' "$TOKEN" | base64 -w0)
           cd out
@@ -139,6 +141,7 @@ jobs:
           TOKEN: ${{ secrets.GITCODE_TOKEN }}
         run: |
           set -euo pipefail
+          TOKEN=$(printf %s "$TOKEN" | tr -d '[:space:]')
           [ -n "$TOKEN" ] || { echo "::error::GITCODE_TOKEN secret is not set"; exit 1; }
           auth=$(printf 'edison7009:%s' "$TOKEN" | base64 -w0)
           cd out
