@@ -19,11 +19,15 @@ AI 正忙时，先把下一句话存进 Wings，等它空了，点一下就贴�
 
 ## 支持的应用
 
-| 类别 | 应用 | 吸附跟随 | 一键保存 | 粘贴回输入框 |
-|---|---|:-:|:-:|:-:|
-| AI 应用 | Claude、ChatGPT、Codex、Grok、Gemini、DeepSeek Harness、ZCode、Kimi、豆包、Perplexity、GitHub Copilot、元宝、通义千问、DuMate、Cline、OpenCode、Trae、MiniMax、Antigravity、Cue、Muse、WorkBuddy、Kilo Code、Cursor、Xiaomi MiMo、CodeArts、Devin、Hermes、KreoCrew、Kiro Crew、Qoder、VS Code | ✓ | ✓ | ✓ |
-| 终端 | Terminal、iTerm2、Warp、Ghostty、WezTerm、Alacritty、kitty、Hyper、Tabby、Windows Terminal、PowerShell、cmd | ✓ | — | ✓ |
-| 其他应用 | 在设置的「指定」里勾选 | ✓ | — | ✓ |
+| 类别 | 吸附跟随 | 一键保存 | 粘贴回输入框 |
+|---|:-:|:-:|:-:|
+| AI 应用 | ✓ | ✓ | ✓ |
+| 终端 | ✓ | — | ✓ |
+| 其他应用（在设置的「指定」里勾选） | ✓ | — | ✓ |
+
+**AI 应用**：Claude、ChatGPT、Codex、Grok、Gemini、DeepSeek Harness、ZCode、Kimi、豆包、Perplexity、GitHub Copilot、元宝、通义千问、DuMate、Cline、OpenCode、Trae、MiniMax、Antigravity、Cue、Muse、WorkBuddy、Kilo Code、Cursor、Xiaomi MiMo、CodeArts、Devin、Hermes、KreoCrew、Kiro Crew、Qoder、VS Code
+
+**终端**：Terminal、iTerm2、Warp、Ghostty、WezTerm、Alacritty、kitty、Hyper、Tabby、Windows Terminal、PowerShell、cmd
 
 Windows 上的豆包和 Trae CN 暂不支持一键保存。
 
