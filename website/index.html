@@ -97,7 +97,7 @@ p { text-wrap: pretty; }
 .collage { position: relative; min-height: 600px; translate: 0 60px; }
 .polaroid { position: absolute; left: 0; right: 30px; top: 70px; background: #fff; padding: 14px 14px 46px; box-shadow: 0 18px 40px -18px rgba(28, 24, 20, .45); rotate: -2deg; }
 .polaroid .wd { aspect-ratio: 16 / 11.5; --wd-radius: 6px; --wd-shadow: none; --wd-border: 1px solid #e7e0d4; --wd-accent: #007aff; max-width: none; }
-.polaroid .cap { position: absolute; left: 20px; bottom: 8px; font-size: 26px; color: #5f564c; }
+.polaroid .cap { position: absolute; left: 20px; right: 14px; bottom: 8px; font-size: 26px; color: #5f564c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .collage .hero-sticker { position: absolute; width: 230px; right: -10px; bottom: -6px; rotate: 7deg; filter: drop-shadow(0 12px 16px rgba(28,24,20,.3)); }
 .collage .halftone { position: absolute; width: 180px; height: 180px; border-radius: 50%; left: -40px; bottom: 10px; opacity: .5; z-index: -1; background-image: radial-gradient(var(--pink) 28%, transparent 30%); background-size: 9px 9px; }
 .arrow { position: absolute; z-index: 3; left: 12%; top: -78px; font-size: 30px; color: var(--pink); rotate: -4deg; white-space: nowrap; }
@@ -205,6 +205,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
   .f.big, .f.side, .f.third, .f.wide { grid-column: auto; }
   .bubble:nth-child(2) { margin-left: 16px; }
   .tape .t { font-size: 26px; }
+  .polaroid .cap { font-size: 19px; bottom: 12px; }
   .tapes { height: 170px; }
   .tape.b { top: 96px; }
   section { padding: 72px 0; }
