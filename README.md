@@ -6,6 +6,8 @@
 
 <p align="center">简体中文 | <a href="README.en.md">English</a></p>
 
+<p align="center"><img src="branding/wings-demo-zh.gif" alt="Wings 操作演示" width="720"></p>
+
 ## Description
 
 AI 正忙时，先把下一句话存进 Wings，等它空了，点一下就贴回输入框。Wings 是一条吸附在 Claude、ChatGPT 等 AI 桌面应用旁边的侧栏，支持 macOS 和 Windows。

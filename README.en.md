@@ -6,6 +6,8 @@
 
 <p align="center"><a href="README.md">简体中文</a> | English</p>
 
+<p align="center"><img src="branding/wings-demo-en.gif" alt="Wings demo" width="720"></p>
+
 ## Description
 
 Queue your next prompt while the AI is busy, then paste it back in one click. Wings is a sidebar that docks beside Claude, ChatGPT and other desktop AI apps, on macOS and Windows.

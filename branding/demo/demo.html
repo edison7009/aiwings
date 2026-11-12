@@ -1,0 +1,166 @@
+<!doctype html>
+<!-- Wings demo, drawn rather than screenshotted: a plain AI chat window with Wings docked on its right.
+     The whole scene is a pure function of time, render(t), so record.cjs can step it frame by frame.
+     Open demo.html?lang=en for English; it also plays in a browser on its own. -->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 960px; height: 600px; overflow: hidden; }
+  body { background: #6b63b4; font: 14px/1.5 -apple-system, "PingFang SC", "Noto Sans SC", "Helvetica Neue", sans-serif; color: #24221f; position: relative; }
+  .abs { position: absolute; }
+  /* AI app window */
+  .win { left: 36px; top: 46px; width: 624px; height: 500px; background: #fff; border-radius: 12px 0 0 12px; overflow: hidden; box-shadow: 0 20px 50px -20px rgba(20, 10, 60, .55); }
+  .bar { height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 14px; border-bottom: 1px solid #efedea; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .side { left: 0; top: 38px; width: 150px; bottom: 0; background: #f7f6f3; border-right: 1px solid #efedea; padding: 16px 14px; }
+  .ph { height: 9px; border-radius: 5px; background: #e6e3de; margin-bottom: 16px; }
+  .chat { left: 150px; top: 38px; right: 0; bottom: 0; }
+  .bubble { right: 24px; top: 26px; max-width: 340px; white-space: nowrap; padding: 9px 14px; border-radius: 16px; background: #f1efeb; }
+  .ai { left: 28px; top: 84px; right: 28px; color: #3a3733; }
+  .think { display: inline-flex; gap: 4px; margin-left: 6px; vertical-align: middle; }
+  .think i { width: 6px; height: 6px; border-radius: 50%; background: #c9653f; }
+  .input { left: 20px; right: 20px; bottom: 20px; height: 64px; border: 1px solid #e3e0db; border-radius: 16px; padding: 12px 16px; background: #fff; }
+  .input .ph-text { color: #a8a39c; }
+  .caret { display: inline-block; width: 1.5px; height: 17px; background: #24221f; vertical-align: -3px; margin-left: 1px; }
+  .chip { height: 22px; padding: 0 10px; border-radius: 11px; background: #007aff; color: #fff; font-size: 12px; line-height: 22px; white-space: nowrap; box-shadow: 0 2px 6px rgba(0, 60, 160, .35); }
+  /* Wings */
+  .wings { left: 660px; top: 46px; width: 264px; height: 500px; border-radius: 0 12px 12px 0; overflow: hidden;
+    background: #f4f2ee url(../../public/backgrounds/basalt-light.png) center / cover; box-shadow: 0 20px 50px -20px rgba(20, 10, 60, .55); border-left: 1px solid #e6e3de; }
+  .whead { height: 46px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; font-weight: 600; }
+  .seg { display: flex; gap: 2px; padding: 2px; border-radius: 8px; background: rgba(0, 0, 0, .06); }
+  .seg span { width: 30px; height: 22px; border-radius: 6px; display: grid; place-items: center; color: #8a857d; }
+  .seg span.on { background: #fff; color: #24221f; box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
+  .empty { left: 0; right: 0; top: 210px; text-align: center; font-size: 13px; }
+  .empty .m { color: #8a857d; font-size: 12px; }
+  .note { left: 12px; width: 240px; padding: 9px 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 10px; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .06); font-size: 13px; }
+  .gear { right: 12px; bottom: 12px; width: 30px; height: 30px; border-radius: 50%; background: #fff; display: grid; place-items: center; color: #8a857d; box-shadow: 0 1px 4px rgba(0, 0, 0, .12); }
+  /* Overlays */
+  .cursor { width: 22px; height: 22px; pointer-events: none; filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, .35)); }
+  .ring { width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%; border: 2px solid #007aff; }
+  .key { padding: 10px 18px; border-radius: 12px; background: rgba(28, 24, 40, .82); color: #fff; font: 600 22px/1 -apple-system, sans-serif; letter-spacing: 2px; }
+  .cap { left: 50%; bottom: 14px; transform: translateX(-50%); padding: 7px 18px; border-radius: 999px; background: rgba(255, 255, 255, .95); font-size: 15px; font-weight: 600; white-space: nowrap; color: #2a1d33; }
+  .cap b { color: #e0367d; }
+</style>
+</head>
+<body>
+<div class="abs win">
+  <div class="bar"><span class="dot" style="background:#ff5f57"></span><span class="dot" style="background:#febc2e"></span><span class="dot" style="background:#28c840"></span></div>
+  <div class="abs side"><div class="ph" style="width:70%"></div><div class="ph" style="width:55%"></div><div class="ph" style="width:80%;margin-top:28px"></div><div class="ph" style="width:62%"></div><div class="ph" style="width:74%"></div><div class="ph" style="width:50%"></div></div>
+  <div class="abs chat">
+    <div class="abs bubble" id="ask"></div>
+    <div class="abs ai" id="ai"></div>
+    <div class="abs input" id="input"></div>
+    <div class="abs chip" id="chip"></div>
+  </div>
+</div>
+<div class="abs wings">
+  <div class="whead"><span>Claude</span><span class="seg">
+    <span class="on"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.25" y="2.75" width="8" height="10.5" rx="1.5"/><rect x="10.75" y="2" width="4.5" height="12" rx="1.25" fill="currentColor" stroke="none"/></svg></span>
+    <span><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="5" height="5" rx="1.4" fill="currentColor" stroke="none"/><rect x="9.25" y="2.25" width="4.5" height="4.5" rx="1.3"/><rect x="2.25" y="9.25" width="4.5" height="4.5" rx="1.3"/><rect x="9" y="9" width="5" height="5" rx="1.4" fill="currentColor" stroke="none"/></svg></span>
+    <span><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2.5" width="12" height="9" rx="1.5" stroke-dasharray="2 1.6"/><rect x="7" y="7.5" width="7" height="6" rx="1.2" fill="#fff"/></svg></span>
+  </span></div>
+  <div class="abs empty" id="empty"></div>
+  <div id="notes"></div>
+  <div class="abs gear"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg></div>
+</div>
+<div id="fly"></div>
+<div class="abs key" id="key"></div>
+<div class="abs ring" id="ring"></div>
+<svg class="abs cursor" id="cursor" viewBox="0 0 24 24"><path d="M5 2l14 11.5-6.2.6 3.7 7.4-2.9 1.4-3.6-7.4L5 20z" fill="#fff" stroke="#111" stroke-width="1.3" stroke-linejoin="round"/></svg>
+<div class="abs cap" id="cap"></div>
+<div class="abs" id="fade" style="inset:0;background:#6b63b4;opacity:0"></div>
+<script>
+const L = {
+  zh: { ask: '把登录页重构一下，拆成小组件', thinking: '正在思考', done: '完成：登录页已拆成 4 个组件。', ph: '输入消息…', chip: '保存到 Wings',
+    n1: '顺便把注册页也改成同样风格', n2: '再加一个暗色模式', emptyT: '还没有候着的话', emptyB: '在输入框里写好，按 ⌥S 存到这里',
+    c: ['AI 正在思考，<b>你也能继续输入</b>', '点「保存到 Wings」，<b>先存起来</b>', '或者按 <b>⌥S</b>', 'AI 空了，<b>点一下便签</b>', '贴回输入框，<b>不会自动发送</b>'] },
+  en: { ask: 'Split the login page into components', thinking: 'Thinking', done: 'Done: the login page is now 4 components.', ph: 'Message…', chip: 'Save to Wings',
+    n1: 'Same style for the sign-up page', n2: 'Add a dark mode too', emptyT: 'Nothing waiting yet', emptyB: 'Write in the input box, press ⌥S to keep it here',
+    c: ['AI is thinking. <b>Keep typing.</b>', 'Click "Save to Wings" to <b>park it</b>', 'Or press <b>⌥S</b>', 'AI is free: <b>click the note</b>', 'Back in the input, <b>never sent for you</b>'] },
+};
+const S = L[new URLSearchParams(location.search).get('lang') === 'en' ? 'en' : 'zh'];
+document.documentElement.lang = S === L.en ? 'en' : 'zh-CN';
+const $ = id => document.getElementById(id);
+$('ask').textContent = S.ask; $('chip').textContent = S.chip;
+$('empty').innerHTML = `<div>${S.emptyT}</div><div class="m">${S.emptyB}</div>`;
+
+// Geometry, in page pixels.
+const WIN = { x: 36 + 150, y: 46 + 38 };               // chat area origin
+const INPUT = { x: WIN.x + 20, y: 46 + 500 - 20 - 64 };  // input box top-left
+const CHIP = { x: 36 + 624 - 20 - 130, y: INPUT.y - 11 }; // chip astride the input's top border
+const NOTE_Y = i => 46 + 46 + 10 + i * 48;
+const T_END = 14;
+
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const ease = x => { x = clamp(x); return x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
+const seg = (t, a, b) => ease((t - a) / (b - a));
+const lerp = (a, b, k) => a + (b - a) * k;
+const typed = (s, t, a, b) => [...s].slice(0, Math.round(clamp((t - a) / (b - a)) * [...s].length)).join('');
+
+function cursorAt(t) {
+  // Keyframes: [time, x, y]. Holds between keys, eases while moving.
+  const K = [[0, 470, 470], [2.9, 470, 470], [3.6, CHIP.x + 60, CHIP.y + 12], [4.6, CHIP.x + 60, CHIP.y + 12], [5.3, 470, 480],
+    [9.0, 470, 480], [9.8, 880, NOTE_Y(0) + 20], [13.2, 880, NOTE_Y(0) + 20], [T_END, 470, 470]];
+  for (let i = 1; i < K.length; i++) if (t <= K[i][0]) { const [ta, xa, ya] = K[i - 1], [tb, xb, yb] = K[i]; const k = seg(t, ta, tb); return [lerp(xa, xb, k), lerp(ya, yb, k)]; }
+  return [470, 470];
+}
+
+function render(t) {
+  // AI message: thinking dots until 8.6s, then the answer.
+  const dots = [0, 1, 2].map(i => `<i style="opacity:${.25 + .75 * Math.max(0, Math.sin(t * 6 - i * .9))}"></i>`).join('');
+  $('ai').innerHTML = t < 8.6 ? `<span style="color:#8a857d">${S.thinking}</span><span class="think">${dots}</span>` : `<span style="opacity:${seg(t, 8.6, 9)}">${S.done}</span>`;
+
+  // Input box text.
+  let text = '';
+  if (t >= 1 && t < 3.75) text = typed(S.n1, t, 1, 2.8);
+  else if (t >= 4.9 && t < 6.9) text = typed(S.n2, t, 4.9, 6.2);
+  else if (t >= 10.05) text = S.n1;
+  const caretOn = Math.floor(t * 2.4) % 2 === 0;
+  $('input').innerHTML = text ? `${text}<span class="caret" style="opacity:${caretOn ? 1 : 0}"></span>` : `<span class="ph-text">${S.ph}</span>`;
+
+  // Chip: shows while there is text to save, pressed at 3.7s.
+  const chipShown = text && t < 10;
+  const press = t >= 3.62 && t < 3.78 ? .92 : 1;
+  Object.assign($('chip').style, { left: (CHIP.x - WIN.x) + 'px', top: (CHIP.y - WIN.y) + 'px', opacity: chipShown ? 1 : 0, transform: `scale(${press})` });
+
+  // Keycap for the shortcut.
+  const keyA = clamp((t - 6.3) / .15) * (1 - clamp((t - 7.3) / .2));
+  Object.assign($('key').style, { left: '360px', top: '230px', opacity: keyA, transform: `scale(${.9 + .1 * keyA})` });
+  $('key').textContent = '⌥ S';
+
+  // Notes: each flies from the input to its slot, then sits there.
+  const notes = [[S.n1, 3.78], [S.n2, 6.9]];
+  let html = '', fly = '';
+  notes.forEach(([s, at], i) => {
+    if (t < at) return;
+    const k = seg(t, at, at + .6);
+    const x = lerp(INPUT.x + 14, 660 + 12, k), y = lerp(INPUT.y + 10, NOTE_Y(i), k);
+    const picked = i === 0 && t >= 9.85 && t < 10.4;
+    const style = `left:${x}px;top:${y}px;opacity:${.4 + .6 * k};${picked ? 'background:#eef4ff;box-shadow:0 0 0 2px #007aff;' : ''}`;
+    (k < 1 ? (fly += `<div class="abs note" style="${style}">${s}</div>`) : (html += `<div class="abs note" style="${style.replace(/left:[^;]+;top:[^;]+;/, `left:12px;top:${NOTE_Y(i) - 46}px;`)}">${s}</div>`));
+  });
+  $('notes').innerHTML = html; $('fly').innerHTML = fly;
+  $('empty').style.opacity = t < 3.78 ? 1 : 0;
+
+  // Cursor and click ring.
+  const [cx, cy] = cursorAt(t);
+  Object.assign($('cursor').style, { left: cx + 'px', top: cy + 'px' });
+  const click = [3.7, 9.9].find(c => t >= c && t < c + .4);
+  const r = click === undefined ? 0 : (t - click) / .4;
+  Object.assign($('ring').style, { left: (cx + 4) + 'px', top: (cy + 3) + 'px', opacity: r ? 1 - r : 0, transform: `scale(${.4 + r})` });
+
+  // Caption.
+  const step = t < 3.2 ? 0 : t < 5.9 ? 1 : t < 8.6 ? 2 : t < 10.05 ? 3 : 4;
+  $('cap').innerHTML = S.c[step];
+  // Fade the whole scene out and in around the loop point.
+  $('fade').style.opacity = Math.max(clamp((t - (T_END - .5)) / .5), clamp(1 - t / .3));
+}
+
+window.render = render; window.T_END = T_END;
+if (!navigator.webdriver) { const t0 = performance.now(); const loop = () => { render(((performance.now() - t0) / 1000) % T_END); requestAnimationFrame(loop); }; loop(); }
+else render(0);
+</script>
+</body>
+</html>
