@@ -29,7 +29,7 @@ R = [
 ('长任务一跑就是十几分钟。想法不等人，可现在的去处都不太好。','Long tasks run for ten minutes or more. Ideas don\'t wait, and the usual places to put them aren\'t great.'),
 ('打在输入框里？手一快按了回车，<b>半句话就发出去了</b>。','In the input box? One quick Enter and <b>half a thought gets sent</b>.'),
 ('记在备忘录里？来回切窗口，<b>回头还得找、还得复制</b>。','In a notes app? Switching windows, then <b>finding it and copying it back</b>.'),
-('三步，用起来不用想','Three steps, no thinking required'),
+('三步，用起来不用想','Three steps, no thinking required'),('wings-demo-zh.gif" alt="Wings 操作演示"','wings-demo-en.gif" alt="Wings demo"'),
 ('>照常写<','>Write as usual<'),('在 AI 的输入框里写下一句，和平时一样。','Type your next message in the AI\'s input box, like always.'),
 ('>存进 Wings<','>Save to Wings<'),('点输入框上方的「保存到 Wings」，或按 <kbd>⌥S</kbd>。输入框清空，这句话收进侧栏。','Click "Save to Wings" above the input, or press <kbd>⌥S</kbd>. The input clears and the message moves to the sidebar.'),
 ('>点一下贴回<','>Click to paste back<'),('AI 回完了，点一下便签，它回到输入框。看一眼没问题，再按回车。','When the AI is done, click the note and it goes back into the input. Check it, then press Enter.'),

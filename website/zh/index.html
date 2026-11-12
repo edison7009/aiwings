@@ -127,6 +127,7 @@ h2 { font-size: clamp(32px, 4.6vw, 56px); line-height: 1.15; }
 
 
 /* Steps. */
+.demo-gif { display: block; width: 100%; max-width: 860px; height: auto; margin: 40px auto 0; border: var(--line); border-radius: 20px; box-shadow: var(--pop); }
 .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; margin-top: 48px; }
 .step { background: var(--white); border: var(--line); border-radius: 26px; padding: 26px; box-shadow: var(--pop); }
 .step:nth-child(2) { transform: translateY(24px); background: #ffe6f1; }
@@ -273,6 +274,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
 
   <section class="wrap" id="how">
     <h2 class="cn-display center">三步，用起来不用想</h2>
+    <img class="demo-gif" src="../assets/wings-demo-zh.gif" alt="Wings 操作演示" width="960" height="600" loading="lazy">
     <div class="steps">
       <div class="step"><span class="eyebrow-num">1</span><h3 class="cn-display">照常写</h3><p>在 AI 的输入框里写下一句，和平时一样。</p></div>
       <div class="step"><span class="eyebrow-num">2</span><h3 class="cn-display">存进 Wings</h3><p>点输入框上方的「保存到 Wings」，或按 <kbd>⌥S</kbd>。输入框清空，这句话收进侧栏。</p></div>
