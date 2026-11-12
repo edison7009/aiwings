@@ -1,0 +1,6 @@
+# GitHub language bar: count the app's own code. Translations are locale data, and the website,
+# demo animation and icon scripts are not part of the app.
+src/i18n/** linguist-detectable=false
+website/** linguist-documentation
+branding/** linguist-documentation
+scripts/** linguist-documentation
