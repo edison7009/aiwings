@@ -145,6 +145,7 @@ kbd { font: 600 15px/1 "Fredoka", sans-serif; padding: 3px 8px; border: 2px soli
 .f.big p { color: #ffe6f1; }
 .f.side { grid-column: span 2; background: var(--lemon); }
 .f.third { grid-column: span 2; }
+.f.wide { grid-column: span 6; }
 .layouts { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
 .layouts span { padding: 6px 14px; border: 2px solid var(--ink); border-radius: 999px; background: var(--white); color: var(--ink); font-weight: 700; }
 
@@ -201,7 +202,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
   .steps { grid-template-columns: 1fr; }
   .step:nth-child(n) { transform: none; }
   .board { grid-template-columns: 1fr; }
-  .f.big, .f.side, .f.third { grid-column: auto; }
+  .f.big, .f.side, .f.third, .f.wide { grid-column: auto; }
   .bubble:nth-child(2) { margin-left: 16px; }
   .tape .t { font-size: 26px; }
   .tapes { height: 170px; }
@@ -294,6 +295,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
       <div class="f third"><h3 class="cn-display">Also on your clipboard</h3><p>A clicked note stays on the clipboard too, so ⌘V puts it anywhere.</p></div>
       <div class="f third"><h3 class="cn-display">Images too</h3><p>Save a screenshot as an image note and paste it back as is.</p></div>
       <div class="f third"><h3 class="cn-display">Only on your computer</h3><p>Notes live on your Mac. No account, no upload.</p></div>
+      <div class="f wide"><h3 class="cn-display">Ten interface languages</h3><p>Switch in Settings; it follows your system by default.</p><div class="layouts"><span>简体中文</span><span>繁體中文</span><span>English</span><span>日本語</span><span>한국어</span><span>Español</span><span>Français</span><span>Deutsch</span><span>Português</span><span>Русский</span></div></div>
     </div>
   </section>
 

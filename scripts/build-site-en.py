@@ -40,7 +40,7 @@ R = [
 ('>绝不替你发送<','>Never sends for you<'),('只粘贴，不按回车。发不发，你说了算。','It pastes, it never presses Enter. Sending is your call.'),
 ('>剪贴板也有一份<','>Also on your clipboard<'),('点过的便签同时留在剪贴板，⌘V 能贴到任何地方。','A clicked note stays on the clipboard too, so ⌘V puts it anywhere.'),
 ('>图片也能存<','>Images too<'),('截图存成图片便签，点一下原样贴回去。','Save a screenshot as an image note and paste it back as is.'),
-('>只在你的电脑上<','>Only on your computer<'),('便签存在本机，没有账号，也不上传。','Notes live on your Mac. No account, no upload.'),
+('>只在你的电脑上<','>Only on your computer<'),('>十种界面语言<','>Ten interface languages<'),('<p>在设置里切换，默认跟随系统。</p>','<p>Switch in Settings; it follows your system by default.</p>'),('便签存在本机，没有账号，也不上传。','Notes live on your Mac. No account, no upload.'),
 ('贴在你常用的 AI 旁边','Right beside the AI you use'),
 ('<th>类别</th><th>应用</th><th>吸附跟随</th><th>一键保存</th><th>粘贴回输入框</th>','<th>Kind</th><th>Apps</th><th>Dock and follow</th><th>One-click save</th><th>Paste back</th>'),('<th>AI 应用</th>','<th>AI apps</th>'),('<th>终端</th>','<th>Terminals</th>'),('<th>其他应用</th><td>在设置的「指定」里勾选</td>','<th>Any other app</th><td>Tick it under Pick in Settings</td>'),('、豆包、','、Doubao、'),('、元宝、通义千问、','、Yuanbao、Qwen、'),
 ('<summary>会自动帮我把话发出去吗？</summary><p>不会。Wings 只把便签粘贴进输入框，从不按回车。</p>','<summary>Will it send messages for me?</summary><p>No. Wings only pastes the note into the input box. It never presses Enter.</p>'),
