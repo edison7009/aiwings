@@ -19,11 +19,13 @@ Queue your next prompt while the AI is busy, then paste it back in one click. Wi
 
 ## Supported apps
 
-Docks, saves and pastes: Claude, ChatGPT, Codex, Grok, Gemini, DeepSeek Harness, ZCode, Kimi, Doubao, Perplexity, GitHub Copilot, Yuanbao, Qwen, DuMate, Cline, OpenCode, Trae, MiniMax, Antigravity, Cue, Muse, WorkBuddy, Kilo Code, Cursor, Xiaomi MiMo, CodeArts, Devin, Hermes, KreoCrew, Kiro Crew, Qoder, VS Code.
+| Kind | Apps | Dock and follow | One-click save | Paste back |
+|---|---|:-:|:-:|:-:|
+| AI apps | Claude, ChatGPT, Codex, Grok, Gemini, DeepSeek Harness, ZCode, Kimi, Doubao, Perplexity, GitHub Copilot, Yuanbao, Qwen, DuMate, Cline, OpenCode, Trae, MiniMax, Antigravity, Cue, Muse, WorkBuddy, Kilo Code, Cursor, Xiaomi MiMo, CodeArts, Devin, Hermes, KreoCrew, Kiro Crew, Qoder, VS Code | ✓ | ✓ | ✓ |
+| Terminals | Terminal, iTerm2, Warp, Ghostty, WezTerm, Alacritty, kitty, Hyper, Tabby, Windows Terminal, PowerShell, cmd | ✓ | — | ✓ |
+| Any other app | Tick it under Pick in Settings | ✓ | — | ✓ |
 
-Terminals can be followed and pasted into (no saving): Terminal, iTerm2, Warp, Ghostty, WezTerm, Alacritty, kitty, Hyper, Tabby, Windows Terminal, PowerShell, cmd.
-
-On Windows, Doubao and Trae CN can be followed and pasted into but not saved from yet. Any other app can be followed and pasted into after ticking it under Pick in Settings.
+On Windows, Doubao and Trae CN cannot be saved from yet.
 
 ## Development
 

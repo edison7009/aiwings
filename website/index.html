@@ -148,10 +148,17 @@ kbd { font: 600 15px/1 "Fredoka", sans-serif; padding: 3px 8px; border: 2px soli
 .layouts span { padding: 6px 14px; border: 2px solid var(--ink); border-radius: 999px; background: var(--white); color: var(--ink); font-weight: 700; }
 
 /* Apps. */
-.apps { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; margin-top: 36px; }
-.apps.terms { margin-top: 18px; gap: 10px; }
-.apps.terms .app { padding: 8px 14px; font-size: 15px; box-shadow: none; }
-.app { padding: 10px 18px; border: var(--line); border-radius: 16px; background: var(--white); font: 600 18px/1 "Fredoka", "Noto Sans SC", sans-serif; box-shadow: 3px 3px 0 var(--deep); }
+/* Supported apps: one table, a row per kind of app. */
+.support { max-width: 960px; margin: 36px auto 0; overflow-x: auto; border: var(--line); border-radius: 20px; background: var(--white); box-shadow: var(--pop); }
+.support table { width: 100%; border-collapse: collapse; font-size: 16px; text-align: left; }
+.support th, .support td { padding: 16px 18px; border-bottom: 2px solid rgba(21, 17, 26, .08); vertical-align: top; }
+.support tbody tr:last-child > * { border-bottom: none; }
+.support thead th { font-weight: 700; white-space: nowrap; background: var(--paper); }
+.support tbody th { white-space: nowrap; }
+.support td { line-height: 1.7; }
+.support .ok, .support .no, .support thead th:nth-child(n+3) { text-align: center; white-space: nowrap; }
+.support .ok { color: var(--pink); font-weight: 700; }
+.support .no { color: rgba(21, 17, 26, .35); }
 .app:nth-child(odd) { rotate: -2deg; }
 .app:nth-child(3n) { rotate: 2deg; background: #ffe6f1; }
 .center { text-align: center; }
@@ -290,9 +297,14 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
 
   <section class="wrap center">
     <h2 class="cn-display">Right beside the AI you use</h2>
-    <p class="muted">Wings docks to, saves from and pastes into these AI apps. Terminals can be followed and pasted into. Any other app works too: tick it in Settings.</p>
-    <div class="apps"><span class="app">Claude</span><span class="app">ChatGPT</span><span class="app">Codex</span><span class="app">Grok</span><span class="app">Gemini</span><span class="app">DeepSeek Harness</span><span class="app">ZCode</span><span class="app">Kimi</span><span class="app">Doubao</span><span class="app">Perplexity</span><span class="app">GitHub Copilot</span><span class="app">Yuanbao</span><span class="app">Qwen</span><span class="app">DuMate</span><span class="app">Cline</span><span class="app">OpenCode</span><span class="app">Trae</span><span class="app">MiniMax</span><span class="app">Antigravity</span><span class="app">Cue</span><span class="app">Muse</span><span class="app">WorkBuddy</span><span class="app">Kilo Code</span><span class="app">Cursor</span><span class="app">Xiaomi MiMo</span><span class="app">CodeArts</span><span class="app">Devin</span><span class="app">Hermes</span><span class="app">KreoCrew</span><span class="app">Kiro Crew</span><span class="app">Qoder</span><span class="app">VS Code</span></div>
-    <div class="apps terms"><span class="app">Terminal</span><span class="app">iTerm2</span><span class="app">Warp</span><span class="app">Ghostty</span><span class="app">WezTerm</span><span class="app">Alacritty</span><span class="app">kitty</span><span class="app">Hyper</span><span class="app">Tabby</span><span class="app">Windows Terminal</span><span class="app">PowerShell</span><span class="app">cmd</span></div>
+    <div class="support"><table>
+      <thead><tr><th>Kind</th><th>Apps</th><th>Dock and follow</th><th>One-click save</th><th>Paste back</th></tr></thead>
+      <tbody>
+      <tr><th>AI apps</th><td>Claude, ChatGPT, Codex, Grok, Gemini, DeepSeek Harness, ZCode, Kimi, Doubao, Perplexity, GitHub Copilot, Yuanbao, Qwen, DuMate, Cline, OpenCode, Trae, MiniMax, Antigravity, Cue, Muse, WorkBuddy, Kilo Code, Cursor, Xiaomi MiMo, CodeArts, Devin, Hermes, KreoCrew, Kiro Crew, Qoder, VS Code</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td></tr>
+      <tr><th>Terminals</th><td>Terminal, iTerm2, Warp, Ghostty, WezTerm, Alacritty, kitty, Hyper, Tabby, Windows Terminal, PowerShell, cmd</td><td class="ok">✓</td><td class="no">—</td><td class="ok">✓</td></tr>
+      <tr><th>Any other app</th><td>Tick it under Pick in Settings</td><td class="ok">✓</td><td class="no">—</td><td class="ok">✓</td></tr>
+      </tbody>
+    </table></div>
   </section>
 
   <section class="wrap" id="faq">

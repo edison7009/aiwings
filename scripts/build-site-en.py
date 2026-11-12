@@ -42,8 +42,7 @@ R = [
 ('>图片也能存<','>Images too<'),('截图存成图片便签，点一下原样贴回去。','Save a screenshot as an image note and paste it back as is.'),
 ('>只在你的电脑上<','>Only on your computer<'),('便签存在本机，没有账号，也不上传。','Notes live on your Mac. No account, no upload.'),
 ('贴在你常用的 AI 旁边','Right beside the AI you use'),
-('下面这些 AI 应用都能自动吸附、一键保存和粘贴；终端可以跟随和粘贴。其他应用在设置里勾上也能用。','Wings docks to, saves from and pastes into these AI apps. Terminals can be followed and pasted into. Any other app works too: tick it in Settings.'),
-('<span class="app">豆包</span>','<span class="app">Doubao</span>'),('<span class="app">元宝</span>','<span class="app">Yuanbao</span>'),('<span class="app">通义千问</span>','<span class="app">Qwen</span>'),
+('<th>类别</th><th>应用</th><th>吸附跟随</th><th>一键保存</th><th>粘贴回输入框</th>','<th>Kind</th><th>Apps</th><th>Dock and follow</th><th>One-click save</th><th>Paste back</th>'),('<th>AI 应用</th>','<th>AI apps</th>'),('<th>终端</th>','<th>Terminals</th>'),('<th>其他应用</th><td>在设置的「指定」里勾选</td>','<th>Any other app</th><td>Tick it under Pick in Settings</td>'),('、豆包、','、Doubao、'),('、元宝、通义千问、','、Yuanbao、Qwen、'),
 ('<summary>会自动帮我把话发出去吗？</summary><p>不会。Wings 只把便签粘贴进输入框，从不按回车。</p>','<summary>Will it send messages for me?</summary><p>No. Wings only pastes the note into the input box. It never presses Enter.</p>'),
 ('<summary>为什么需要「辅助功能」权限？</summary><p>保存和粘贴要模拟全选、剪切、粘贴这几个按键，macOS 要求先在「隐私与安全性 → 辅助功能」里允许。首次打开时 Wings 会带你一步步打开。</p>','<summary>Why does it need Accessibility access?</summary><p>Saving and pasting simulate select all, cut and paste, which macOS only allows after you enable it in Privacy &amp; Security → Accessibility. Wings walks you through it on first launch.</p>'),
 ('<summary>Wings 会读取我和 AI 的对话吗？</summary><p>不会。只在你保存时剪下输入框里的那句话。为了判断输入框是不是空的，会在本机看一眼里面有没有字，不保存也不上传。</p>','<summary>Does Wings read my conversations?</summary><p>No. It only cuts the text in the input box when you save. To tell whether the input is empty it checks locally for text, without storing or uploading anything.</p>'),
@@ -58,6 +57,9 @@ R = [
 for a,b in R:
     if a not in s: sys.exit('missing: '+a)
     s = s.replace(a,b)
+# App lists in the support table: English commas instead of the Chinese list mark.
+import re
+s = re.sub(r'<td>[^<]*</td>', lambda m: m.group(0).replace('、', ', '), s)
 # English typography: rounded Latin display face, Latin handwriting.
 s = s.replace('.cn-display { font-family: "ZCOOL KuaiLe", "Noto Sans SC", sans-serif;','.cn-display { font-family: "Fredoka", "Noto Sans SC", sans-serif;')
 s = s.replace('.hand { font-family: "Long Cang", cursive;','.hand { font-family: "Caveat", cursive; font-weight: 600 !important;')
