@@ -267,10 +267,10 @@ h1 { font-size: 15px; margin: 6px 0 4px; }
   place-items: center;
   border-radius: 50%;
   color: #ef4444;
-  background: var(--card);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  background: transparent;
+  transition: background 0.15s;
 }
-.update:hover { background: var(--card-hover, var(--card)); }
+.update:hover { background: rgba(239, 68, 68, 0.16); }
 .update .spin { animation: update-spin 0.9s linear infinite; }
 @keyframes update-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .update .spin { animation: none; } }
