@@ -82,6 +82,7 @@ Lu ? Survolez puis cliquez sur la corbeille à droite pour supprimer cette note.
     '下载不完整': 'Téléchargement incomplet',
     '安装包校验失败': 'La vérification de l’installateur a échoué',
     '打开安装程序失败：': 'Impossible d’ouvrir l’installateur : ',
+    '安装包路径无法安全启动': 'Le chemin de l’installateur ne peut pas être lancé en toute sécurité',
     '打开安装包失败：': 'Impossible d’ouvrir l’installateur : ',
     '还没选择要吸附的窗口': 'Aucune fenêtre à laquelle s’ancrer pour l’instant',
     '终端里不支持保存，只能把便签粘贴进去': 'Impossible d’enregistrer depuis un terminal ; on peut seulement y coller les notes',

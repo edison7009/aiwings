@@ -2,7 +2,7 @@
 //! lights a red download button beside the gear; clicking it downloads the installer for this system into
 //! Downloads, from the domestic mirrors (filled by .github/workflows/mirror-release.yml) or GitHub.
 //! A mirror is only used when its manifest has exactly the target version, and its file is checked
-//! against the manifest's size and SHA-256. Windows then runs the setup wizard and quits; macOS opens the dmg.
+//! against the manifest's size and SHA-256. Windows then installs it silently, relaunches Wings and quits (the wizard opens if that fails); macOS opens the dmg.
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -169,9 +169,11 @@ fn launch(app: &AppHandle, path: &PathBuf) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
         use std::os::windows::process::CommandExt;
-        const DETACHED_PROCESS: u32 = 0x0000_0008;
-        std::process::Command::new(path).creation_flags(DETACHED_PROCESS).spawn().map_err(|e| format!("打开安装程序失败：{e}"))?;
-        std::thread::sleep(Duration::from_millis(600));
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        let args = installer_command_line(path)?;
+        std::process::Command::new("cmd").raw_arg(args).creation_flags(CREATE_NO_WINDOW).spawn().map_err(|e| format!("打开安装程序失败：{e}"))?;
+        // Let the installer start before we exit so it can replace our files.
+        std::thread::sleep(Duration::from_millis(800));
         app.exit(0);
     }
     #[cfg(not(target_os = "windows"))]
@@ -182,6 +184,16 @@ fn launch(app: &AppHandle, path: &PathBuf) -> Result<(), String> {
     Ok(())
 }
 
+/// `cmd` arguments that install silently (`/S`) and relaunch Wings (`/R`), opening the visible wizard
+/// when the silent run fails, so a failed update never leaves the user without the app or an explanation.
+#[cfg_attr(not(target_os = "windows"), allow(dead_code))]
+fn installer_command_line(path: &std::path::Path) -> Result<String, String> {
+    let path = path.to_string_lossy();
+    // cmd cannot escape these inside a quoted path.
+    if path.contains(['"', '%', '\n', '\r']) { return Err("安装包路径无法安全启动".into()); }
+    Ok(format!("/d /c start \"\" /wait \"{path}\" /S /R || start \"\" \"{path}\""))
+}
+
 /// Opens a web page in the default browser (the website link in settings).
 #[tauri::command]
 pub fn open_url(url: String) {
@@ -190,4 +202,22 @@ pub fn open_url(url: String) {
     let _ = std::process::Command::new("explorer").arg(&url).spawn();
     #[cfg(not(target_os = "windows"))]
     let _ = std::process::Command::new("open").arg(&url).spawn();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::installer_command_line;
+    use std::path::Path;
+
+    #[test]
+    fn installs_silently_and_falls_back_to_the_wizard() {
+        let path = Path::new(r"C:\Users\A B\Downloads\Wings-0.0.4-windows-x64-setup.exe");
+        assert_eq!(
+            installer_command_line(path).unwrap(),
+            r#"/d /c start "" /wait "C:\Users\A B\Downloads\Wings-0.0.4-windows-x64-setup.exe" /S /R || start "" "C:\Users\A B\Downloads\Wings-0.0.4-windows-x64-setup.exe""#
+        );
+        for unsafe_path in [r#"C:\a"b\setup.exe"#, r"C:\%TEMP%\setup.exe"] {
+            assert!(installer_command_line(Path::new(unsafe_path)).is_err());
+        }
+    }
 }

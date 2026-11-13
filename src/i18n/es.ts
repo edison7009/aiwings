@@ -82,6 +82,7 @@ export const es: Strings = {
     '下载不完整': 'Descarga incompleta',
     '安装包校验失败': 'La verificación del instalador falló',
     '打开安装程序失败：': 'No se pudo abrir el instalador: ',
+    '安装包路径无法安全启动': 'La ruta del instalador no se puede abrir de forma segura',
     '打开安装包失败：': 'No se pudo abrir el instalador: ',
     '还没选择要吸附的窗口': 'Aún no hay ninguna ventana a la que acoplarse',
     '终端里不支持保存，只能把便签粘贴进去': 'En terminales no se puede guardar; solo pegar notas',

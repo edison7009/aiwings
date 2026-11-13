@@ -82,6 +82,7 @@ Gelesen? Fahr mit der Maus darüber und klick rechts auf den Papierkorb, um dies
     '下载不完整': 'Download unvollständig',
     '安装包校验失败': 'Prüfung des Installers fehlgeschlagen',
     '打开安装程序失败：': 'Installer konnte nicht geöffnet werden: ',
+    '安装包路径无法安全启动': 'Der Installer-Pfad kann nicht sicher gestartet werden',
     '打开安装包失败：': 'Installer konnte nicht geöffnet werden: ',
     '还没选择要吸附的窗口': 'Noch kein Fenster zum Andocken',
     '终端里不支持保存，只能把便签粘贴进去': 'Im Terminal kann nicht gesichert werden; Notizen lassen sich nur einfügen',
