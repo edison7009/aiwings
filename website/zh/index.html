@@ -239,7 +239,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
       <h1><span class="nowrap">AI 正在思考中</span><br><span class="nowrap">朕却<em>日理万机</em></span></h1>
       <p class="sub">Wings 是吸附在 Claude、ChatGPT 等 AI 应用右侧的窗口，你不需要等待 AI 执行完成，你也可以继续输入你的计划和想法。</p>
       <div class="cta-row">
-        <a class="btn primary" href="https://github.com/edison7009/aiwings/releases/latest">下载 macOS 版</a>
+        <a class="btn primary" href="https://github.com/edison7009/aiwings/releases/latest" data-win="下载 Windows 版">下载 macOS 版</a>
         <a class="btn soft" href="https://github.com/edison7009/aiwings">在 GitHub 点个星</a>
       </div>
       <div class="meta"><span>自动吸附</span><span>一键保存</span><span>一键发送</span></div>
@@ -332,7 +332,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
     </div>
     <div class="final">
       <img src="../assets/wings-banner.png" alt="Wings: SAVE IT. SEND IT.">
-      <a class="btn" href="https://github.com/edison7009/aiwings/releases/latest">下载 macOS 版</a>
+      <a class="btn" href="https://github.com/edison7009/aiwings/releases/latest" data-win="下载 Windows 版">下载 macOS 版</a>
     </div>
   </section>
 </main>
@@ -344,6 +344,8 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
   </div>
 </footer>
 
+<script>/* Windows visitors see a Windows download label; the link is the same release page. */
+if (/Windows/i.test(navigator.userAgent)) document.querySelectorAll("[data-win]").forEach(a => { a.textContent = a.dataset.win; });</script>
 <script src="../assets/demo.js"></script>
 </body>
 </html>

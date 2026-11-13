@@ -142,7 +142,7 @@ h1 { font-size: 15px; margin: 6px 0 4px; }
   text-align: left;
   padding: 9px 11px;
   white-space: pre-wrap;
-  word-break: break-word;
+  word-break: break-all; /* fill each line: CJK next to a quoted path otherwise leaves a one-character first line */
 }
 /* At most three lines. The clamp sits on an inner span: WebKit ignores line-clamp on a <button>. */
 .note-clamp {

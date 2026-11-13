@@ -21,7 +21,7 @@ R = [
 ('>下载</a>','>Download</a>'),
 ('<h1><span class="nowrap">AI 正在思考中</span><br><span class="nowrap">朕却<em>日理万机</em></span></h1>','<h1><span class="nowrap">AI is thinking</span><br><span class="nowrap"><em>My mind is racing</em></span></h1>'),
 ('Wings 是吸附在 Claude、ChatGPT 等 AI 应用右侧的窗口，你不需要等待 AI 执行完成，你也可以继续输入你的计划和想法。','Wings is a window that docks to the right of Claude, ChatGPT and other AI apps. No need to wait for the AI to finish: keep typing your plans and ideas.'),
-('下载 macOS 版','Download for macOS'),('在 GitHub 点个星','Star on GitHub'),
+('下载 macOS 版','Download for macOS'),('下载 Windows 版','Download for Windows'),('在 GitHub 点个星','Star on GitHub'),
 ('<span>自动吸附</span><span>一键保存</span><span>一键发送</span>','<span>Auto-docks</span><span>One-click save</span><span>One-click send</span>'),
 ('Wings自动吸附在AI应用的右边','That strip on the right is Wings'),
 ('AI正在思考，你也能继续输入','AI is thinking, keep typing'),

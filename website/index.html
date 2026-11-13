@@ -239,7 +239,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
       <h1><span class="nowrap">AI is thinking</span><br><span class="nowrap"><em>My mind is racing</em></span></h1>
       <p class="sub">Wings is a window that docks to the right of Claude, ChatGPT and other AI apps. No need to wait for the AI to finish: keep typing your plans and ideas.</p>
       <div class="cta-row">
-        <a class="btn primary" href="https://github.com/edison7009/aiwings/releases/latest">Download for macOS</a>
+        <a class="btn primary" href="https://github.com/edison7009/aiwings/releases/latest" data-win="Download for Windows">Download for macOS</a>
         <a class="btn soft" href="https://github.com/edison7009/aiwings">Star on GitHub</a>
       </div>
       <div class="meta"><span>Auto-docks</span><span>One-click save</span><span>One-click send</span></div>
@@ -332,7 +332,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
     </div>
     <div class="final">
       <img src="assets/wings-banner.png" alt="Wings: SAVE IT. SEND IT.">
-      <a class="btn" href="https://github.com/edison7009/aiwings/releases/latest">Download for macOS</a>
+      <a class="btn" href="https://github.com/edison7009/aiwings/releases/latest" data-win="Download for Windows">Download for macOS</a>
     </div>
   </section>
 </main>
@@ -344,6 +344,8 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
   </div>
 </footer>
 
+<script>/* Windows visitors see a Windows download label; the link is the same release page. */
+if (/Windows/i.test(navigator.userAgent)) document.querySelectorAll("[data-win]").forEach(a => { a.textContent = a.dataset.win; });</script>
 <script src="assets/demo.js"></script>
 </body>
 </html>
