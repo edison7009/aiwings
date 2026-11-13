@@ -190,9 +190,10 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
 @media (max-width: 1080px) {
   .hero { grid-template-columns: 1fr; min-height: 0; }
   .collage { min-height: 480px; margin-left: 0; translate: none; }
-  .polaroid { right: 0; top: 16px; }
+  .collage { min-height: 560px; }
+  .polaroid { right: 0; top: 96px; }
   .collage .hero-sticker { width: 160px; }
-  .arrow { display: none; }
+  .arrow { left: auto; right: 8%; }
 }
 @media (max-width: 860px) {
   .nav .links, .icon-btn span { display: none; }
@@ -206,6 +207,10 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
   .bubble:nth-child(2) { margin-left: 16px; }
   .tape .t { font-size: 26px; }
   .polaroid .cap { font-size: 19px; bottom: 12px; }
+  .collage { min-height: 520px; }
+  .polaroid { top: 72px; }
+  .arrow { left: 4%; right: auto; top: -60px; font-size: 21px; }
+  .arrow svg { width: 58px; height: 41px; margin-left: 200px; }
   .tapes { height: 170px; }
   .tape.b { top: 96px; }
   section { padding: 72px 0; }
