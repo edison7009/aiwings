@@ -49,7 +49,7 @@ R = [
 ('<summary>便签存在哪里？</summary><p>存在你电脑上 Wings 的数据目录里。没有账号，也没有云同步。</p>','<summary>Where are notes stored?</summary><p>In Wings\' data folder on your computer. No account and no cloud sync.</p>'),
 ('<summary>保存快捷键能改吗？</summary><p>可以。在设置里点一下快捷键，按下一个修饰键加一个键就行，比如 ⌥S 或 ⌃E。</p>','<summary>Can I change the save shortcut?</summary><p>Yes. Click the shortcut in Settings and press one modifier plus one key, like ⌥S or ⌃E.</p>'),
 ('<summary>在终端里能用吗？</summary><p>可以跟随和粘贴，比如 Terminal、iTerm2。终端里的输入行由里面运行的程序管理，所以不支持保存。</p>','<summary>Does it work in terminals?</summary><p>It can follow and paste into Terminal or iTerm2. The input line belongs to whatever program is running there, so saving isn\'t supported.</p>'),
-('<summary>支持 Windows 吗？</summary><p>正在适配，完成后会在这里发布。</p>','<summary>Is there a Windows version?</summary><p>It\'s in progress and will be released here when ready.</p>'),
+('<summary>支持 Windows 吗？</summary><p>支持 Windows 10 及以上。下载页里的 setup.exe 是安装版，另一个 .exe 双击就能用，不用安装。</p>','<summary>Is there a Windows version?</summary><p>Yes, Windows 10 and later. On the download page, setup.exe installs Wings; the other .exe runs with a double-click, no install.</p>'),
 ('>它从哪里来<','>Where it came from<'),
 ('Wings 来自同一作者的 <a href="https://github.com/edison7009/Coffee-CLI">Coffee CLI</a>。它右侧的「任务」面板能把记下的话一键发给 AI，后来改名叫「预输入」。Wings 把这件事带到了所有 AI 桌面应用上。','Wings comes from <a href="https://github.com/edison7009/Coffee-CLI">Coffee CLI</a> by the same author. Its side panel, first called Tasks and later Pre-input, sends saved messages to the AI in one click. Wings brings that to every AI desktop app.'),
 ('<span>Wings 预输入，aiwings.app</span>','<span>Wings, aiwings.app</span>'),
