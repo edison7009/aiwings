@@ -62,7 +62,7 @@ struct Watched {
 // Observer setup, teardown and refreshes happen on the main thread; AX element reads are thread-safe.
 unsafe impl Send for Watched {}
 
-/// The active app: where saves and pastes go.
+/// An app saves and pastes have gone to, with the input box last used in it.
 struct Active {
     pid: i32,
     app_el: AXUIElementRef,
@@ -72,7 +72,9 @@ struct Active {
 unsafe impl Send for Active {}
 
 static WATCHED: Mutex<Vec<Watched>> = Mutex::new(Vec::new());
-static ACTIVE: Mutex<Option<Active>> = Mutex::new(None);
+/// Every app made active so far (closed ones are dropped by `untrack`), so each keeps its own remembered
+/// input box: switching to another app and back must not forget where to paste. TARGET_PID picks the current one.
+static ACTIVE: Mutex<Vec<Active>> = Mutex::new(Vec::new());
 static TARGET_PID: AtomicI32 = AtomicI32::new(0);
 static APP: OnceLock<AppHandle> = OnceLock::new();
 
@@ -203,6 +205,11 @@ pub fn untrack(id: &str) {
         let mut watched = WATCHED.lock().unwrap();
         if let Some(i) = watched.iter().position(|w| w.pid == pid) { unsafe { teardown(watched.remove(i)) } }
     });
+    let mut all = ACTIVE.lock().unwrap();
+    if let Some(i) = all.iter().position(|a| a.pid == pid) {
+        let a = all.remove(i);
+        unsafe { if !a.input.is_null() { CFRelease(a.input); } CFRelease(a.app_el); }
+    }
 }
 
 /// Re-places every bar: after a mode switch, and when Wings itself loses focus (clicking a bar can bring it
@@ -223,16 +230,17 @@ pub fn refresh_later(app: &AppHandle) {
 pub fn set_active(t: &TargetInfo) {
     let Ok(pid) = t.id.parse::<i32>() else { return };
     super::set_target_key(&t.key);
-    let mut guard = ACTIVE.lock().unwrap();
-    if guard.as_ref().is_some_and(|a| a.pid == pid) { return; }
-    unsafe {
-        if let Some(old) = guard.take() {
-            if !old.input.is_null() { CFRelease(old.input); }
-            CFRelease(old.app_el);
-        }
-        *guard = Some(Active { pid, app_el: app_element(pid), input: null() });
+    let mut all = ACTIVE.lock().unwrap();
+    if !all.iter().any(|a| a.pid == pid) {
+        all.push(Active { pid, app_el: unsafe { app_element(pid) }, input: null() });
     }
     TARGET_PID.store(pid, Ordering::SeqCst);
+}
+
+/// The current app's entry.
+fn current(all: &mut [Active]) -> Option<&mut Active> {
+    let pid = TARGET_PID.load(Ordering::SeqCst);
+    all.iter_mut().find(|a| a.pid == pid)
 }
 
 pub fn active_id() -> String { TARGET_PID.load(Ordering::SeqCst).to_string() }
@@ -336,8 +344,8 @@ pub fn front_app() -> Option<TargetInfo> {
 /// The target's focused text input: the frame (points) of the box drawn around it, and whether it holds any text.
 /// The text is looked at only to tell empty from not; it is never kept or sent anywhere.
 pub fn focused_input() -> Option<(Frame, bool)> {
-    let mut guard = ACTIVE.lock().unwrap();
-    let d = guard.as_mut()?;
+    let mut all = ACTIVE.lock().unwrap();
+    let d = current(&mut all)?;
     unsafe {
         let el = copy_attr(d.app_el, "AXFocusedUIElement")?;
         let role = copy_attr(el, "AXRole").map(|r| CFString::wrap_under_create_rule(r as CFStringRef).to_string());
@@ -421,8 +429,9 @@ unsafe fn input_is_focused(d: &Active) -> bool {
 /// target active but with nothing focused, and Cmd+V then goes nowhere. Asks the remembered input to
 /// take focus; if the app ignores that, clicks into it and puts the pointer back.
 pub fn focus_input() -> bool {
-    let guard = ACTIVE.lock().unwrap();
-    let Some(d) = guard.as_ref() else { return false };
+    let mut all = ACTIVE.lock().unwrap();
+    let Some(d) = current(&mut all) else { return false };
+    let d = &*d;
     unsafe {
         if !target_is_front() || d.input.is_null() { return false; }
         if input_is_focused(d) { return true; }

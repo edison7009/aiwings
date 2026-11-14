@@ -315,12 +315,15 @@ fn input_worker() -> &'static std::sync::mpsc::SyncSender<InputRequest> {
             if CoInitializeEx(None, COINIT_MULTITHREADED).is_err() { return; }
             let uia: Result<IUIAutomation, _> = CoCreateInstance(&CUIAutomation, None, CLSCTX_INPROC_SERVER);
             if let Ok(uia) = uia {
-                let mut remembered: Option<(isize, IUIAutomationElement)> = None;
+                // One remembered composer per window, so switching apps and back still finds where to paste.
+                let mut remembered: Vec<(isize, IUIAutomationElement)> = Vec::new();
                 for request in rx {
                     match request {
                         InputRequest::Inspect(reply) => {
                             let result = inspect_input(&uia).map(|(element, frame, has_text)| {
-                                remembered = Some((TARGET.load(Ordering::SeqCst), element));
+                                let hwnd = TARGET.load(Ordering::SeqCst);
+                                remembered.retain(|(h, _)| *h != hwnd && IsWindow(HWND(*h as *mut _)).as_bool());
+                                remembered.push((hwnd, element));
                                 (frame, has_text)
                             });
                             let _ = reply.send(result);
@@ -328,8 +331,9 @@ fn input_worker() -> &'static std::sync::mpsc::SyncSender<InputRequest> {
                         InputRequest::Focus(reply) => {
                             let ok = (|| {
                                 if !target_owns_foreground() { return None; }
-                                let (hwnd, el) = remembered.as_ref()?;
-                                if *hwnd != TARGET.load(Ordering::SeqCst) || !belongs_to_target(&uia, el) { return None; }
+                                let hwnd = TARGET.load(Ordering::SeqCst);
+                                let (_, el) = remembered.iter().find(|(h, _)| *h == hwnd)?;
+                                if !belongs_to_target(&uia, el) { return None; }
                                 // Never replace the remembered composer with an arbitrary editor's caret.
                                 input_value(el)?;
                                 el.SetFocus().ok()?;
