@@ -24,7 +24,7 @@ export const es: Strings = {
   hide: 'Ocultar',
   notesLabel: 'Notas',
   notesShared: 'Compartidas',
-  notesPerApp: 'Por app de IA',
+  notesPerApp: 'Por ventana',
   terminalsLabel: 'Terminales',
   terminalsHint: 'Solo enviar: al pulsar una nota se pega en la terminal sin pulsar Intro. Desde una terminal no se puede guardar.',
   on: 'Sí',

@@ -24,7 +24,7 @@ export const ja: Strings = {
   hide: '非表示',
   notesLabel: 'メモ',
   notesShared: '共有',
-  notesPerApp: 'AI アプリごと',
+  notesPerApp: 'ウィンドウごと',
   terminalsLabel: 'ターミナル',
   terminalsHint: '送信のみ：メモをクリックするとターミナルに貼り付けます（Enter は押しません）。ターミナルからは保存できません。',
   on: 'オン',

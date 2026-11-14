@@ -24,7 +24,7 @@ Gelesen? Fahr mit der Maus darüber und klick rechts auf den Papierkorb, um dies
   hide: 'Ausblenden',
   notesLabel: 'Notizen',
   notesShared: 'Gemeinsam',
-  notesPerApp: 'Pro KI-App',
+  notesPerApp: 'Pro Fenster',
   terminalsLabel: 'Terminals',
   terminalsHint: 'Nur senden: Ein Klick auf eine Notiz fügt sie ins Terminal ein, ohne Enter zu drücken. Aus einem Terminal kann nichts gespeichert werden.',
   on: 'An',

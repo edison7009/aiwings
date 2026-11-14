@@ -23,7 +23,7 @@ export const zh = {
   hide: '不显示',
   notesLabel: '便签',
   notesShared: '共用',
-  notesPerApp: '各 AI 独立',
+  notesPerApp: '各窗口独立',
   terminalsLabel: '终端',
   terminalsHint: '只能发送：点便签粘贴到终端，不会按回车。终端里不能保存。',
   on: '开',

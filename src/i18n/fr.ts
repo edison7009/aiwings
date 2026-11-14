@@ -24,7 +24,7 @@ Lu ? Survolez puis cliquez sur la corbeille à droite pour supprimer cette note.
   hide: 'Masquer',
   notesLabel: 'Notes',
   notesShared: 'Partagées',
-  notesPerApp: 'Par app d’IA',
+  notesPerApp: 'Par fenêtre',
   terminalsLabel: 'Terminaux',
   terminalsHint: 'Envoi seulement : cliquer une note la colle dans le terminal sans appuyer sur Entrée. Rien ne peut être enregistré depuis un terminal.',
   on: 'Oui',

@@ -24,7 +24,7 @@ export const ru: Strings = {
   hide: 'Скрыть',
   notesLabel: 'Заметки',
   notesShared: 'Общие',
-  notesPerApp: 'Для каждого ИИ',
+  notesPerApp: 'Для каждого окна',
   terminalsLabel: 'Терминалы',
   terminalsHint: 'Только отправка: нажатие на заметку вставляет её в терминал без Enter. Сохранять из терминала нельзя.',
   on: 'Вкл',

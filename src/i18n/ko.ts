@@ -24,7 +24,7 @@ export const ko: Strings = {
   hide: '숨김',
   notesLabel: '메모',
   notesShared: '공유',
-  notesPerApp: 'AI 앱별',
+  notesPerApp: '창별',
   terminalsLabel: '터미널',
   terminalsHint: '보내기만 가능: 메모를 누르면 터미널에 붙여넣고 Enter는 누르지 않습니다. 터미널에서는 저장할 수 없습니다.',
   on: '켜기',

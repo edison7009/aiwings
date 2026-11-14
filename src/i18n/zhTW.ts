@@ -24,7 +24,7 @@ export const zhTW: Strings = {
   hide: '不顯示',
   notesLabel: '便籤',
   notesShared: '共用',
-  notesPerApp: '各 AI 獨立',
+  notesPerApp: '各視窗獨立',
   terminalsLabel: '終端機',
   terminalsHint: '只能傳送：點便籤貼到終端機，不會按 Enter。終端機裡不能儲存。',
   on: '開',
