@@ -38,7 +38,7 @@ function GearIcon() {
 function CloseButton() {
   return (
     <button type="button" className={`win-close${IS_MAC ? ' win-close--mac' : ''}`} aria-label={t.closeTip} onClick={() => void invoke('hide_wings')}>
-      <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth={IS_MAC ? 2 : 1.3} strokeLinecap="round" aria-hidden>
+      <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth={IS_MAC ? 1.8 : 1.3} strokeLinecap="round" aria-hidden>
         <path d="M3 3l6 6M9 3l-6 6" />
       </svg>
     </button>

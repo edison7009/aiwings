@@ -88,6 +88,8 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .win-close {
   position: relative;
   flex-shrink: 0;
+  /* The browser's default button padding would push the × off centre. */
+  padding: 0;
   width: 26px;
   height: 26px;
   display: grid;
@@ -109,7 +111,7 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
   background: #ff5f57;
   box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.3);
 }
-.win-close--mac svg { position: relative; width: 11px; height: 11px; color: transparent; }
+.win-close--mac svg { position: relative; width: 12px; height: 12px; color: transparent; }
 .win-close--mac:is(:hover, .is-hover) { background: none; }
 .win-close--mac:is(:hover, .is-hover) svg { color: #8a1c12; }
 .brand { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
