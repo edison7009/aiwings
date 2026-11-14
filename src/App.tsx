@@ -12,9 +12,11 @@ import { loadNotes, removeNote, type Note } from './lib/notes';
 import { layouts } from './lib/layouts';
 import { applyThemeMode, readPrefs, saveFloatRect, sendPrefs, writePrefs, type Prefs } from './lib/prefs';
 import { applyTheme, themeFor } from './lib/theme';
+import { useHoverWhileInactive } from './lib/hover';
 import { t, tr, setLang } from './strings';
 
-const PASTE_KEY = /Mac/.test(navigator.userAgent) ? '⌘V' : 'Ctrl+V';
+const IS_MAC = /Mac/.test(navigator.userAgent);
+const PASTE_KEY = IS_MAC ? '⌘V' : 'Ctrl+V';
 const win = getCurrentWebviewWindow();
 /** "main" is the hover panel; every other window is the bar beside one app. */
 const IS_PANEL = win.label === 'main';
@@ -31,6 +33,18 @@ function GearIcon() {
   );
 }
 
+/** Puts Wings away to the tray; it does not quit. macOS: a red dot on the left, as in the system's title bars;
+ *  Windows: an × on the right. */
+function CloseButton() {
+  return (
+    <button type="button" className={`win-close${IS_MAC ? ' win-close--mac' : ''}`} aria-label={t.closeTip} data-tip={t.closeTip} onClick={() => void invoke('hide_wings')}>
+      <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth={IS_MAC ? 1.6 : 1.3} strokeLinecap="round" aria-hidden>
+        <path d="M3 3l6 6M9 3l-6 6" />
+      </svg>
+    </button>
+  );
+}
+
 export function App() {
   // Bars only exist once permission is in place; the panel asks for it.
   const [trusted, setTrusted] = useState<boolean | null>(IS_PANEL ? null : true);
@@ -41,6 +55,7 @@ export function App() {
   const [view, setView] = useState<'notes' | 'settings'>('notes');
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
+  const panelRef = useHoverWhileInactive();
 
   const flash = useCallback((msg: string, duration = 2600) => {
     setToast(tr(msg));
@@ -119,9 +134,10 @@ export function App() {
   else body = (
     <>
       {/* The panel's header drags it anywhere; a bar follows its app instead. */}
-      <header className="panel-head" data-tauri-drag-region={IS_PANEL || undefined}>
-        <span className="brand" data-tauri-drag-region={IS_PANEL || undefined}>{target?.name ?? 'Wings'}</span>
+      {/* Close and the layout switch, mirrored per platform: macOS keeps window buttons on the left, Windows on the right. */}
+      <header className={`panel-head${IS_MAC ? ' panel-head--mac' : ''}`} data-tauri-drag-region={IS_PANEL || undefined}>
         <Segmented value={prefs.layout} options={layouts()} onChange={layout => changePrefs({ ...prefs, layout })} />
+        <CloseButton />
       </header>
       <NoteList
         notes={shown}
@@ -135,7 +151,7 @@ export function App() {
 
   return (
     <div className={`shell${IS_PANEL ? ' shell--float' : ' shell--docked'}`}>
-      <div className="panel">
+      <div className="panel" ref={panelRef}>
         {body}
         {/* Mounted for the window's lifetime so a running download keeps its progress while settings is open. */}
         {trusted && shown !== null && <UpdateButton hidden={view === 'settings'} onError={flash} />}

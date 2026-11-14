@@ -152,6 +152,10 @@ fn set_prefs(app: AppHandle, float: bool, terminals: bool, chip: bool, float_rec
     if bars::FLOAT.swap(float, Ordering::SeqCst) != float { platform::refresh_later(&app); }
 }
 
+/// The close button on a bar or the hover panel: hides Wings to the tray (it does not quit).
+#[tauri::command]
+fn hide_wings(app: AppHandle) { bars::hide_all(&app); }
+
 /// Cursor position inside the window, in CSS pixels. macOS sends no mouse-move events to a window of an
 /// inactive app, so the UI polls this to keep hover effects working while the target has focus.
 #[tauri::command]
@@ -216,7 +220,7 @@ pub fn run() {
             if let WindowEvent::Focused(false) = ev { platform::refresh_later(win.app_handle()); }
         })
         .invoke_handler(tauri::generate_handler![
-            bar_target, set_tray_labels, paste_note, capture_now, clear_input, set_prefs, cursor_in_window,
+            bar_target, hide_wings, set_tray_labels, paste_note, capture_now, clear_input, set_prefs, cursor_in_window,
             permission_granted, open_permission_settings, shortcut_label, set_shortcut,
             update::check_update, update::download_update, update::open_url,
             store::load_notes, store::add_note, store::remove_note, store::image_data_url

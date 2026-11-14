@@ -69,7 +69,7 @@ fn cloaked(h: HWND) -> bool {
 /// or on another virtual desktop.
 fn refresh_one(app: &AppHandle, t: HWND, label: &str) {
     let Some(bar) = app.get_webview_window(label) else { return };
-    let up = !crate::bars::FLOAT.load(Ordering::SeqCst)
+    let up = !crate::bars::FLOAT.load(Ordering::SeqCst) && !crate::bars::HIDDEN.load(Ordering::SeqCst)
         && unsafe { IsWindow(t).as_bool() && IsWindowVisible(t).as_bool() && !IsIconic(t).as_bool() } && !cloaked(t);
     match up.then(|| frame_of(t)).flatten() {
         Some(f) => {

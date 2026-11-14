@@ -19,6 +19,7 @@ export const zhTW: Strings = {
   },
   settings: '設定',
   back: '返回',
+  closeTip: '收起，點系統匣圖示再打開',
   chipLabel: '輸入框上的「儲存到 Wings」',
   show: '顯示',
   hide: '不顯示',

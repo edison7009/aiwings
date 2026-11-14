@@ -146,7 +146,7 @@ fn app_hidden(pid: i32) -> bool {
 /// hidden, or while its window is minimized. Main thread only (AppKit).
 unsafe fn refresh_one(app: &AppHandle, w: &Watched) {
     let Some(bar) = app.get_webview_window(&w.label) else { return };
-    let up = !crate::bars::FLOAT.load(Ordering::SeqCst) && !w.window.is_null() && !is_minimized(w.window) && !app_hidden(w.pid);
+    let up = !crate::bars::FLOAT.load(Ordering::SeqCst) && !crate::bars::HIDDEN.load(Ordering::SeqCst) && !w.window.is_null() && !is_minimized(w.window) && !app_hidden(w.pid);
     let frame = up.then(|| Some((read_pair(w.window, "AXPosition", 1)?, read_pair(w.window, "AXSize", 2)?))).flatten();
     let Some((pos, size)) = frame else { let _ = bar.hide(); return };
     let s = bar.scale_factor().unwrap_or(1.0);

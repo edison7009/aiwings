@@ -7,12 +7,14 @@ use crate::{platform, TargetInfo};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
-use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 
 /// Hover mode: bars are hidden and the main panel floats.
 pub static FLOAT: AtomicBool = AtomicBool::new(false);
 /// Terminals get bars too (paste only: Wings cannot save from them).
 pub static TERMINALS: AtomicBool = AtomicBool::new(false);
+/// Put away with the close button: every bar and the hover panel stay hidden until the tray brings them back.
+pub static HIDDEN: AtomicBool = AtomicBool::new(false);
 
 /// The app each bar sits beside. The bar's window label is `label(&target.id)`.
 static BARS: Mutex<Vec<TargetInfo>> = Mutex::new(Vec::new());
@@ -87,21 +89,20 @@ fn any_bar_visible(app: &AppHandle) -> bool {
 /// Shows the hover panel when hovering, before permission, or (docked) once no bar has been up for a second;
 /// hides it as soon as a bar is up. The delay keeps it from flashing while windows open and close.
 pub fn update_main(app: &AppHandle, trusted: bool) {
-    static STATE: Mutex<(bool, Option<Instant>)> = Mutex::new((true, None));
+    static SINCE: Mutex<Option<Instant>> = Mutex::new(None);
     let Some(main) = app.get_webview_window("main") else { return };
     let docked_idle = !FLOAT.load(Ordering::SeqCst) && trusted && !any_bar_visible(app);
-    let want = !trusted || FLOAT.load(Ordering::SeqCst) || docked_idle;
-    let mut state = STATE.lock().unwrap();
-    let (shown, since) = &mut *state;
-    if want == *shown { *since = None; return; }
+    let want = !HIDDEN.load(Ordering::SeqCst) && (!trusted || FLOAT.load(Ordering::SeqCst) || docked_idle);
+    // Read the window itself: the close button and the tray also show and hide it.
+    let shown = main.is_visible().unwrap_or(false);
+    let mut since = SINCE.lock().unwrap();
+    if want == shown { *since = None; return; }
     if want && docked_idle {
         let start = *since.get_or_insert_with(Instant::now);
         if start.elapsed() < Duration::from_secs(1) { return; }
     }
     *since = None;
-    *shown = want;
     if want { platform::show_no_activate(&main); } else { let _ = main.hide(); }
-    let _ = app.emit_to("main", "wings://idle", docked_idle);
 }
 
 /// Where an error from a save or paste is shown: the bar of the app it happened in, if it is up;
@@ -115,13 +116,21 @@ pub fn error_window(app: &AppHandle) -> String {
     if up { bar } else { "main".into() }
 }
 
+/// The close button: puts every bar and the hover panel away. Wings keeps running in the tray.
+pub fn hide_all(app: &AppHandle) {
+    HIDDEN.store(true, Ordering::SeqCst);
+    for l in labels() { if let Some(w) = app.get_webview_window(&l) { let _ = w.hide(); } }
+    if let Some(w) = app.get_webview_window("main") { let _ = w.hide(); }
+}
+
 /// Brings Wings into view from the tray: the hover panel when that is what is showing, else the bars.
 pub fn show(app: &AppHandle) {
-    if FLOAT.load(Ordering::SeqCst) || !any_bar_visible(app) {
+    let was_hidden = HIDDEN.swap(false, Ordering::SeqCst);
+    // Docked: the bars come back beside their apps; with none on screen the panel follows within a second.
+    if FLOAT.load(Ordering::SeqCst) || (!was_hidden && !any_bar_visible(app)) {
         if let Some(w) = app.get_webview_window("main") { let _ = w.show(); let _ = w.unminimize(); let _ = w.set_focus(); }
-    } else {
-        platform::refresh_later(app);
     }
+    platform::refresh_later(app);
 }
 
 #[cfg(test)]

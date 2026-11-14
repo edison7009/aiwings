@@ -18,6 +18,7 @@ export const zh = {
   },
   settings: '设置',
   back: '返回',
+  closeTip: '收起，点托盘图标再打开',
   chipLabel: '输入框上的「保存到 Wings」',
   show: '显示',
   hide: '不显示',
