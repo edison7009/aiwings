@@ -33,13 +33,12 @@ function GearIcon() {
   );
 }
 
-/** Puts Wings away to the tray; it does not quit. macOS: a red dot on the left, as in the system's title bars;
- *  Windows: an × on the right. */
+/** Puts Wings away to the tray; it does not quit. The × of Coffee CLI's dialogs; on the left on macOS, the right on Windows. */
 function CloseButton() {
   return (
-    <button type="button" className={`win-close${IS_MAC ? ' win-close--mac' : ''}`} aria-label={t.closeTip} onClick={() => void invoke('hide_wings')}>
-      <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth={IS_MAC ? 2.2 : 1.3} strokeLinecap="round" aria-hidden>
-        <path d="M3 3l6 6M9 3l-6 6" />
+    <button type="button" className="win-close" aria-label={t.closeTip} onClick={() => void invoke('hide_wings')}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M18 6 6 18M6 6l12 12" />
       </svg>
     </button>
   );
