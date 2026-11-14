@@ -90,6 +90,7 @@ export const es: Strings = {
     '请先点一下目标应用的聊天输入框': 'Haz clic primero en el cuadro del chat de la app',
     '无法访问剪贴板': 'No se puede acceder al portapapeles',
     '图片保存失败': 'No se pudo guardar la imagen',
+    '便签保存失败': 'No se pudo guardar la nota',
     '输入框是空的，没有可保存的内容': 'El cuadro de texto está vacío; no hay nada que guardar',
     '无法写入剪贴板': 'No se puede escribir en el portapapeles',
     '目标窗口不在最前面，已取消粘贴': 'La ventana no está al frente; se canceló el pegado',

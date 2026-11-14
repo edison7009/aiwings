@@ -151,6 +151,9 @@ static TARGET_KEY: std::sync::Mutex<String> = std::sync::Mutex::new(String::new(
 
 pub fn set_target_key(key: &str) { *TARGET_KEY.lock().unwrap() = key.to_lowercase(); }
 
+/// The docked app's key, lowercased.
+pub fn target_key() -> String { TARGET_KEY.lock().unwrap().clone() }
+
 pub fn is_terminal(key: &str) -> bool {
     let key = key.to_lowercase();
     TERMINALS.iter().any(|t| key.starts_with(t))

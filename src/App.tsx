@@ -8,7 +8,7 @@ import { NoteList } from './components/NoteList';
 import { Settings } from './components/Settings';
 import { savedShortcut } from './components/ShortcutRecorder';
 import { Segmented } from './components/Segmented';
-import { loadNotes, makeNote, saveNotes, type Note } from './lib/notes';
+import { loadNotes, removeNote, type Note } from './lib/notes';
 import { layouts } from './lib/layouts';
 import { applyThemeMode, readPrefs, withLayout, saveFloatRect, writePrefs, type Prefs } from './lib/prefs';
 import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -73,10 +73,6 @@ export function App() {
     void invoke<boolean>('permission_granted', { prompt: false }).then(setTrusted);
   }, []);
 
-  const update = useCallback((fn: (prev: Note[]) => Note[]) => {
-    setNotes(prev => { const next = fn(prev ?? []); saveNotes(next); return next; });
-  }, []);
-
   const choose = useCallback(async (next: Target) => {
     try {
       await invoke('set_target', { id: next.id, key: next.key });
@@ -89,12 +85,12 @@ export function App() {
 
   useEffect(() => {
     const subs = [
-      listen<{ text: string; image: string | null }>('wings://captured', e => update(prev => [...prev, makeNote(e.payload.text, e.payload.image ?? undefined)])),
+      listen<Note[]>('wings://notes', e => setNotes(e.payload)),
       listen<string>('wings://error', e => flash(e.payload, 8000)),
       listen<Target>('wings://follow', e => { if (trustedRef.current) void choose(e.payload); }),
     ];
     return () => { subs.forEach(s => void s.then(f => f())); };
-  }, [update, flash, choose]);
+  }, [flash, choose]);
 
   // Hand the saved settings (which apps to follow, among others) to the Rust side as soon as it can act on them.
   useEffect(() => { if (trusted) writePrefs(prefsRef.current); }, [trusted]);
@@ -152,11 +148,7 @@ export function App() {
         notes={notes}
         shortcut={shortcut}
         onPaste={note => { void invoke('paste_note', { text: note.text, image: note.image ?? null }); flash(t.pasted(PASTE_KEY)); }}
-        onRemove={id => update(prev => {
-          const gone = prev.find(n => n.id === id);
-          if (gone?.image) void invoke('delete_image', { id: gone.image });
-          return prev.filter(n => n.id !== id);
-        })}
+        onRemove={removeNote}
       />
       <button type="button" className="gear" aria-label={t.settings} onClick={() => setView('settings')}><GearIcon /></button>
     </>

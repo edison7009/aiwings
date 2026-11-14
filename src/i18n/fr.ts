@@ -90,6 +90,7 @@ Lu ? Survolez puis cliquez sur la corbeille à droite pour supprimer cette note.
     '请先点一下目标应用的聊天输入框': 'Cliquez d’abord dans la zone de discussion de l’app',
     '无法访问剪贴板': 'Impossible d’accéder au presse-papiers',
     '图片保存失败': 'Impossible d’enregistrer l’image',
+    '便签保存失败': 'Impossible d’enregistrer la note',
     '输入框是空的，没有可保存的内容': 'La zone de saisie est vide ; rien à enregistrer',
     '无法写入剪贴板': 'Impossible d’écrire dans le presse-papiers',
     '目标窗口不在最前面，已取消粘贴': 'La fenêtre n’est pas au premier plan ; collage annulé',

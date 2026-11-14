@@ -266,7 +266,7 @@ pub fn run() {
             list_targets, list_menu_apps, set_tray_labels, open_ai_app, set_target, clear_target, paste_note, capture_now, clear_input, set_prefs, cursor_in_window,
             permission_granted, open_permission_settings, shortcut_label, set_shortcut,
             update::check_update, update::download_update, update::open_url,
-            store::load_notes, store::save_notes, store::image_data_url, store::delete_image
+            store::load_notes, store::add_note, store::remove_note, store::image_data_url
         ])
         .run(tauri::generate_context!())
         .expect("error while running Wings");

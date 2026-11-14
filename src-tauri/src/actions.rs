@@ -2,7 +2,6 @@
 // Both run on a worker thread: they sleep while the target app processes synthetic keys.
 
 use crate::{clip, platform, store};
-use serde::Serialize;
 use std::{thread::sleep, time::{Duration, Instant}};
 use tauri::{AppHandle, Emitter};
 
@@ -11,10 +10,6 @@ const CLIP_WAIT: Duration = Duration::from_millis(700);
 pub fn emit_error(app: &AppHandle, msg: &str) {
     let _ = app.emit("wings://error", msg.to_string());
 }
-
-/// What a capture produced: text, or (when the cut yielded no text) an image saved under `image`.
-#[derive(Serialize, Clone)]
-struct Captured { text: String, image: Option<String> }
 
 /// Select-all + cut in the target, keep what landed on the clipboard, then restore the clipboard.
 pub fn capture(app: &AppHandle) {
@@ -60,15 +55,18 @@ pub fn capture(app: &AppHandle) {
     }
     clip::restore(&mut cb, saved);
 
+    // Remember which app the note came from, for showing each AI only its own notes.
+    let source = Some(platform::target_key()).filter(|k| !k.is_empty());
     let text = text.trim().to_string();
     if !text.is_empty() {
-        let _ = app.emit("wings://captured", Captured { text, image: None });
+        if store::push(app, text, None, source).is_err() { emit_error(app, "便签保存失败"); }
     } else if let Some(img) = image {
-        // The id doubles as the file name; the UI uses it as the note id too.
-        let id = format!("{:x}-{:x}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0), std::process::id());
-        match store::save_image(app, &id, &img) {
-            Ok(()) => { let _ = app.emit("wings://captured", Captured { text: String::new(), image: Some(id) }); }
-            Err(_) => emit_error(app, "图片保存失败"),
+        // The id doubles as the file name and the note id.
+        let id = store::new_id();
+        if store::save_image(app, &id, &img).is_err() { return emit_error(app, "图片保存失败"); }
+        if store::push(app, String::new(), Some(id.clone()), source).is_err() {
+            store::discard_image(app, &id);
+            emit_error(app, "便签保存失败");
         }
     } else {
         emit_error(app, "输入框是空的，没有可保存的内容");

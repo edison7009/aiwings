@@ -90,6 +90,7 @@ Gelesen? Fahr mit der Maus darüber und klick rechts auf den Papierkorb, um dies
     '请先点一下目标应用的聊天输入框': 'Erst ins Chat-Eingabefeld der App klicken',
     '无法访问剪贴板': 'Kein Zugriff auf die Zwischenablage',
     '图片保存失败': 'Bild konnte nicht gespeichert werden',
+    '便签保存失败': 'Notiz konnte nicht gespeichert werden',
     '输入框是空的，没有可保存的内容': 'Das Eingabefeld ist leer; nichts zu sichern',
     '无法写入剪贴板': 'Zwischenablage kann nicht beschrieben werden',
     '目标窗口不在最前面，已取消粘贴': 'Das Zielfenster ist nicht vorne; Einfügen abgebrochen',
