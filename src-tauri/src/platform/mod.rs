@@ -35,16 +35,26 @@ pub const BAR_WIDTH: f64 = 280.0;
 #[derive(Clone, Copy, Debug)]
 pub struct Frame { pub x: f64, pub y: f64, pub w: f64, pub h: f64 }
 
-/// Places the bar just outside the target's right edge; if that runs off the screen, inside it.
+/// Left edge of the bar: just outside the target's right edge. When that runs off the screen while the
+/// target itself still fits (a maximized window), inside it, or the bar could not be seen at all.
+/// When the target itself already runs past the screen (an app widening to open its built-in browser),
+/// the bar follows it out rather than cover the app's content.
+fn bar_x(f: Frame, bar_w: f64, screen_right: Option<f64>, scale: f64) -> f64 {
+    // Tuck 1pt under the target's edge so no sliver of desktop shows between the two windows.
+    let outside = f.x + f.w - scale;
+    match screen_right {
+        Some(right) if outside + bar_w > right && f.x + f.w <= right + 2.0 * scale => f.x + f.w - bar_w,
+        _ => outside,
+    }
+}
+
+/// Places the bar beside the target's right edge (see `bar_x`).
 pub fn place_bar(app: &AppHandle, f: Frame, scale: f64) {
     let Some(win) = app.get_webview_window("main") else { return };
     let bar_w = BAR_WIDTH * scale;
-    // Tuck 1pt under the target's edge so no sliver of desktop shows between the two windows.
-    let mut x = f.x + f.w - scale;
-    if let Ok(Some(m)) = app.monitor_from_point(f.x + f.w / 2.0, f.y + f.h / 2.0) {
-        let right = (m.position().x as f64) + m.size().width as f64;
-        if x + bar_w > right { x = f.x + f.w - bar_w; }
-    }
+    let right = app.monitor_from_point(f.x + f.w / 2.0, f.y + f.h / 2.0).ok().flatten()
+        .map(|m| (m.position().x as f64) + m.size().width as f64);
+    let x = bar_x(f, bar_w, right, scale);
     let _ = win.set_size(PhysicalSize::new(bar_w.round() as u32, f.h.max(200.0).round() as u32));
     let _ = win.set_position(PhysicalPosition::new(x.round() as i32, f.y.round() as i32));
 }
@@ -202,6 +212,20 @@ mod input_box_tests {
         }
         let document = crate::TargetInfo { id: "456".into(), key: "notepad.exe".into(), name: "PowerShell notes".into() };
         assert!(!follows_by_default(&document));
+    }
+
+    #[test]
+    fn bar_stays_inside_maximized_but_follows_an_overflowing_window_out() {
+        let f = |x: f64, w: f64| Frame { x, y: 0.0, w, h: 800.0 };
+        // Room on the right: outside, tucked 1pt under the edge.
+        assert_eq!(bar_x(f(100.0, 1000.0), 280.0, Some(1920.0), 1.0), 1099.0);
+        // Maximized: no room, inside the right edge.
+        assert_eq!(bar_x(f(0.0, 1920.0), 280.0, Some(1920.0), 1.0), 1640.0);
+        // Window widened past the screen: follow it out, cover nothing.
+        assert_eq!(bar_x(f(600.0, 1800.0), 280.0, Some(1920.0), 1.0), 2399.0);
+        // Second monitor to the right, scaled.
+        assert_eq!(bar_x(f(1920.0, 2880.0), 560.0, Some(4800.0), 2.0), 4240.0);
+        assert_eq!(bar_x(f(1920.0, 1000.0), 560.0, None, 2.0), 2918.0);
     }
 
     #[test]
