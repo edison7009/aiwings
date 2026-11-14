@@ -98,19 +98,20 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 }
 .win-close svg { width: 12px; height: 12px; }
 .win-close:is(:hover, .is-hover) { background: #e81123; color: #fff; }
-/* macOS: the system's red traffic light, its × showing on hover. The button keeps a larger hit area. */
+/* macOS: the system's red traffic light (14pt, a faint dark rim, a bold dark-red × on hover), measured
+   against a native title bar. The button keeps a larger hit area. */
 .win-close--mac { width: 20px; height: 20px; margin-left: -4px; }
 .win-close--mac::before {
   content: '';
   position: absolute;
-  inset: 4px;
+  inset: 3px;
   border-radius: 50%;
   background: #ff5f57;
-  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.18);
+  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.3);
 }
-.win-close--mac svg { position: relative; width: 8px; height: 8px; color: transparent; }
+.win-close--mac svg { position: relative; width: 11px; height: 11px; color: transparent; }
 .win-close--mac:is(:hover, .is-hover) { background: none; }
-.win-close--mac:is(:hover, .is-hover) svg { color: rgba(77, 0, 0, 0.72); }
+.win-close--mac:is(:hover, .is-hover) svg { color: #8a1c12; }
 /* Its tip is a small pill beside the button, not under it over the notes, and it waits a moment the way the
    system's own tooltips do. macOS: to the right of the dot; Windows: to the left of the ×. */
 .win-close[data-tip]:is(:hover, .is-hover, :focus-visible)::after {
