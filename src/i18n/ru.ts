@@ -19,7 +19,7 @@ export const ru: Strings = {
   },
   settings: 'Настройки',
   back: 'Назад',
-  closeTip: 'Скрыть; значок в трее вернёт обратно',
+  closeTip: 'Скрыть Wings',
   chipLabel: '«Сохранить в Wings» у поля ввода',
   show: 'Показывать',
   hide: 'Скрыть',

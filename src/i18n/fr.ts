@@ -19,7 +19,7 @@ Lu ? Survolez puis cliquez sur la corbeille à droite pour supprimer cette note.
   },
   settings: 'Réglages',
   back: 'Retour',
-  closeTip: 'Ranger ; cliquez l’icône de la barre pour la rouvrir',
+  closeTip: 'Ranger Wings',
   chipLabel: '« Enregistrer dans Wings » sur la zone de saisie',
   show: 'Afficher',
   hide: 'Masquer',

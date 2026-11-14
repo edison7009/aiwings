@@ -19,7 +19,7 @@ export const es: Strings = {
   },
   settings: 'Ajustes',
   back: 'Volver',
-  closeTip: 'Ocultar; pulsa el icono de la bandeja para volver',
+  closeTip: 'Ocultar Wings',
   chipLabel: '«Guardar en Wings» en el cuadro de texto',
   show: 'Mostrar',
   hide: 'Ocultar',

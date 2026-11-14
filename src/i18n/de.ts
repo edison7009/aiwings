@@ -19,7 +19,7 @@ Gelesen? Fahr mit der Maus darüber und klick rechts auf den Papierkorb, um dies
   },
   settings: 'Einstellungen',
   back: 'Zurück',
-  closeTip: 'Ausblenden; über das Tray-Symbol wieder öffnen',
+  closeTip: 'Wings ausblenden',
   chipLabel: '„In Wings sichern“ am Eingabefeld',
   show: 'Zeigen',
   hide: 'Ausblenden',

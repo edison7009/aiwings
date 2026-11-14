@@ -19,7 +19,7 @@ export const ja: Strings = {
   },
   settings: '設定',
   back: '戻る',
-  closeTip: 'しまう（トレイのアイコンで再表示）',
+  closeTip: 'Wings をしまう',
   chipLabel: '入力欄の「Wings に保存」',
   show: '表示',
   hide: '非表示',

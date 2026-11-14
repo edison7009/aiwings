@@ -111,6 +111,29 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .win-close--mac svg { position: relative; width: 8px; height: 8px; color: transparent; }
 .win-close--mac:is(:hover, .is-hover) { background: none; }
 .win-close--mac:is(:hover, .is-hover) svg { color: rgba(77, 0, 0, 0.72); }
+/* Its tip is a small pill beside the button, not under it over the notes, and it waits a moment the way the
+   system's own tooltips do. macOS: to the right of the dot; Windows: to the left of the ×. */
+.win-close[data-tip]:is(:hover, .is-hover, :focus-visible)::after {
+  content: attr(data-tip);
+  position: absolute;
+  z-index: 100;
+  top: 50%;
+  right: calc(100% + 6px);
+  transform: translateY(-50%);
+  width: max-content;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.5;
+  pointer-events: none;
+  animation: tip-in 0.15s ease-out 0.5s both;
+}
+.win-close--mac[data-tip]:is(:hover, .is-hover, :focus-visible)::after { right: auto; left: calc(100% + 4px); }
+@keyframes tip-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .win-close[data-tip]::after { animation-duration: 0s; } }
 .brand { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .panel-body { flex: 1; overflow-y: auto; padding: 4px 10px 12px; }
 h1 { font-size: 15px; margin: 6px 0 4px; }
@@ -389,8 +412,7 @@ kbd { font: inherit; padding: 1px 6px; border-radius: 4px; border: 1px solid var
 
 /* Icon options in a segmented switch. The name shows as a themed tip on hover (Coffee CLI's style). */
 .segmented button.icon { display: grid; place-items: center; padding: 4px 10px; }
-:is(.segmented, .text-size) button[data-tip]:is(:hover, :focus-visible)::after,
-.win-close[data-tip]:is(:hover, .is-hover, :focus-visible)::after {
+:is(.segmented, .text-size) button[data-tip]:is(:hover, :focus-visible)::after {
   content: attr(data-tip);
   position: absolute;
   z-index: 100;

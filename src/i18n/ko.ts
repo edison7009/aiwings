@@ -19,7 +19,7 @@ export const ko: Strings = {
   },
   settings: '설정',
   back: '뒤로',
-  closeTip: '숨기기 (트레이 아이콘을 누르면 다시 열림)',
+  closeTip: 'Wings 숨기기',
   chipLabel: '입력창의 "Wings에 저장"',
   show: '표시',
   hide: '숨김',
