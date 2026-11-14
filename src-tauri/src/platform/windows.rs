@@ -1,9 +1,9 @@
-// Windows: SetWinEventHook drives docking; SendInput posts the shortcuts, guarded by a foreground check.
+// Windows: SetWinEventHook drives each bar, owned by its window; SendInput posts the shortcuts, guarded by a foreground check.
 
-use super::{float_panel, place_bar, Frame, Key};
+use super::{place_bar, Frame, Key};
 use crate::TargetInfo;
-use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicU32, Ordering};
-use std::sync::OnceLock;
+use std::sync::atomic::{AtomicIsize, AtomicU32, Ordering};
+use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Manager};
 use windows::core::PWSTR;
@@ -25,23 +25,19 @@ use windows::Win32::UI::WindowsAndMessaging::{
     MSG, SW_RESTORE, SW_SHOWNOACTIVATE, WINEVENT_OUTOFCONTEXT, WM_QUIT,
 };
 
-const EVENT_SYSTEM_FOREGROUND: u32 = 0x0003;
 const EVENT_SYSTEM_MINIMIZESTART: u32 = 0x0016;
 const EVENT_SYSTEM_MINIMIZEEND: u32 = 0x0017;
 const EVENT_OBJECT_DESTROY: u32 = 0x8001;
 const EVENT_OBJECT_LOCATIONCHANGE: u32 = 0x800B;
 
+/// The active window: where saves and pastes go.
 static TARGET: AtomicIsize = AtomicIsize::new(0);
 static HOOK_THREAD: AtomicU32 = AtomicU32::new(0);
 static APP: OnceLock<AppHandle> = OnceLock::new();
-static FLOAT: AtomicBool = AtomicBool::new(false);
+/// Followed windows (hwnd) and the labels of the bars beside them.
+static BARS: Mutex<Vec<(isize, String)>> = Mutex::new(Vec::new());
 
 fn target() -> HWND { HWND(TARGET.load(Ordering::SeqCst) as *mut _) }
-
-fn wings_hwnd(app: &AppHandle) -> Option<HWND> {
-    // Tauri links its own windows-crate version, so rebuild the handle from the raw pointer.
-    app.get_webview_window("main")?.hwnd().ok().map(|h| HWND(h.0 as *mut _))
-}
 
 fn frame_of(h: HWND) -> Option<Frame> {
     let mut r = RECT::default();
@@ -62,74 +58,104 @@ fn target_owns_foreground() -> bool {
     fg == t || unsafe { GetAncestor(fg, GA_ROOTOWNER) } == t
 }
 
-fn refresh() {
-    // Hover mode: the bar stays wherever the user put it.
-    if FLOAT.load(Ordering::SeqCst) { return; }
-    let Some(app) = APP.get() else { return };
-    let Some(win) = app.get_webview_window("main") else { return };
-    let t = target();
-    let alive = !t.0.is_null() && unsafe { IsWindow(t).as_bool() && !IsIconic(t).as_bool() };
-    let fg = unsafe { GetForegroundWindow() };
-    let ours = wings_hwnd(app);
-    let front = target_owns_foreground() || Some(fg) == ours;
-    match (alive && front).then(|| frame_of(t)).flatten() {
+fn cloaked(h: HWND) -> bool {
+    let mut cloaked = 0u32;
+    let _ = unsafe { DwmGetWindowAttribute(h, DWMWA_CLOAKED, &mut cloaked as *mut _ as *mut _, 4) };
+    cloaked != 0
+}
+
+/// Places one bar beside its window. The bar is owned by that window, so Windows keeps it just above it in
+/// z-order and minimizes it along with it. Hidden in hover mode, or while the window is minimized, hidden
+/// or on another virtual desktop.
+fn refresh_one(app: &AppHandle, t: HWND, label: &str) {
+    let Some(bar) = app.get_webview_window(label) else { return };
+    let up = !crate::bars::FLOAT.load(Ordering::SeqCst)
+        && unsafe { IsWindow(t).as_bool() && IsWindowVisible(t).as_bool() && !IsIconic(t).as_bool() } && !cloaked(t);
+    match up.then(|| frame_of(t)).flatten() {
         Some(f) => {
-            let scale = win.scale_factor().unwrap_or(1.0);
-            place_bar(app, f, scale);
-            show_no_activate(&win);
+            let scale = bar.scale_factor().unwrap_or(1.0);
+            place_bar(&bar, app, f, scale);
+            show_no_activate(&bar);
         }
-        None => { let _ = win.hide(); }
+        None => { let _ = bar.hide(); }
     }
 }
 
-unsafe extern "system" fn on_event(_h: HWINEVENTHOOK, event: u32, hwnd: HWND, id_object: i32, _child: i32, _t: u32, _ms: u32) {
-    // Location/minimize/destroy only matter for the target's own top-level window (OBJID_WINDOW = 0).
-    if event != EVENT_SYSTEM_FOREGROUND && (hwnd != target() || id_object != 0) { return; }
-    if event == EVENT_OBJECT_DESTROY { TARGET.store(0, Ordering::SeqCst); }
-    refresh();
+unsafe extern "system" fn on_event(_h: HWINEVENTHOOK, _event: u32, hwnd: HWND, id_object: i32, _child: i32, _t: u32, _ms: u32) {
+    // Only a followed window's own top-level object matters (OBJID_WINDOW = 0), not its carets or children.
+    if id_object != 0 { return; }
+    let label = BARS.lock().unwrap().iter().find(|(h, _)| *h == hwnd.0 as isize).map(|(_, l)| l.clone());
+    if let (Some(label), Some(app)) = (label, APP.get()) { refresh_one(app, hwnd, &label); }
 }
 
-fn stop_hooks() {
+/// One hook thread for all followed windows, restarted whenever the set of processes changes.
+/// Serialized, and each restart waits for the new thread's id, so no old thread is left running.
+fn restart_hooks() {
+    static RESTART: Mutex<()> = Mutex::new(());
+    let _one_at_a_time = RESTART.lock().unwrap();
     let tid = HOOK_THREAD.swap(0, Ordering::SeqCst);
     if tid != 0 { unsafe { let _ = PostThreadMessageW(tid, WM_QUIT, WPARAM(0), LPARAM(0)); } }
-}
-
-pub fn dock(app: AppHandle, id: &str) -> Result<(), String> {
-    let _ = APP.set(app.clone());
-    let raw: isize = id.parse().map_err(|_| "无效的目标".to_string())?;
-    let t = HWND(raw as *mut _);
-    if !unsafe { IsWindow(t).as_bool() } { return Err("这个窗口已经关闭了".into()); }
-    stop_hooks();
-    TARGET.store(raw, Ordering::SeqCst);
-    if !FLOAT.load(Ordering::SeqCst) { own_by_target(&app, true); }
-    let mut pid = 0u32;
-    unsafe { GetWindowThreadProcessId(t, Some(&mut pid)); }
+    let mut pids: Vec<u32> = BARS.lock().unwrap().iter().map(|(h, _)| {
+        let mut pid = 0u32;
+        unsafe { GetWindowThreadProcessId(HWND(*h as *mut _), Some(&mut pid)); }
+        pid
+    }).filter(|p| *p != 0).collect();
+    pids.sort_unstable();
+    pids.dedup();
+    if pids.is_empty() { return; }
+    let (ready, started) = std::sync::mpsc::channel();
     std::thread::spawn(move || unsafe {
-        HOOK_THREAD.store(GetCurrentThreadId(), Ordering::SeqCst);
-        let fg = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, None, Some(on_event), 0, 0, WINEVENT_OUTOFCONTEXT);
-        let mm = SetWinEventHook(EVENT_SYSTEM_MINIMIZESTART, EVENT_SYSTEM_MINIMIZEEND, None, Some(on_event), pid, 0, WINEVENT_OUTOFCONTEXT);
-        let obj = SetWinEventHook(EVENT_OBJECT_DESTROY, EVENT_OBJECT_LOCATIONCHANGE, None, Some(on_event), pid, 0, WINEVENT_OUTOFCONTEXT);
-        refresh();
+        let mut hooks = Vec::new();
+        for pid in pids {
+            hooks.push(SetWinEventHook(EVENT_SYSTEM_MINIMIZESTART, EVENT_SYSTEM_MINIMIZEEND, None, Some(on_event), pid, 0, WINEVENT_OUTOFCONTEXT));
+            hooks.push(SetWinEventHook(EVENT_OBJECT_DESTROY, EVENT_OBJECT_LOCATIONCHANGE, None, Some(on_event), pid, 0, WINEVENT_OUTOFCONTEXT));
+        }
+        // The hooks gave this thread its message queue, so a WM_QUIT posted from now on is not lost.
+        let _ = ready.send(GetCurrentThreadId());
         let mut msg = MSG::default();
         while GetMessageW(&mut msg, None, 0, 0).as_bool() {
             let _ = TranslateMessage(&msg);
             DispatchMessageW(&msg);
         }
-        for h in [fg, mm, obj] { let _ = UnhookWinEvent(h); }
+        for h in hooks { let _ = UnhookWinEvent(h); }
     });
-    Ok(())
+    if let Ok(tid) = started.recv() { HOOK_THREAD.store(tid, Ordering::SeqCst); }
 }
 
-pub fn undock(app: &AppHandle) {
-    stop_hooks();
-    TARGET.store(0, Ordering::SeqCst);
-    own_by_target(app, false);
-    float_panel(app);
+/// Starts following a window for its bar (the window `label`).
+pub fn track(app: &AppHandle, t: &TargetInfo, label: &str) {
+    let _ = APP.set(app.clone());
+    let Ok(raw) = t.id.parse::<isize>() else { return };
+    BARS.lock().unwrap().push((raw, label.to_string()));
+    if let Some(bar) = app.get_webview_window(label) {
+        let _ = bar.set_always_on_top(false);
+        // Tauri links its own windows-crate version, so rebuild the handle from the raw pointer.
+        if let Ok(h) = bar.hwnd() { unsafe { SetWindowLongPtrW(HWND(h.0 as *mut _), GWLP_HWNDPARENT, raw); } }
+    }
+    refresh_one(app, HWND(raw as *mut _), label);
+    restart_hooks();
 }
 
-pub fn refresh_later(_app: &AppHandle) {
-    // The global foreground hook already reports every focus change.
+pub fn untrack(id: &str) {
+    let Ok(raw) = id.parse::<isize>() else { return };
+    BARS.lock().unwrap().retain(|(h, _)| *h != raw);
+    restart_hooks();
 }
+
+/// Re-places every bar (after a mode switch).
+pub fn refresh_later(app: &AppHandle) {
+    let bars = BARS.lock().unwrap().clone();
+    for (h, label) in bars { refresh_one(app, HWND(h as *mut _), &label); }
+}
+
+/// Makes `t` the window that saves and pastes go to.
+pub fn set_active(t: &TargetInfo) {
+    let Ok(raw) = t.id.parse::<isize>() else { return };
+    super::set_target_key(&t.key);
+    TARGET.store(raw, Ordering::SeqCst);
+}
+
+pub fn active_id() -> String { TARGET.load(Ordering::SeqCst).to_string() }
 
 pub fn has_target() -> bool { !target().0.is_null() }
 
@@ -264,28 +290,9 @@ pub fn list_targets() -> Vec<TargetInfo> {
     out
 }
 
-/// Owned by the target, Wings sits just above it in z-order; unowned, it floats above everything.
-fn own_by_target(app: &AppHandle, owned: bool) {
-    let Some(w) = app.get_webview_window("main") else { return };
-    let _ = w.set_always_on_top(!owned);
-    if let Some(h) = wings_hwnd(app) {
-        unsafe { SetWindowLongPtrW(h, GWLP_HWNDPARENT, if owned { TARGET.load(Ordering::SeqCst) } else { 0 }); }
-    }
-}
-
 pub fn show_no_activate(win: &tauri::WebviewWindow) {
     if let Ok(h) = win.hwnd() { unsafe { let _ = ShowWindow(HWND(h.0 as *mut _), SW_SHOWNOACTIVATE); } }
 }
-
-pub fn set_float(app: &AppHandle, float: bool) {
-    FLOAT.store(float, Ordering::SeqCst);
-    let owned = !float && has_target();
-    own_by_target(app, owned);
-    if let Some(w) = app.get_webview_window("main") { show_no_activate(&w); }
-    if !float { refresh(); }
-}
-
-pub fn current_id() -> String { (TARGET.load(Ordering::SeqCst)).to_string() }
 
 pub fn front_app() -> Option<TargetInfo> {
     unsafe { info_of(GetAncestor(GetForegroundWindow(), GA_ROOTOWNER)) }
@@ -431,15 +438,6 @@ pub fn focus_input() -> bool {
     let (tx, rx) = std::sync::mpsc::channel();
     if input_worker().try_send(InputRequest::Focus(tx)).is_err() { return false; }
     rx.recv_timeout(Duration::from_millis(600)).unwrap_or(false)
-}
-
-/// Installed-app detection is not adapted on Windows yet: offer the AI apps that are open.
-pub fn installed_ai_apps() -> Vec<TargetInfo> {
-    list_targets().into_iter().filter(crate::platform::is_ai_app).collect()
-}
-
-pub fn launch_app(key: &str) -> Option<TargetInfo> {
-    list_targets().into_iter().find(|t| t.key == key)
 }
 
 #[cfg(test)]

@@ -16,17 +16,17 @@ Queue your next prompt while the AI is busy, then paste it back in one click. Wi
 
 - **Save**: write in the input box, then click "Save to Wings" above it, or press **Alt+S** (⌥S on macOS). The text (or an image) goes into Wings and the input box is cleared.
 - **Send**: click an item in Wings to paste it back into the input box. It is never sent automatically, and it stays on the clipboard so you can paste it elsewhere too.
-- **Follow**: switch to another AI app and Wings follows it. You can also keep it with one app, or let it hover anywhere.
+- **Dock**: every open AI app gets its own Wings bar beside it, so nothing jumps around when you switch apps; a note pastes into the app whose bar you click. With no AI app open, Wings hovers on its own; you can also keep it hovering anywhere.
+- **Notes**: all AI apps share one list by default. In Settings you can give each AI app its own list of the notes saved from it.
 - **Languages**: the interface comes in Simplified Chinese, Traditional Chinese, English, Japanese, Korean, Spanish, French, German, Portuguese and Russian. Switch in Settings; it follows your system by default.
-- **Terminals**: Windows Terminal, PowerShell 5/7, and cmd support following and pasting notes. Wings never presses Enter to run commands and does not support saving or clearing terminal input. If you have a custom follow list, tick the terminal in settings.
+- **Terminals**: off by default; turn them on in Settings. Send only: clicking a note pastes it into the terminal without pressing Enter. Saving and clearing are not supported in terminals.
 
 ## Supported apps
 
-| Kind | Dock and follow | One-click save | Paste back |
+| Kind | Dock | One-click save | Paste back |
 |---|:-:|:-:|:-:|
 | AI apps | ✓ | ✓ | ✓ |
-| Terminals | ✓ | — | ✓ |
-| Any other app (tick it under Pick in Settings) | ✓ | — | ✓ |
+| Terminals (turn on in Settings) | ✓ | — | ✓ |
 
 **AI apps**: Claude, ChatGPT, Codex, Grok, Gemini, DeepSeek Harness, ZCode, Kimi, Doubao, Perplexity, GitHub Copilot, Yuanbao, Qwen, DuMate, Cline, OpenCode, Trae, MiniMax, Antigravity, Cue, Muse, WorkBuddy, Kilo Code, Cursor, Xiaomi MiMo, CodeArts, Devin, Hermes, KreoCrew, Kiro Crew, Qoder, VS Code
 

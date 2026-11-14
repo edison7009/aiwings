@@ -1,20 +1,10 @@
-// Background watcher: follows selected apps and drives the "save to Wings" chip.
+// Background watcher: keeps one bar per open AI app, tracks the app in use, and drives the "save to Wings" chip.
 
 use crate::platform::{self, place_chip};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 
-pub static FOLLOW: AtomicBool = AtomicBool::new(true);
-/// Apps (by key) the user ticked to follow; None means AI apps and terminals.
-pub static FOLLOW_KEYS: std::sync::Mutex<Option<Vec<String>>> = std::sync::Mutex::new(None);
-
-fn wants_follow(app: &crate::TargetInfo) -> bool {
-    match FOLLOW_KEYS.lock().unwrap().as_ref() {
-        Some(keys) => keys.iter().any(|k| *k == app.key),
-        None => platform::follows_by_default(app),
-    }
-}
 pub static CHIP: AtomicBool = AtomicBool::new(true);
 
 pub fn start(app: AppHandle) {
@@ -22,19 +12,23 @@ pub fn start(app: AppHandle) {
         let mut last_chip: Option<bool> = None;
         // When the input goes away, the chip first flips down and fades; the window hides once that is over.
         let mut hide_at: Option<std::time::Instant> = None;
-        let mut last_follow = String::new();
+        let mut tick: u32 = 0;
+        let mut trusted = false;
         loop {
             std::thread::sleep(Duration::from_millis(300));
-            // No target yet is fine: following is also how a first launch finds its AI app on its own.
-            if FOLLOW.load(Ordering::SeqCst) {
+            // Permission and the list of open apps change slowly: look about once a second.
+            if tick % 3 == 0 {
+                trusted = platform::accessibility_trusted(false);
+                if trusted { crate::bars::sync(&app); }
+            }
+            tick = tick.wrapping_add(1);
+            // The followed app in front is where saves (and the hover panel's pastes) go.
+            if trusted {
                 if let Some(front) = platform::front_app() {
-                    // Ask the UI to re-dock once per newly focused AI app; docking itself runs on the main thread.
-                    if wants_follow(&front) && front.id != platform::current_id() && front.id != last_follow {
-                        last_follow = front.id.clone();
-                        let _ = app.emit("wings://follow", front);
-                    }
+                    if crate::bars::wants(&front) && front.id != platform::active_id() { platform::set_active(&front); }
                 }
             }
+            crate::bars::update_main(&app, trusted);
             // Track editable-app inputs for caret restoration; terminals need docking and paste only.
             let input = (platform::target_is_front() && !platform::target_input_unsupported() && !platform::target_is_terminal())
                 .then(platform::focused_input).flatten().filter(|_| CHIP.load(Ordering::SeqCst));
@@ -67,20 +61,4 @@ pub fn start(app: AppHandle) {
             }
         }
     });
-}
-
-#[cfg(all(test, windows))]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn terminal_follow_respects_explicit_selection() {
-        let terminal = crate::TargetInfo { id: "123".into(), key: "powershell.exe".into(), name: "PowerShell".into() };
-        assert!(wants_follow(&terminal));
-        *FOLLOW_KEYS.lock().unwrap() = Some(vec!["claude.exe".into()]);
-        assert!(!wants_follow(&terminal));
-        *FOLLOW_KEYS.lock().unwrap() = Some(vec![terminal.key.clone()]);
-        assert!(wants_follow(&terminal));
-        *FOLLOW_KEYS.lock().unwrap() = None;
-    }
 }

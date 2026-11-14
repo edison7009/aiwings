@@ -293,9 +293,9 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
     <h2 class="cn-display">小工具，但想得很细</h2>
     <div class="board">
       <div class="f big">
-        <h3 class="cn-display">跟着你走，也能停下来</h3>
-        <p>切到另一个 AI 应用，侧栏跟过去贴好。也可以只陪一个应用，或者悬停在屏幕任意位置。</p>
-        <div class="layouts"><span>跟随</span><span>固定</span><span>悬停</span></div>
+        <h3 class="cn-display">每个 AI 一条，稳稳不动</h3>
+        <p>每个打开的 AI 应用旁边各有一条侧栏，切换时不跳来跳去。一个都没打开时自动悬停，也可以一直悬停在屏幕任意位置。</p>
+        <div class="layouts"><span>吸附</span><span>悬停</span></div>
       </div>
       <div class="f side"><h3 class="cn-display">绝不替你发送</h3><p>只粘贴，不按回车。发不发，你说了算。</p></div>
       <div class="f third"><h3 class="cn-display">剪贴板也有一份</h3><p>点过的便签同时留在剪贴板，⌘V 能贴到任何地方。</p></div>
@@ -308,11 +308,10 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
   <section class="wrap center">
     <h2 class="cn-display">贴在你常用的 AI 旁边</h2>
     <div class="support"><table>
-      <thead><tr><th>类别</th><th>应用</th><th>吸附跟随</th><th>一键保存</th><th>粘贴回输入框</th></tr></thead>
+      <thead><tr><th>类别</th><th>应用</th><th>吸附</th><th>一键保存</th><th>粘贴回输入框</th></tr></thead>
       <tbody>
       <tr><th>AI 应用</th><td>Claude、ChatGPT、Codex、Grok、Gemini、DeepSeek Harness、ZCode、Kimi、豆包、Perplexity、GitHub Copilot、元宝、通义千问、DuMate、Cline、OpenCode、Trae、MiniMax、Antigravity、Cue、Muse、WorkBuddy、Kilo Code、Cursor、Xiaomi MiMo、CodeArts、Devin、Hermes、KreoCrew、Kiro Crew、Qoder、VS Code</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td></tr>
-      <tr><th>终端</th><td>Terminal、iTerm2、Warp、Ghostty、WezTerm、Alacritty、kitty、Hyper、Tabby、Windows Terminal、PowerShell、cmd</td><td class="ok">✓</td><td class="no">—</td><td class="ok">✓</td></tr>
-      <tr><th>其他应用</th><td>在设置的「指定」里勾选</td><td class="ok">✓</td><td class="no">—</td><td class="ok">✓</td></tr>
+      <tr><th>终端</th><td>在设置里打开：Terminal、iTerm2、Warp、Ghostty、WezTerm、Alacritty、kitty、Hyper、Tabby、Windows Terminal、PowerShell、cmd</td><td class="ok">✓</td><td class="no">—</td><td class="ok">✓</td></tr>
       </tbody>
     </table></div>
   </section>
@@ -325,7 +324,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
       <details><summary>Wings 会读取我和 AI 的对话吗？</summary><p>不会。只在你保存时剪下输入框里的那句话。为了判断输入框是不是空的，会在本机看一眼里面有没有字，不保存也不上传。</p></details>
       <details><summary>便签存在哪里？</summary><p>存在你电脑上 Wings 的数据目录里。没有账号，也没有云同步。</p></details>
       <details><summary>保存快捷键能改吗？</summary><p>可以。在设置里点一下快捷键，按下一个修饰键加一个键就行，比如 ⌥S 或 ⌃E。</p></details>
-      <details><summary>在终端里能用吗？</summary><p>可以跟随和粘贴，比如 Terminal、iTerm2。终端里的输入行由里面运行的程序管理，所以不支持保存。</p></details>
+      <details><summary>在终端里能用吗？</summary><p>在设置里打开后，可以吸附和粘贴，比如 Terminal、iTerm2，不会按回车。终端里的输入行由里面运行的程序管理，所以不支持保存。</p></details>
       <details><summary>支持 Windows 吗？</summary><p>支持 Windows 10 及以上。下载页里的 setup.exe 是安装版，另一个 .exe 双击就能用，不用安装。</p></details>
     </div>
   </section>

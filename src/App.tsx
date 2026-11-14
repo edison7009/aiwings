@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { Onboarding } from './components/Onboarding';
-import type { Target } from './components/TargetPicker';
 import { UpdateButton } from './components/UpdateButton';
 import { NoteList } from './components/NoteList';
 import { Settings } from './components/Settings';
@@ -10,22 +10,17 @@ import { savedShortcut } from './components/ShortcutRecorder';
 import { Segmented } from './components/Segmented';
 import { loadNotes, removeNote, type Note } from './lib/notes';
 import { layouts } from './lib/layouts';
-import { applyThemeMode, readPrefs, withLayout, saveFloatRect, writePrefs, type Prefs } from './lib/prefs';
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import { applyThemeMode, readPrefs, saveFloatRect, sendPrefs, writePrefs, type Prefs } from './lib/prefs';
 import { applyTheme, themeFor } from './lib/theme';
 import { t, tr, setLang } from './strings';
 
-const TARGET_KEY = 'wings-target';
 const PASTE_KEY = /Mac/.test(navigator.userAgent) ? '⌘V' : 'Ctrl+V';
+const win = getCurrentWebviewWindow();
+/** "main" is the hover panel; every other window is the bar beside one app. */
+const IS_PANEL = win.label === 'main';
 
-/** Stand-in for settings while nothing is docked. */
-const IDLE_TARGET: Target = { id: '', key: '', name: 'Wings' };
-
-interface Remembered { key: string; name: string }
-
-function readRemembered(): Remembered | null {
-  try { const raw = localStorage.getItem(TARGET_KEY); return raw ? JSON.parse(raw) : null; } catch { return null; }
-}
+/** The app a bar sits beside. `terminal`: paste only, nothing is saved from it. */
+interface BarTarget { id: string; key: string; name: string; terminal: boolean }
 
 function GearIcon() {
   return (
@@ -37,22 +32,15 @@ function GearIcon() {
 }
 
 export function App() {
-  const [trusted, setTrusted] = useState<boolean | null>(null);
-  const [target, setTarget] = useState<Target | null>(null);
-  // Nothing to dock to at launch: the bar hovers where it was last left until an AI app comes forward.
-  const [idle, setIdle] = useState(false);
+  // Bars only exist once permission is in place; the panel asks for it.
+  const [trusted, setTrusted] = useState<boolean | null>(IS_PANEL ? null : true);
+  const [target, setTarget] = useState<BarTarget | null>(null);
   const [notes, setNotes] = useState<Note[] | null>(null);
   const [shortcut, setShortcut] = useState('Alt+S');
   const [prefs, setPrefs] = useState<Prefs>(readPrefs);
   const [view, setView] = useState<'notes' | 'settings'>('notes');
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
-  const prefsRef = useRef(prefs);
-  const trustedRef = useRef(false);
-  const idleRef = useRef(false);
-  idleRef.current = idle;
-  prefsRef.current = prefs;
-  trustedRef.current = trusted === true;
 
   const flash = useCallback((msg: string, duration = 2600) => {
     setToast(tr(msg));
@@ -60,64 +48,52 @@ export function App() {
     toastTimer.current = window.setTimeout(() => setToast(null), duration);
   }, []);
 
-  const changePrefs = useCallback((next: Prefs) => { setLang(next.lang); setPrefs(next); writePrefs(next, idleRef.current); applyThemeMode(next.theme, next.palette); }, []);
+  const changePrefs = useCallback((next: Prefs) => { setLang(next.lang); setPrefs(next); writePrefs(next); applyThemeMode(next.theme, next.palette); }, []);
 
   useEffect(() => {
-    // Re-apply a saved custom shortcut first; if it can no longer be registered, the default stays.
-    const saved = savedShortcut();
+    // Re-apply a saved custom shortcut first (the panel only: one window is enough); if it can no longer be
+    // registered, the default stays.
+    const saved = IS_PANEL ? savedShortcut() : null;
     const label = saved ? invoke<string>('set_shortcut', { combo: saved }).catch(() => invoke<string>('shortcut_label')) : invoke<string>('shortcut_label');
     void label.then(label => {
       setShortcut(label);
-      void loadNotes(t.welcome(label)).then(setNotes);
+      // Only the panel seeds the welcome note, so several bars starting at once cannot add it twice.
+      void (IS_PANEL ? loadNotes(t.welcome(label)) : invoke<Note[]>('load_notes')).then(setNotes, () => setNotes([]));
     });
-    void invoke<boolean>('permission_granted', { prompt: false }).then(setTrusted);
+    if (IS_PANEL) {
+      void invoke<boolean>('permission_granted', { prompt: false }).then(setTrusted);
+      sendPrefs(readPrefs());
+    } else {
+      void invoke<BarTarget | null>('bar_target').then(setTarget);
+    }
   }, []);
-
-  const choose = useCallback(async (next: Target) => {
-    try {
-      await invoke('set_target', { id: next.id, key: next.key });
-      setTarget(next);
-      setIdle(false);
-      writePrefs(prefsRef.current);
-      try { localStorage.setItem(TARGET_KEY, JSON.stringify({ key: next.key, name: next.name })); } catch { /* Best effort. */ }
-    } catch (e) { flash(String(e)); }
-  }, [flash]);
 
   useEffect(() => {
     const subs = [
       listen<Note[]>('wings://notes', e => setNotes(e.payload)),
-      listen<string>('wings://error', e => flash(e.payload, 8000)),
-      listen<Target>('wings://follow', e => { if (trustedRef.current) void choose(e.payload); }),
+      // Errors are sent to the one window they concern.
+      win.listen<string>('wings://error', e => flash(e.payload, 8000)),
     ];
-    return () => { subs.forEach(s => void s.then(f => f())); };
-  }, [flash, choose]);
-
-  // Hand the saved settings (which apps to follow, among others) to the Rust side as soon as it can act on them.
-  useEffect(() => { if (trusted) writePrefs(prefsRef.current); }, [trusted]);
-
-  // Once permission is in place, dock on our own: the remembered app if it is open, else an open AI app.
-  // With neither, hover until one comes forward (following picks it up then).
-  useEffect(() => {
-    if (!trusted || target || idle) return;
-    const last = readRemembered();
-    void Promise.all([invoke<Target[]>('list_targets'), invoke<(Target & { ai: boolean })[]>('list_menu_apps')]).then(([open, apps]) => {
-      const hit = (last && open.find(item => item.key === last.key)) || apps.find(a => a.id && (prefsRef.current.layout === 'lock' ? prefsRef.current.lockKeys.includes(a.key) : a.ai));
-      if (hit) void choose({ id: hit.id, key: hit.key, name: hit.name });
-      else { setIdle(true); writePrefs(prefsRef.current, true); }
-    });
-  }, [trusted, target, idle, choose]);
+    // Settings changed in another window: follow along.
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== 'wings-prefs') return;
+      const next = readPrefs();
+      setLang(next.lang);
+      setPrefs(next);
+    };
+    window.addEventListener('storage', onStorage);
+    return () => { subs.forEach(s => void s.then(f => f())); window.removeEventListener('storage', onStorage); };
+  }, [flash]);
 
   useEffect(() => {
-    void invoke('set_tray_labels', { target: target ? t.trayDocked(target.name) : t.trayIdle, docked: !!target, show: t.trayShow, quit: t.trayQuit });
-  }, [target, prefs.lang]);
+    void invoke('set_tray_labels', { show: t.trayShow, quit: t.trayQuit });
+  }, [prefs.lang]);
 
   useEffect(() => { applyTheme(themeFor(target?.key ?? null)); }, [target]);
 
-  // While hovering, remember where the bar is and how big, so the next switch to hover (or the next launch) returns there.
-  const floating = idle || (!!target && prefs.layout === 'float');
+  // The panel remembers where it is and how big, so it comes back there (also on the next launch).
   useEffect(() => {
-    if (!floating) return;
-    const win = getCurrentWindow();
+    if (!IS_PANEL) return;
     let timer: number | undefined;
     const save = () => {
       window.clearTimeout(timer);
@@ -127,25 +103,28 @@ export function App() {
     };
     const subs = [win.onMoved(save), win.onResized(save)];
     return () => { window.clearTimeout(timer); subs.forEach(s => void s.then(f => f())); };
-  }, [floating]);
+  }, []);
 
+  // A bar lists only its own app's notes when the user asked for that; notes from before (no app) show everywhere.
+  // Terminals cannot save, so their bar always shows every note.
+  const ownKey = target && !target.terminal && prefs.notesPerApp ? target.key.toLowerCase() : null;
+  const shown = notes && ownKey ? notes.filter(n => !n.app || n.app === ownKey) : notes;
 
   let body;
-  if (trusted === null || notes === null) body = null;
+  if (trusted === null || shown === null || (!IS_PANEL && !target)) body = null;
   else if (!trusted) body = <Onboarding onGranted={() => setTrusted(true)} />;
-  else if (!target && !idle) body = null;
   else if (view === 'settings') body = (
-    <Settings prefs={prefs} shortcut={shortcut} target={target ?? IDLE_TARGET} onChange={changePrefs} onError={flash} onShortcut={setShortcut} onBack={() => setView('notes')} />
+    <Settings prefs={prefs} shortcut={shortcut} onChange={changePrefs} onError={flash} onShortcut={setShortcut} onBack={() => setView('notes')} />
   );
   else body = (
     <>
-      {/* Hover mode lets the header drag the bar anywhere; docked, it follows the target instead. */}
-      <header className="panel-head" data-tauri-drag-region={floating || undefined}>
-        <span className="brand" data-tauri-drag-region={floating || undefined}>{target?.name ?? 'Wings'}</span>
-        <Segmented value={prefs.layout} options={layouts()} onChange={layout => changePrefs(withLayout(prefs, layout, target?.key ?? null))} />
+      {/* The panel's header drags it anywhere; a bar follows its app instead. */}
+      <header className="panel-head" data-tauri-drag-region={IS_PANEL || undefined}>
+        <span className="brand" data-tauri-drag-region={IS_PANEL || undefined}>{target?.name ?? 'Wings'}</span>
+        <Segmented value={prefs.layout} options={layouts()} onChange={layout => changePrefs({ ...prefs, layout })} />
       </header>
       <NoteList
-        notes={notes}
+        notes={shown}
         shortcut={shortcut}
         onPaste={note => { void invoke('paste_note', { text: note.text, image: note.image ?? null }); flash(t.pasted(PASTE_KEY)); }}
         onRemove={removeNote}
@@ -155,11 +134,11 @@ export function App() {
   );
 
   return (
-    <div className={`shell${target || idle ? (floating ? ' shell--float' : ' shell--docked') : ''}`}>
+    <div className={`shell${IS_PANEL ? ' shell--float' : ' shell--docked'}`}>
       <div className="panel">
         {body}
-        {/* Mounted for the app's lifetime so a running download keeps its progress while settings is open. */}
-        {trusted && notes !== null && (target || idle) && <UpdateButton hidden={view === 'settings'} onError={flash} />}
+        {/* Mounted for the window's lifetime so a running download keeps its progress while settings is open. */}
+        {trusted && shown !== null && <UpdateButton hidden={view === 'settings'} onError={flash} />}
       </div>
       {toast && <div className="toast" role="status">{toast}</div>}
     </div>

@@ -5,13 +5,14 @@ import type { Lang } from '../strings';
 
 export interface Prefs {
   /**
-   * follow: docked beside the AI app in use, moving to whichever AI app the user switches to.
-   * lock: the same, but only among the apps the user chose (one or more).
-   * float: stays wherever the user drags it; notes paste into the AI app used last.
+   * follow ("吸附"): a bar beside each open AI app, staying put; with none open, the hover panel shows instead.
+   * float ("悬停"): one panel wherever the user drags it; notes paste into the AI app used last.
    */
-  layout: 'follow' | 'lock' | 'float';
-  /** Apps (by key) chosen for lock mode; never empty while locked. */
-  lockKeys: string[];
+  layout: 'follow' | 'float';
+  /** Each bar lists only the notes saved from its own app (older notes show in every bar). */
+  notesPerApp: boolean;
+  /** Terminals get bars too: paste only, nothing can be saved from them. */
+  terminals: boolean;
   /** Light, dark, or follow the system. */
   theme: 'system' | 'light' | 'dark';
   /** Colour family; the theme above picks its day or night half. */
@@ -23,38 +24,18 @@ export interface Prefs {
 }
 
 const KEY = 'wings-prefs';
-const DEFAULTS: Prefs = { layout: 'follow', lockKeys: [], theme: 'system', palette: 'basalt', chip: true, lang: 'auto' };
+const DEFAULTS: Prefs = { layout: 'follow', notesPerApp: false, terminals: false, theme: 'system', palette: 'basalt', chip: true, lang: 'auto' };
 
 export function readPrefs(): Prefs {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) ?? '{}');
-    // Older versions kept dock/float and follow as two separate switches.
-    if (!raw.layout && (raw.mode || raw.follow !== undefined)) raw.layout = raw.mode === 'float' ? 'float' : raw.follow === false ? 'pin' : 'follow';
-    delete raw.mode; delete raw.follow;
-    // Older versions had "pin" (one app) and a follow list. Both become lock mode with the same apps.
-    if (raw.layout === 'pin') {
-      raw.layout = 'lock';
-      const last = rememberedKey();
-      raw.lockKeys = last ? [last] : [];
-    } else if (raw.layout === 'follow' && Array.isArray(raw.followKeys) && raw.followKeys.length > 0) {
-      raw.layout = 'lock';
-      raw.lockKeys = raw.followKeys;
-    }
-    delete raw.followKeys;
-    // Lock mode needs at least one app; with none (no app remembered yet), plain follow is what it would do anyway.
-    if (raw.layout === 'lock' && !(Array.isArray(raw.lockKeys) && raw.lockKeys.length > 0)) raw.layout = 'follow';
+    // Older versions: dock/float switches, "pin", a follow list and "lock" (chosen apps) all become docking,
+    // which now gives every open AI app its own bar.
+    if (!raw.layout && raw.mode === 'float') raw.layout = 'float';
+    if (raw.layout !== 'float') raw.layout = 'follow';
+    for (const old of ['mode', 'follow', 'followKeys', 'lockKeys']) delete raw[old];
     return { ...DEFAULTS, ...raw };
   } catch { return DEFAULTS; }
-}
-
-function rememberedKey(): string | null {
-  try { return JSON.parse(localStorage.getItem('wings-target') ?? 'null')?.key ?? null; } catch { return null; }
-}
-
-/** Switches layout. Entering lock mode with nothing chosen locks onto the current app. */
-export function withLayout(p: Prefs, layout: Prefs['layout'], currentKey: string | null): Prefs {
-  const lockKeys = layout === 'lock' && p.lockKeys.length === 0 && currentKey ? [currentKey] : p.lockKeys;
-  return { ...p, layout, lockKeys };
 }
 
 const FLOAT_RECT_KEY = 'wings-float-rect';
@@ -71,13 +52,17 @@ function readFloatRect(): [number, number, number, number] | null {
   } catch { return null; }
 }
 
-/** idle: nothing docked yet, so the bar hovers whatever the layout says. */
-export function writePrefs(p: Prefs, idle = false) {
+/** Saves the settings (other windows pick them up from the storage event) and hands them to the Rust side. */
+export function writePrefs(p: Prefs) {
   try { localStorage.setItem(KEY, JSON.stringify(p)); } catch { /* Best effort. */ }
-  void invoke('set_prefs', { float: idle || p.layout === 'float', follow: true, followKeys: p.layout === 'lock' && p.lockKeys.length > 0 ? p.lockKeys : null, chip: p.chip, floatRect: readFloatRect() });
+  sendPrefs(p);
 }
 
-/** Sets light/dark on this window. Both windows (bar and chip) call it; the chip hears changes via storage events. */
+export function sendPrefs(p: Prefs) {
+  void invoke('set_prefs', { float: p.layout === 'float', terminals: p.terminals, chip: p.chip, floatRect: readFloatRect() });
+}
+
+/** Sets light/dark on this window. Every window calls it; the others hear changes via storage events. */
 export function applyThemeMode(theme: Prefs['theme'], palette: Prefs['palette']) {
   const root = document.documentElement.dataset;
   if (theme === 'system') delete root.theme; else root.theme = theme;

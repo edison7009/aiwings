@@ -7,8 +7,9 @@ use tauri::{AppHandle, Emitter};
 
 const CLIP_WAIT: Duration = Duration::from_millis(700);
 
+/// Shown in the bar of the app it happened in (or the hover panel), not in every window.
 pub fn emit_error(app: &AppHandle, msg: &str) {
-    let _ = app.emit("wings://error", msg.to_string());
+    let _ = app.emit_to(crate::bars::error_window(app).as_str(), "wings://error", msg.to_string());
 }
 
 /// Select-all + cut in the target, keep what landed on the clipboard, then restore the clipboard.

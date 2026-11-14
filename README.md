@@ -16,17 +16,17 @@ AI 正忙时，先把下一句话存进 Wings，等它空了，点一下就贴�
 
 - **存**：在输入框里写好，点输入框上方的「保存到 Wings」，或按 **Alt+S**（macOS 为 ⌥S）。文字（或一张图片）收进 Wings，输入框清空。
 - **发**：点 Wings 里的一条，它被粘贴回输入框，不会自动发送；同时留在剪贴板上，也能粘贴到别处。
-- **跟随**：切到别的 AI 应用，Wings 跟过去；也可以固定陪着某一个应用，或改成悬停在任意位置。
+- **吸附**：每个打开的 AI 应用旁边各有一条 Wings，切换应用时不跳来跳去；点哪条就粘贴进哪个应用。一个 AI 应用都没打开时，自动变成悬停；也可以一直悬停在任意位置。
+- **便签**：默认所有 AI 共用一份；在设置里可改成各 AI 独立，每条只显示从自己存的便签。
 - **语言**：界面支持简体中文、繁體中文、English、日本語、한국어、Español、Français、Deutsch、Português、Русский，在设置里切换，默认跟随系统。
-- **终端**：Windows Terminal、PowerShell 5/7、cmd 可跟随并粘贴便签，不按回车执行；不支持保存和清空。已有自选跟随名单时，在设置中勾选终端。
+- **终端**：默认不吸附，在设置里打开。只能发送：点便签粘贴进终端，不按回车执行；终端里不支持保存和清空。
 
 ## 支持的应用
 
-| 类别 | 吸附跟随 | 一键保存 | 粘贴回输入框 |
+| 类别 | 吸附 | 一键保存 | 粘贴回输入框 |
 |---|:-:|:-:|:-:|
 | AI 应用 | ✓ | ✓ | ✓ |
-| 终端 | ✓ | — | ✓ |
-| 其他应用（在设置的「指定」里勾选） | ✓ | — | ✓ |
+| 终端（在设置里打开） | ✓ | — | ✓ |
 
 **AI 应用**：Claude、ChatGPT、Codex、Grok、Gemini、DeepSeek Harness、ZCode、Kimi、豆包、Perplexity、GitHub Copilot、元宝、通义千问、DuMate、Cline、OpenCode、Trae、MiniMax、Antigravity、Cue、Muse、WorkBuddy、Kilo Code、Cursor、Xiaomi MiMo、CodeArts、Devin、Hermes、KreoCrew、Kiro Crew、Qoder、VS Code
 

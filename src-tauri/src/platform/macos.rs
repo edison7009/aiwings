@@ -1,6 +1,6 @@
-// macOS: AXObserver drives docking; CGEvent posts the synthetic shortcuts; NSWorkspace handles activation.
+// macOS: one AXObserver per followed app drives its bar; CGEvent posts the synthetic shortcuts; NSWorkspace handles activation.
 
-use super::{float_panel, place_bar, Frame, Key};
+use super::{place_bar, Frame, Key};
 use crate::TargetInfo;
 use core_foundation::base::{CFEqual, CFRelease, CFRetain, CFTypeRef, TCFType};
 use core_foundation::boolean::CFBoolean;
@@ -10,10 +10,10 @@ use core_foundation_sys::number::{CFBooleanGetValue, CFBooleanRef};
 use core_foundation_sys::runloop::{kCFRunLoopDefaultMode, CFRunLoopAddSource, CFRunLoopGetMain, CFRunLoopRemoveSource, CFRunLoopSourceRef};
 use core_graphics::event::{CGEvent, CGEventFlags, CGEventTapLocation};
 use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
-use objc2_app_kit::{NSApplicationActivationOptions, NSApplicationActivationPolicy, NSRunningApplication, NSWindow, NSWorkspace};
+use objc2_app_kit::{NSApplicationActivationOptions, NSApplicationActivationPolicy, NSRunningApplication, NSWindow, NSWindowOrderingMode, NSWorkspace};
 use std::ffi::c_void;
 use std::ptr::null;
-use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
+use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Manager};
@@ -38,6 +38,8 @@ extern "C" {
     fn AXObserverGetRunLoopSource(o: AXObserverRef) -> CFRunLoopSourceRef;
     fn CGEventSourceFlagsState(state: i32) -> u64;
     fn CGWarpMouseCursorPosition(p: core_graphics::geometry::CGPoint) -> i32;
+    /// Private but long-stable (window managers rely on it): the window-server id of an AX window.
+    fn _AXUIElementGetWindow(el: AXUIElementRef, out: *mut u32) -> i32;
 }
 
 const APP_NOTES: &[&str] = &[
@@ -47,21 +49,32 @@ const APP_NOTES: &[&str] = &[
 const WINDOW_NOTES: &[&str] = &["AXMoved", "AXResized", "AXWindowMiniaturized", "AXWindowDeminiaturized", "AXUIElementDestroyed"];
 const REATTACH: &[&str] = &["AXMainWindowChanged", "AXFocusedWindowChanged", "AXWindowCreated", "AXUIElementDestroyed"];
 
-struct Dock {
+/// One followed app: its observer, and the window its bar sits beside.
+struct Watched {
+    pid: i32,
     app_el: AXUIElementRef,
     observer: AXObserverRef,
     /// The followed window (owned +1), or null when the app has none.
     window: AXUIElementRef,
-    /// The last text input the user focused in the target (owned +1), or null. Paste puts the caret back here.
+    /// Label of the bar window beside it.
+    label: String,
+}
+// Observer setup, teardown and refreshes happen on the main thread; AX element reads are thread-safe.
+unsafe impl Send for Watched {}
+
+/// The active app: where saves and pastes go.
+struct Active {
+    pid: i32,
+    app_el: AXUIElementRef,
+    /// The last text input the user focused in it (owned +1), or null. Paste puts the caret back here.
     input: AXUIElementRef,
 }
-// Observer setup and teardown happen on the main thread; AX element reads are thread-safe.
-unsafe impl Send for Dock {}
+unsafe impl Send for Active {}
 
-static DOCK: Mutex<Option<Dock>> = Mutex::new(None);
+static WATCHED: Mutex<Vec<Watched>> = Mutex::new(Vec::new());
+static ACTIVE: Mutex<Option<Active>> = Mutex::new(None);
 static TARGET_PID: AtomicI32 = AtomicI32::new(0);
 static APP: OnceLock<AppHandle> = OnceLock::new();
-static FLOAT: AtomicBool = AtomicBool::new(false);
 
 fn cfs(s: &str) -> CFString { CFString::new(s) }
 
@@ -94,108 +107,135 @@ fn front_pid() -> i32 {
     NSWorkspace::sharedWorkspace().frontmostApplication().map(|a| a.processIdentifier()).unwrap_or(0)
 }
 
-unsafe fn attach_window(d: &mut Dock) {
-    if !d.input.is_null() { CFRelease(d.input); d.input = null(); }
-    if !d.window.is_null() {
-        for n in WINDOW_NOTES { AXObserverRemoveNotification(d.observer, d.window, cfs(n).as_concrete_TypeRef()); }
-        CFRelease(d.window);
-        d.window = null();
+/// An app's AX element. Electron/Chromium apps only build their AX tree when asked to.
+unsafe fn app_element(pid: i32) -> AXUIElementRef {
+    let app_el = AXUIElementCreateApplication(pid);
+    // A hung app would otherwise block each AX read for the 6 s default, and the main thread with it.
+    AXUIElementSetMessagingTimeout(app_el, 0.5);
+    // Claude honours AXManualAccessibility; the ChatGPT app rejects it as unsupported (-25205) and needs
+    // AXEnhancedUserInterface instead.
+    let yes = CFBoolean::true_value();
+    if AXUIElementSetAttributeValue(app_el, cfs("AXManualAccessibility").as_concrete_TypeRef(), yes.as_CFTypeRef()) != 0 {
+        AXUIElementSetAttributeValue(app_el, cfs("AXEnhancedUserInterface").as_concrete_TypeRef(), yes.as_CFTypeRef());
     }
-    let win = copy_attr(d.app_el, "AXMainWindow").or_else(|| copy_attr(d.app_el, "AXFocusedWindow"));
-    if let Some(w) = win {
-        for n in WINDOW_NOTES { AXObserverAddNotification(d.observer, w, cfs(n).as_concrete_TypeRef(), std::ptr::null_mut()); }
-        d.window = w;
+    app_el
+}
+
+fn refcon(pid: i32) -> *mut c_void { pid as isize as *mut c_void }
+
+unsafe fn attach_window(w: &mut Watched) {
+    if !w.window.is_null() {
+        for n in WINDOW_NOTES { AXObserverRemoveNotification(w.observer, w.window, cfs(n).as_concrete_TypeRef()); }
+        CFRelease(w.window);
+        w.window = null();
+    }
+    if let Some(win) = copy_attr(w.app_el, "AXMainWindow").or_else(|| copy_attr(w.app_el, "AXFocusedWindow")) {
+        for n in WINDOW_NOTES { AXObserverAddNotification(w.observer, win, cfs(n).as_concrete_TypeRef(), refcon(w.pid)); }
+        w.window = win;
     }
 }
 
-/// Show the bar beside the target when the target (or Wings itself) is frontmost and its window is up; hide otherwise.
-unsafe fn refresh_locked(d: &Dock) {
-    // Hover mode: the bar stays wherever the user put it.
-    if FLOAT.load(Ordering::SeqCst) { return; }
-    let Some(app) = APP.get() else { return };
-    let Some(win) = app.get_webview_window("main") else { return };
-    let front = front_pid();
-    let pid = TARGET_PID.load(Ordering::SeqCst);
-    let ours = std::process::id() as i32;
-    let frame = (!d.window.is_null() && !is_minimized(d.window))
-        .then(|| Some((read_pair(d.window, "AXPosition", 1)?, read_pair(d.window, "AXSize", 2)?)))
-        .flatten();
-    match frame {
-        Some((pos, size)) if front == pid || front == ours => {
-            let s = win.scale_factor().unwrap_or(1.0);
-            place_bar(app, Frame { x: pos.a * s, y: pos.b * s, w: size.a * s, h: size.b * s }, s);
-            show_no_activate(&win);
-        }
-        _ => { let _ = win.hide(); }
+fn app_hidden(pid: i32) -> bool {
+    NSRunningApplication::runningApplicationWithProcessIdentifier(pid).is_some_and(|a| a.isHidden())
+}
+
+/// Places one bar beside its app's window and orders it just above that window, so whatever covers the
+/// app covers the bar too, and the bar never floats over other apps. Hidden in hover mode, while the app is
+/// hidden, or while its window is minimized. Main thread only (AppKit).
+unsafe fn refresh_one(app: &AppHandle, w: &Watched) {
+    let Some(bar) = app.get_webview_window(&w.label) else { return };
+    let up = !crate::bars::FLOAT.load(Ordering::SeqCst) && !w.window.is_null() && !is_minimized(w.window) && !app_hidden(w.pid);
+    let frame = up.then(|| Some((read_pair(w.window, "AXPosition", 1)?, read_pair(w.window, "AXSize", 2)?))).flatten();
+    let Some((pos, size)) = frame else { let _ = bar.hide(); return };
+    let s = bar.scale_factor().unwrap_or(1.0);
+    place_bar(&bar, app, Frame { x: pos.a * s, y: pos.b * s, w: size.a * s, h: size.b * s }, s);
+    let mut wid = 0u32;
+    let known = _AXUIElementGetWindow(w.window, &mut wid) == 0 && wid != 0;
+    if let Ok(ns) = bar.ns_window() {
+        let ns = &*(ns as *const NSWindow);
+        if known { ns.orderWindow_relativeTo(NSWindowOrderingMode::Above, wid as isize); } else { ns.orderFrontRegardless(); }
     }
 }
 
-unsafe extern "C" fn on_ax(_o: AXObserverRef, _el: AXUIElementRef, n: CFStringRef, _r: *mut c_void) {
+unsafe extern "C" fn on_ax(_o: AXObserverRef, _el: AXUIElementRef, n: CFStringRef, refcon: *mut c_void) {
     let name = CFString::wrap_under_get_rule(n).to_string();
-    let mut guard = DOCK.lock().unwrap();
-    let Some(d) = guard.as_mut() else { return };
-    if REATTACH.contains(&name.as_str()) { attach_window(d); }
-    refresh_locked(d);
+    let pid = refcon as isize as i32;
+    let Some(app) = APP.get() else { return };
+    let mut watched = WATCHED.lock().unwrap();
+    let Some(w) = watched.iter_mut().find(|w| w.pid == pid) else { return };
+    if REATTACH.contains(&name.as_str()) { attach_window(w); }
+    refresh_one(app, w);
 }
 
-unsafe fn teardown(d: Dock) {
-    let src = AXObserverGetRunLoopSource(d.observer);
+unsafe fn teardown(w: Watched) {
+    let src = AXObserverGetRunLoopSource(w.observer);
     CFRunLoopRemoveSource(CFRunLoopGetMain(), src, kCFRunLoopDefaultMode);
-    if !d.window.is_null() { CFRelease(d.window); }
-    if !d.input.is_null() { CFRelease(d.input); }
-    CFRelease(d.observer);
-    CFRelease(d.app_el);
+    if !w.window.is_null() { CFRelease(w.window); }
+    CFRelease(w.observer);
+    CFRelease(w.app_el);
 }
 
-pub fn dock(app: AppHandle, id: &str) -> Result<(), String> {
+/// Starts following an app for its bar (the window `label`).
+pub fn track(app: &AppHandle, t: &TargetInfo, label: &str) {
     let _ = APP.set(app.clone());
-    let pid: i32 = id.parse().map_err(|_| "无效的目标".to_string())?;
-    if !accessibility_trusted(false) { return Err("需要先授予辅助功能权限".into()); }
-    let mut guard = DOCK.lock().unwrap();
-    unsafe {
-        if let Some(old) = guard.take() { teardown(old); }
-        let app_el = AXUIElementCreateApplication(pid);
-        // A hung target would otherwise block each AX read for the 6 s default while holding DOCK,
-        // which the main thread also needs: Wings would freeze with it.
-        AXUIElementSetMessagingTimeout(app_el, 0.5);
-        // Electron/Chromium apps only build their AX tree when asked to. Claude honours AXManualAccessibility;
-        // the ChatGPT app rejects it as unsupported (-25205) and needs AXEnhancedUserInterface instead.
-        let yes = CFBoolean::true_value();
-        if AXUIElementSetAttributeValue(app_el, cfs("AXManualAccessibility").as_concrete_TypeRef(), yes.as_CFTypeRef()) != 0 {
-            AXUIElementSetAttributeValue(app_el, cfs("AXEnhancedUserInterface").as_concrete_TypeRef(), yes.as_CFTypeRef());
-        }
+    let Ok(pid) = t.id.parse::<i32>() else { return };
+    let (label, handle) = (label.to_string(), app.clone());
+    let _ = app.run_on_main_thread(move || unsafe {
+        let app_el = app_element(pid);
         let mut observer: AXObserverRef = null();
         if AXObserverCreate(pid, on_ax, &mut observer) != 0 || observer.is_null() {
             CFRelease(app_el);
-            return Err("无法监听这个应用的窗口".into());
+            return;
         }
-        for n in APP_NOTES { AXObserverAddNotification(observer, app_el, cfs(n).as_concrete_TypeRef(), std::ptr::null_mut()); }
+        for n in APP_NOTES { AXObserverAddNotification(observer, app_el, cfs(n).as_concrete_TypeRef(), refcon(pid)); }
         CFRunLoopAddSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), kCFRunLoopDefaultMode);
-        let mut d = Dock { app_el, observer, window: null(), input: null() };
-        attach_window(&mut d);
-        TARGET_PID.store(pid, Ordering::SeqCst);
-        refresh_locked(&d);
-        *guard = Some(d);
-    }
-    Ok(())
+        let mut w = Watched { pid, app_el, observer, window: null(), label };
+        attach_window(&mut w);
+        refresh_one(&handle, &w);
+        WATCHED.lock().unwrap().push(w);
+    });
 }
 
-pub fn undock(app: &AppHandle) {
-    TARGET_PID.store(0, Ordering::SeqCst);
-    if let Some(d) = DOCK.lock().unwrap().take() { unsafe { teardown(d) } }
-    float_panel(app);
+pub fn untrack(id: &str) {
+    let Ok(pid) = id.parse::<i32>() else { return };
+    let Some(app) = APP.get() else { return };
+    let _ = app.run_on_main_thread(move || {
+        let mut watched = WATCHED.lock().unwrap();
+        if let Some(i) = watched.iter().position(|w| w.pid == pid) { unsafe { teardown(watched.remove(i)) } }
+    });
 }
 
+/// Re-places every bar: after a mode switch, and when Wings itself loses focus (clicking a bar can bring it
+/// above other apps' windows).
 pub fn refresh_later(app: &AppHandle) {
     let app = app.clone();
     std::thread::spawn(move || {
         // Let the new frontmost app settle before reading it.
         std::thread::sleep(Duration::from_millis(150));
-        let _ = app.run_on_main_thread(|| {
-            if let Some(d) = DOCK.lock().unwrap().as_ref() { unsafe { refresh_locked(d) } }
+        let handle = app.clone();
+        let _ = app.run_on_main_thread(move || {
+            for w in WATCHED.lock().unwrap().iter() { unsafe { refresh_one(&handle, w) } }
         });
     });
 }
+
+/// Makes `t` the app that saves and pastes go to.
+pub fn set_active(t: &TargetInfo) {
+    let Ok(pid) = t.id.parse::<i32>() else { return };
+    super::set_target_key(&t.key);
+    let mut guard = ACTIVE.lock().unwrap();
+    if guard.as_ref().is_some_and(|a| a.pid == pid) { return; }
+    unsafe {
+        if let Some(old) = guard.take() {
+            if !old.input.is_null() { CFRelease(old.input); }
+            CFRelease(old.app_el);
+        }
+        *guard = Some(Active { pid, app_el: app_element(pid), input: null() });
+    }
+    TARGET_PID.store(pid, Ordering::SeqCst);
+}
+
+pub fn active_id() -> String { TARGET_PID.load(Ordering::SeqCst).to_string() }
 
 pub fn has_target() -> bool { TARGET_PID.load(Ordering::SeqCst) != 0 }
 
@@ -284,14 +324,6 @@ pub fn show_no_activate(win: &tauri::WebviewWindow) {
     });
 }
 
-pub fn set_float(app: &AppHandle, float: bool) {
-    FLOAT.store(float, Ordering::SeqCst);
-    let Some(win) = app.get_webview_window("main") else { return };
-    if float { show_no_activate(&win); } else { refresh_later(app); }
-}
-
-pub fn current_id() -> String { TARGET_PID.load(Ordering::SeqCst).to_string() }
-
 pub fn front_app() -> Option<TargetInfo> {
     let a = NSWorkspace::sharedWorkspace().frontmostApplication()?;
     Some(TargetInfo {
@@ -304,7 +336,7 @@ pub fn front_app() -> Option<TargetInfo> {
 /// The target's focused text input: the frame (points) of the box drawn around it, and whether it holds any text.
 /// The text is looked at only to tell empty from not; it is never kept or sent anywhere.
 pub fn focused_input() -> Option<(Frame, bool)> {
-    let mut guard = DOCK.lock().unwrap();
+    let mut guard = ACTIVE.lock().unwrap();
     let d = guard.as_mut()?;
     unsafe {
         let el = copy_attr(d.app_el, "AXFocusedUIElement")?;
@@ -378,7 +410,7 @@ unsafe fn editable_input(el: AXUIElementRef, role: Option<&str>) -> bool {
     super::apps::is_chat_input_for_app(&key, super::target_is_ide(), &hints)
 }
 
-unsafe fn input_is_focused(d: &Dock) -> bool {
+unsafe fn input_is_focused(d: &Active) -> bool {
     let Some(el) = copy_attr(d.app_el, "AXFocusedUIElement") else { return false };
     let same = !d.input.is_null() && CFEqual(el, d.input) != 0;
     CFRelease(el);
@@ -389,7 +421,7 @@ unsafe fn input_is_focused(d: &Dock) -> bool {
 /// target active but with nothing focused, and Cmd+V then goes nowhere. Asks the remembered input to
 /// take focus; if the app ignores that, clicks into it and puts the pointer back.
 pub fn focus_input() -> bool {
-    let guard = DOCK.lock().unwrap();
+    let guard = ACTIVE.lock().unwrap();
     let Some(d) = guard.as_ref() else { return false };
     unsafe {
         if !target_is_front() || d.input.is_null() { return false; }
@@ -429,62 +461,4 @@ unsafe fn has_real_text(el: AXUIElementRef) -> bool {
             .and_then(|v| core_foundation::number::CFNumber::wrap_under_create_rule(v as _).to_i64())
             .is_some_and(|n| n > 0),
     }
-}
-
-fn running_pid(bundle_id: &str) -> Option<i32> {
-    let id = objc2_foundation::NSString::from_str(bundle_id);
-    NSRunningApplication::runningApplicationsWithBundleIdentifier(&id).iter().next().map(|a| a.processIdentifier())
-}
-
-fn bundle_id(app: &std::path::Path) -> Option<String> {
-    let out = std::process::Command::new("/usr/bin/plutil")
-        .args(["-extract", "CFBundleIdentifier", "raw", "-o", "-"])
-        .arg(app.join("Contents/Info.plist"))
-        .output().ok()?;
-    let id = String::from_utf8(out.stdout).ok()?.trim().to_string();
-    (!id.is_empty()).then_some(id)
-}
-
-/// AI apps installed in /Applications or ~/Applications. `id` is the pid when running, empty otherwise.
-pub fn installed_ai_apps() -> Vec<TargetInfo> {
-    let mut dirs = vec![std::path::PathBuf::from("/Applications")];
-    if let Some(home) = std::env::var_os("HOME") { dirs.push(std::path::PathBuf::from(home).join("Applications")); }
-    let mut out = Vec::new();
-    for dir in dirs {
-        let Ok(entries) = std::fs::read_dir(&dir) else { continue };
-        for e in entries.flatten() {
-            let path = e.path();
-            if path.extension().and_then(|x| x.to_str()) != Some("app") { continue; }
-            let name = path.file_stem().and_then(|x| x.to_str()).unwrap_or_default().to_string();
-            if !crate::platform::is_ai_app(&TargetInfo { id: String::new(), key: String::new(), name: name.clone() }) { continue; }
-            let Some(key) = bundle_id(&path) else { continue };
-            if out.iter().any(|t: &TargetInfo| t.key == key) { continue; }
-            let id = running_pid(&key).map(|p| p.to_string()).unwrap_or_default();
-            out.push(TargetInfo { id, key, name });
-        }
-    }
-    crate::platform::sort_targets(&mut out);
-    out
-}
-
-/// Opens an installed app and waits until it is running with a window, so it can be docked.
-pub fn launch_app(key: &str) -> Option<TargetInfo> {
-    if running_pid(key).is_none() {
-        std::process::Command::new("/usr/bin/open").args(["-b", key]).status().ok()?;
-    }
-    let start = Instant::now();
-    while start.elapsed() < Duration::from_secs(20) {
-        if let Some(pid) = running_pid(key) {
-            let el = unsafe { AXUIElementCreateApplication(pid) };
-            let win = unsafe { copy_attr(el, "AXMainWindow").or_else(|| copy_attr(el, "AXFocusedWindow")) };
-            unsafe { if let Some(w) = win { CFRelease(w); } CFRelease(el); }
-            if win.is_some() {
-                let name = NSRunningApplication::runningApplicationWithProcessIdentifier(pid)
-                    .and_then(|a| a.localizedName()).map(|n| n.to_string()).unwrap_or_default();
-                return Some(TargetInfo { id: pid.to_string(), key: key.to_string(), name });
-            }
-        }
-        std::thread::sleep(Duration::from_millis(250));
-    }
-    None
 }

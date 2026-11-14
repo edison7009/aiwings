@@ -293,9 +293,9 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
     <h2 class="cn-display">Small tool, carefully made</h2>
     <div class="board">
       <div class="f big">
-        <h3 class="cn-display">Follows you, or stays put</h3>
-        <p>Switch to another AI app and the sidebar docks beside it. Or stick to one app, or float anywhere on screen.</p>
-        <div class="layouts"><span>Follow</span><span>Pin</span><span>Float</span></div>
+        <h3 class="cn-display">One bar per AI app, standing still</h3>
+        <p>Every open AI app gets its own sidebar, so nothing jumps around as you switch. With none open, Wings floats on its own; or keep it floating anywhere on screen.</p>
+        <div class="layouts"><span>Dock</span><span>Float</span></div>
       </div>
       <div class="f side"><h3 class="cn-display">Never sends for you</h3><p>It pastes, it never presses Enter. Sending is your call.</p></div>
       <div class="f third"><h3 class="cn-display">Also on your clipboard</h3><p>A clicked note stays on the clipboard too, so ⌘V puts it anywhere.</p></div>
@@ -308,11 +308,10 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
   <section class="wrap center">
     <h2 class="cn-display">Right beside the AI you use</h2>
     <div class="support"><table>
-      <thead><tr><th>Kind</th><th>Apps</th><th>Dock and follow</th><th>One-click save</th><th>Paste back</th></tr></thead>
+      <thead><tr><th>Kind</th><th>Apps</th><th>Dock</th><th>One-click save</th><th>Paste back</th></tr></thead>
       <tbody>
       <tr><th>AI apps</th><td>Claude, ChatGPT, Codex, Grok, Gemini, DeepSeek Harness, ZCode, Kimi, Doubao, Perplexity, GitHub Copilot, Yuanbao, Qwen, DuMate, Cline, OpenCode, Trae, MiniMax, Antigravity, Cue, Muse, WorkBuddy, Kilo Code, Cursor, Xiaomi MiMo, CodeArts, Devin, Hermes, KreoCrew, Kiro Crew, Qoder, VS Code</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td></tr>
-      <tr><th>Terminals</th><td>Terminal, iTerm2, Warp, Ghostty, WezTerm, Alacritty, kitty, Hyper, Tabby, Windows Terminal, PowerShell, cmd</td><td class="ok">✓</td><td class="no">—</td><td class="ok">✓</td></tr>
-      <tr><th>Any other app</th><td>Tick it under Pick in Settings</td><td class="ok">✓</td><td class="no">—</td><td class="ok">✓</td></tr>
+      <tr><th>Terminals</th><td>Turn on in Settings: Terminal, iTerm2, Warp, Ghostty, WezTerm, Alacritty, kitty, Hyper, Tabby, Windows Terminal, PowerShell, cmd</td><td class="ok">✓</td><td class="no">—</td><td class="ok">✓</td></tr>
       </tbody>
     </table></div>
   </section>
@@ -325,7 +324,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
       <details><summary>Does Wings read my conversations?</summary><p>No. It only cuts the text in the input box when you save. To tell whether the input is empty it checks locally for text, without storing or uploading anything.</p></details>
       <details><summary>Where are notes stored?</summary><p>In Wings' data folder on your computer. No account and no cloud sync.</p></details>
       <details><summary>Can I change the save shortcut?</summary><p>Yes. Click the shortcut in Settings and press one modifier plus one key, like ⌥S or ⌃E.</p></details>
-      <details><summary>Does it work in terminals?</summary><p>It can follow and paste into Terminal or iTerm2. The input line belongs to whatever program is running there, so saving isn't supported.</p></details>
+      <details><summary>Does it work in terminals?</summary><p>Turn terminals on in Settings and Wings docks beside and pastes into Terminal or iTerm2, never pressing Enter. The input line belongs to whatever program is running there, so saving isn't supported.</p></details>
       <details><summary>Is there a Windows version?</summary><p>Yes, Windows 10 and later. On the download page, setup.exe installs Wings; the other .exe runs with a double-click, no install.</p></details>
     </div>
   </section>

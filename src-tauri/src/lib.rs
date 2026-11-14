@@ -1,4 +1,5 @@
 mod actions;
+mod bars;
 mod clip;
 mod platform;
 mod store;
@@ -64,54 +65,19 @@ pub struct TargetInfo {
     pub name: String,
 }
 
-#[tauri::command]
-fn list_targets() -> Vec<TargetInfo> {
-    platform::list_targets()
-}
-
-/// Apps for the settings menu: AI apps installed on this machine, then any other open app (WeChat, say).
-/// `ai` marks the ones followed by default; `save` the ones Wings can also save from (the rest: send and follow).
+/// The app a bar window sits beside; None for the hover panel. `terminal`: paste only, nothing is saved from it.
 #[derive(Serialize, Clone)]
-struct MenuApp { #[serde(flatten)] app: TargetInfo, ai: bool, save: bool }
+struct BarTarget { #[serde(flatten)] app: TargetInfo, terminal: bool }
 
 #[tauri::command]
-fn list_menu_apps() -> Vec<MenuApp> {
-    let mut out: Vec<MenuApp> = Vec::new();
-    for app in platform::installed_ai_apps().into_iter().chain(platform::list_targets()) {
-        if platform::is_helper(&app) { continue; }
-        if let Some(m) = out.iter_mut().find(|m| m.app.key == app.key) {
-            if m.app.id.is_empty() { m.app.id = app.id; }
-            continue;
-        }
-        let (ai, save) = (platform::follows_by_default(&app), platform::supports_save(&app));
-        out.push(MenuApp { app, ai, save });
-    }
-    out
+fn bar_target(window: tauri::WebviewWindow) -> Option<BarTarget> {
+    bars::target_of(window.label()).map(|app| BarTarget { terminal: platform::is_terminal(&app.key), app })
 }
 
-/// Opens (if needed) an installed AI app and returns it ready to dock. Async: launching can take seconds.
+/// A bar pastes into its own app; the hover panel into the app used last.
 #[tauri::command]
-async fn open_ai_app(key: String) -> Result<TargetInfo, String> {
-    tauri::async_runtime::spawn_blocking(move || platform::launch_app(&key))
-        .await
-        .map_err(|e| e.to_string())?
-        .ok_or_else(|| "没能打开这个应用".to_string())
-}
-
-#[tauri::command]
-fn set_target(app: AppHandle, id: String, key: String) -> Result<(), String> {
-    platform::dock(app, &id)?;
-    platform::set_target_key(&key);
-    Ok(())
-}
-
-#[tauri::command]
-fn clear_target(app: AppHandle) {
-    platform::undock(&app);
-}
-
-#[tauri::command]
-fn paste_note(app: AppHandle, text: String, image: Option<String>) {
+fn paste_note(app: AppHandle, window: tauri::WebviewWindow, text: String, image: Option<String>) {
+    if let Some(t) = bars::target_of(window.label()) { platform::set_active(&t); }
     std::thread::spawn(move || actions::paste(&app, text, image));
 }
 
@@ -136,29 +102,25 @@ fn clear_input(app: AppHandle) {
     std::thread::spawn(move || actions::clear(&app));
 }
 
-/// The tray menu's items, kept so the UI can relabel them (docked app, language changes).
-struct TrayItems { target: tauri::menu::MenuItem<tauri::Wry>, show: tauri::menu::MenuItem<tauri::Wry>, quit: tauri::menu::MenuItem<tauri::Wry> }
+/// The tray menu's items, kept so the UI can relabel them on a language change.
+struct TrayItems { show: tauri::menu::MenuItem<tauri::Wry>, quit: tauri::menu::MenuItem<tauri::Wry> }
 
-/// Labels come from the UI, in its language. `docked` enables the first line, which brings both windows forward.
 #[tauri::command]
-fn set_tray_labels(app: AppHandle, target: String, docked: bool, show: String, quit: String) {
+fn set_tray_labels(app: AppHandle, show: String, quit: String) {
     if let Some(items) = app.try_state::<TrayItems>() {
-        let _ = items.target.set_text(target);
-        let _ = items.target.set_enabled(docked);
         let _ = items.show.set_text(show);
         let _ = items.quit.set_text(quit);
     }
 }
 
-/// Tray (menu bar on macOS) icon: the W on its white tile. Left click brings the bar back;
-/// the right-click menu shows the docked app and is the way to quit.
+/// Tray (menu bar on macOS) icon: the W on its white tile. Left click brings Wings into view;
+/// the right-click menu is the way to quit.
 fn build_tray(app: &tauri::App) -> tauri::Result<()> {
-    use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
+    use tauri::menu::{Menu, MenuItem};
     use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-    let target = MenuItem::with_id(app, "target", "Wings", false, None::<&str>)?;
     let show = MenuItem::with_id(app, "show", "显示 Wings", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "退出 Wings", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&target, &PredefinedMenuItem::separator(app)?, &show, &quit])?;
+    let menu = Menu::with_items(app, &[&show, &quit])?;
     TrayIconBuilder::with_id("wings")
         .icon(tauri::image::Image::from_bytes(include_bytes!("../icons/tray.png"))?)
         .tooltip("Wings")
@@ -166,37 +128,28 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
         .show_menu_on_left_click(false)
         .on_menu_event(|app, e| match e.id.as_ref() {
             "quit" => app.exit(0),
-            "show" => show_bar(app),
-            "target" => { show_bar(app); platform::activate_target(); }
+            "show" => bars::show(app),
             _ => {}
         })
         .on_tray_icon_event(|tray, e| {
             if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = e {
-                show_bar(tray.app_handle());
+                bars::show(tray.app_handle());
             }
         })
         .build(app)?;
-    app.manage(TrayItems { target, show, quit });
+    app.manage(TrayItems { show, quit });
     Ok(())
 }
 
-fn show_bar(app: &AppHandle) {
-    if let Some(win) = app.get_webview_window("main") {
-        let _ = win.show();
-        let _ = win.unminimize();
-        let _ = win.set_focus();
-    }
-}
-
+/// `float`: hover mode. `terminals`: terminals get bars too. The hover panel is always free-floating;
+/// the first call puts it back where it was last left.
 #[tauri::command]
-fn set_prefs(app: AppHandle, float: bool, follow: bool, follow_keys: Option<Vec<String>>, chip: bool, float_rect: Option<[f64; 4]>) {
-    watch::FOLLOW.store(follow, Ordering::SeqCst);
-    *watch::FOLLOW_KEYS.lock().unwrap() = follow_keys;
+fn set_prefs(app: AppHandle, float: bool, terminals: bool, chip: bool, float_rect: Option<[f64; 4]>) {
     watch::CHIP.store(chip, Ordering::SeqCst);
-    // Prefs are re-sent on every change (opacity drags too); only an actual mode switch reshapes the window.
-    static FLOATING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-    if FLOATING.swap(float, Ordering::SeqCst) != float { platform::shape_for_mode(&app, float, float_rect); }
-    platform::set_float(&app, float);
+    bars::TERMINALS.store(terminals, Ordering::SeqCst);
+    static SHAPED: std::sync::Once = std::sync::Once::new();
+    SHAPED.call_once(|| platform::shape_for_mode(&app, true, float_rect));
+    if bars::FLOAT.swap(float, Ordering::SeqCst) != float { platform::refresh_later(&app); }
 }
 
 /// Cursor position inside the window, in CSS pixels. macOS sends no mouse-move events to a window of an
@@ -227,7 +180,7 @@ fn shortcut_label() -> String {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
-            if let Some(w) = app.get_webview_window("main") { let _ = w.show(); let _ = w.set_focus(); }
+            bars::show(app);
         }))
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
@@ -259,11 +212,11 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|win, ev| {
-            // Leaving Wings for a third app must hide the docked bar; the target sends no event for that.
+            // Clicking a bar can lift it above other apps' windows: put the bars back once Wings loses focus.
             if let WindowEvent::Focused(false) = ev { platform::refresh_later(win.app_handle()); }
         })
         .invoke_handler(tauri::generate_handler![
-            list_targets, list_menu_apps, set_tray_labels, open_ai_app, set_target, clear_target, paste_note, capture_now, clear_input, set_prefs, cursor_in_window,
+            bar_target, set_tray_labels, paste_note, capture_now, clear_input, set_prefs, cursor_in_window,
             permission_granted, open_permission_settings, shortcut_label, set_shortcut,
             update::check_update, update::download_update, update::open_url,
             store::load_notes, store::add_note, store::remove_note, store::image_data_url

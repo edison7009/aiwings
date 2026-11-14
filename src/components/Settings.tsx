@@ -1,13 +1,11 @@
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { getVersion } from '@tauri-apps/api/app';
-import { withLayout, type Prefs } from '../lib/prefs';
-import type { Target } from './TargetPicker';
+import type { Prefs } from '../lib/prefs';
 import { t } from '../strings';
 import { LangMenu } from './LangMenu';
 import { Segmented } from './Segmented';
 import { layouts } from '../lib/layouts';
-import { AppMenu } from './AppMenu';
 import { ShortcutRecorder } from './ShortcutRecorder';
 import { TextSize } from './TextSize';
 import { PaletteSwatches } from './PaletteSwatches';
@@ -15,14 +13,13 @@ import { PaletteSwatches } from './PaletteSwatches';
 interface Props {
   prefs: Prefs;
   shortcut: string;
-  target: Target;
   onChange: (p: Prefs) => void;
   onError: (msg: string) => void;
   onShortcut: (label: string) => void;
   onBack: () => void;
 }
 
-export function Settings({ prefs, shortcut, target, onChange, onError, onShortcut, onBack }: Props) {
+export function Settings({ prefs, shortcut, onChange, onError, onShortcut, onBack }: Props) {
   const [version, setVersion] = useState('');
   useEffect(() => { void getVersion().then(setVersion).catch(() => {}); }, []);
   const set = <K extends keyof Prefs>(k: K, v: Prefs[K]) => onChange({ ...prefs, [k]: v });
@@ -32,11 +29,21 @@ export function Settings({ prefs, shortcut, target, onChange, onError, onShortcu
         <span className="brand" data-tauri-drag-region>{t.settings}</span>
       </header>
       <div className="panel-body settings">
-        {/* Layout first. Only lock mode asks which apps; follow and hover need no setup. */}
         <section>
-          <Segmented value={prefs.layout} options={layouts()} onChange={v => onChange(withLayout(prefs, v, target.key))} />
+          <Segmented value={prefs.layout} options={layouts()} onChange={v => set('layout', v)} />
           <p className="muted small hint">{t.layoutHint[prefs.layout]}</p>
-          {prefs.layout === 'lock' && <AppMenu keys={prefs.lockKeys} onChangeKeys={keys => set('lockKeys', keys)} />}
+        </section>
+        {/* Only bars can tell apps apart; the hover panel always lists every note. */}
+        {prefs.layout === 'follow' && (
+          <section>
+            <label>{t.notesLabel}</label>
+            <Segmented value={prefs.notesPerApp ? 'own' : 'shared'} options={[['shared', t.notesShared], ['own', t.notesPerApp]]} onChange={v => set('notesPerApp', v === 'own')} />
+          </section>
+        )}
+        <section>
+          <label>{t.terminalsLabel}</label>
+          <Segmented value={prefs.terminals ? 'on' : 'off'} options={[['on', t.on], ['off', t.off]]} onChange={v => set('terminals', v === 'on')} />
+          <p className="muted small hint">{t.terminalsHint}</p>
         </section>
         <section>
           <label>{t.chipLabel}</label>

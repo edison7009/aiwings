@@ -4,17 +4,14 @@ import { t } from '../strings';
 
 const svg = { width: 15, height: 15, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true } as const;
 
-/** Follow: an app window with Wings docked as a solid strip on its right. */
+/** Dock: an app window with Wings docked as a solid strip on its right. */
 const FollowIcon = <svg {...svg}><rect x="1.25" y="2.75" width="8" height="10.5" rx="1.5" /><rect x="10.75" y="2" width="4.5" height="12" rx="1.25" fill="currentColor" stroke="none" /></svg>;
-/** Lock ("指定"): a grid of app tiles with the chosen ones filled. */
-const LockIcon = <svg {...svg}><rect x="2" y="2" width="5" height="5" rx="1.4" fill="currentColor" stroke="none" /><rect x="9.25" y="2.25" width="4.5" height="4.5" rx="1.3" /><rect x="2.25" y="9.25" width="4.5" height="4.5" rx="1.3" /><rect x="9" y="9" width="5" height="5" rx="1.4" fill="currentColor" stroke="none" /></svg>;
 /** Hover: a small window floating over a larger one. */
 const FloatIcon = <svg {...svg}><rect x="2" y="2.5" width="12" height="9" rx="1.5" strokeDasharray="2 1.6" /><rect x="7" y="7.5" width="7" height="6" rx="1.2" fill="var(--card)" /></svg>;
 
-/** One three-way choice, in the header and in settings alike: icons, with the name as a hover tip.
+/** One two-way choice, in the header and in settings alike: icons, with the name as a hover tip.
  *  A function so the names follow the current language. */
 export const layouts = (): [Prefs['layout'], string, ReactNode][] => [
   ['follow', t.layoutFollow, FollowIcon],
-  ['lock', t.layoutLock, LockIcon],
   ['float', t.layoutFloat, FloatIcon],
 ];

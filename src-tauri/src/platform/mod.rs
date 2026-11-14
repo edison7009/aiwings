@@ -48,9 +48,8 @@ fn bar_x(f: Frame, bar_w: f64, screen_right: Option<f64>, scale: f64) -> f64 {
     }
 }
 
-/// Places the bar beside the target's right edge (see `bar_x`).
-pub fn place_bar(app: &AppHandle, f: Frame, scale: f64) {
-    let Some(win) = app.get_webview_window("main") else { return };
+/// Places a bar beside its target's right edge (see `bar_x`).
+pub fn place_bar(win: &tauri::WebviewWindow, app: &AppHandle, f: Frame, scale: f64) {
     let bar_w = BAR_WIDTH * scale;
     let right = app.monitor_from_point(f.x + f.w / 2.0, f.y + f.h / 2.0).ok().flatten()
         .map(|m| (m.position().x as f64) + m.size().width as f64);
@@ -59,25 +58,16 @@ pub fn place_bar(app: &AppHandle, f: Frame, scale: f64) {
     let _ = win.set_position(PhysicalPosition::new(x.round() as i32, f.y.round() as i32));
 }
 
-/// Back to a free-floating panel for the picker.
-pub fn float_panel(app: &AppHandle) {
-    if let Some(win) = app.get_webview_window("main") {
-        let _ = win.set_size(LogicalSize::new(BAR_WIDTH, 520.0));
-        let _ = win.center();
-        let _ = win.show();
-    }
-}
-
 mod apps;
 
 fn ai_rank(t: &crate::TargetInfo) -> usize { apps::rank(&t.name, &t.key) }
 
-/// Whether an app is one of the AI apps Wings follows when "follow" is on.
+/// Whether an app is one of the AI apps Wings docks to.
 pub fn is_ai_app(t: &crate::TargetInfo) -> bool { apps::is_ai(&t.name, &t.key) }
 
-/// Terminals (Windows and macOS hosts) use docking and paste only; they are followed by default too.
-pub fn follows_by_default(t: &crate::TargetInfo) -> bool {
-    is_ai_app(t) || is_terminal(&t.key)
+/// AI apps always get a bar; terminals (docking and paste only) when the user turned them on.
+pub fn follows(t: &crate::TargetInfo, terminals: bool) -> bool {
+    is_ai_app(t) || (terminals && is_terminal(&t.key))
 }
 
 pub fn target_is_ide() -> bool { apps::is_ide("", &TARGET_KEY.lock().unwrap()) }
@@ -161,7 +151,7 @@ static TARGET_KEY: std::sync::Mutex<String> = std::sync::Mutex::new(String::new(
 
 pub fn set_target_key(key: &str) { *TARGET_KEY.lock().unwrap() = key.to_lowercase(); }
 
-/// The docked app's key, lowercased.
+/// The active app's key (the one saves and pastes go to), lowercased.
 pub fn target_key() -> String { TARGET_KEY.lock().unwrap().clone() }
 
 pub fn is_terminal(key: &str) -> bool {
@@ -179,8 +169,8 @@ fn input_unsupported(key: &str) -> bool {
 pub fn target_input_unsupported() -> bool { input_unsupported(&TARGET_KEY.lock().unwrap()) }
 
 /// Apps eligible for saving; the focused input must also pass runtime accessibility checks.
-/// Everything else can still be followed and pasted into.
-pub fn supports_save(t: &crate::TargetInfo) -> bool { is_ai_app(t) && !is_terminal(&t.key) && !input_unsupported(&t.key) }
+#[cfg(test)]
+fn supports_save(t: &crate::TargetInfo) -> bool { is_ai_app(t) && !is_terminal(&t.key) && !input_unsupported(&t.key) }
 
 /// Helper bundles that ship inside or beside an app (URL handlers, updaters) are not apps to pick.
 pub fn is_helper(t: &crate::TargetInfo) -> bool {
@@ -193,10 +183,10 @@ mod input_box_tests {
     use super::*;
 
     #[test]
-    fn macos_terminals_follow_without_save() {
+    fn macos_terminals_follow_only_when_on_and_never_save() {
         for key in ["com.apple.Terminal", "com.googlecode.iterm2", "dev.warp.Warp-Stable", "com.mitchellh.ghostty"] {
             let terminal = crate::TargetInfo { id: "123".into(), key: key.into(), name: "Terminal".into() };
-            assert!(follows_by_default(&terminal), "{key}");
+            assert!(follows(&terminal, true) && !follows(&terminal, false), "{key}");
             assert!(!supports_save(&terminal), "{key}");
         }
     }
@@ -207,11 +197,11 @@ mod input_box_tests {
         for key in ["WindowsTerminal.exe", "powershell.exe", "pwsh.exe", "cmd.exe", "OpenConsole.exe", "conhost.exe"] {
             let terminal = crate::TargetInfo { id: "123".into(), key: key.into(), name: "PowerShell".into() };
             assert!(is_terminal(key), "{key}");
-            assert!(follows_by_default(&terminal), "{key}");
+            assert!(follows(&terminal, true) && !follows(&terminal, false), "{key}");
             assert!(!supports_save(&terminal), "{key}");
         }
         let document = crate::TargetInfo { id: "456".into(), key: "notepad.exe".into(), name: "PowerShell notes".into() };
-        assert!(!follows_by_default(&document));
+        assert!(!follows(&document, true));
     }
 
     #[test]

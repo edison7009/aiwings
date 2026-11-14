@@ -287,7 +287,7 @@ h1 { font-size: 15px; margin: 6px 0 4px; }
 .settings .row-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .small { font-size: 12px; margin: 6px 0 0; }
 .settings .hint { margin: 8px 0 0; }
-/* App menu: opens below its button, never over it. */
+/* Language menu: opens below its button, never over it. */
 .app-menu { position: relative; margin-top: 8px; }
 .app-menu-button, .app-menu-list button {
   width: 100%;
@@ -314,8 +314,6 @@ h1 { font-size: 15px; margin: 6px 0 4px; }
 .app-menu-list button { justify-content: flex-start; }
 .app-menu-list .row-text { flex: 1; }
 .app-menu-check { width: 14px; flex-shrink: 0; color: var(--accent); font-weight: 600; }
-.app-menu-empty { padding: 6px 10px; color: var(--muted); }
-.save-tag { font-size: 11px; flex-shrink: 0; color: var(--accent); }
 kbd { font: inherit; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--line); }
 .shortcut-row { width: 100%; text-align: left; }
 .shortcut-row.is-recording kbd { color: var(--accent); border-color: var(--accent); }
