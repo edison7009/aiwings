@@ -47,6 +47,8 @@ pub fn start(app: AppHandle) {
                 .then(platform::focused_input).flatten().filter(|_| CHIP.load(Ordering::SeqCst));
             let Some(chip) = app.get_webview_window("chip") else { continue };
             if PRESSED_AT.lock().unwrap().is_some_and(|t| t.elapsed() < PRESS_HOLD) { continue; }
+            // A recording keeps the chip where it is until its text has been pasted.
+            if crate::voice::ACTIVE.load(Ordering::SeqCst) { continue; }
             match input {
                 Some((frame, has_text)) => {
                     hide_at = None;

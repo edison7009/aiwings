@@ -288,6 +288,36 @@ h1 { font-size: 15px; margin: 6px 0 4px; }
 .settings-back:hover { transform: none; }
 
 .settings section { margin: 4px 0 16px; }
+/* Settings tabs along the bottom, left of the round back button. */
+.settings-tabs { flex: 1; min-width: 0; margin-right: 40px; }
+.settings-tabs .segmented { display: grid; width: 100%; }
+.settings .settings-about { margin-top: 4px; text-align: center; }
+/* Settings → Voice. */
+.voice-test { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.voice-btn { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 8px; background: var(--card); font-size: 12px; flex-shrink: 0; }
+.voice-btn:hover:not(:disabled) { background: var(--card-hover); }
+.voice-btn:disabled { color: var(--muted); cursor: default; }
+.voice-btn.is-on { color: var(--accent); }
+.voice-meter { flex: 1; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.voice-meter span { display: block; height: 100%; background: var(--accent); transition: width 0.1s; }
+.voice-head { display: flex; align-items: center; justify-content: space-between; font-weight: 600; margin-bottom: 6px; }
+.voice-head .ghost { font-weight: 400; font-size: 12px; }
+.voice-sources { display: grid; gap: 6px; }
+.voice-source-wrap { position: relative; }
+.voice-source { width: 100%; display: grid; gap: 2px; padding: 7px 10px; border-radius: 8px; background: var(--card); text-align: left; border: 1px solid transparent; }
+.voice-source:hover { background: var(--card-hover); }
+.voice-source[aria-pressed="true"] { border-color: var(--accent); }
+.voice-source[data-issue] .voice-source-name { color: var(--muted); }
+.voice-source-name { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+.voice-source-mode { font-size: 11px; font-weight: 400; padding: 0 5px; border-radius: 4px; background: var(--line); color: var(--muted); }
+.voice-source-status { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.voice-source-edit { position: absolute; top: 6px; right: 6px; font-size: 12px; }
+.voice-api { margin-top: 8px; padding: 8px 10px; border-radius: 8px; background: var(--card); }
+.voice-api .small { margin: 0 0 8px; }
+.settings label.voice-field { display: grid; grid-template-columns: 1fr; gap: 3px; font-weight: 400; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+.voice-field input { width: 100%; padding: 5px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font: inherit; font-size: 12px; }
+.voice-field input:focus { outline: none; border-color: var(--accent); }
+.voice-api-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .settings label { display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 6px; }
 .settings .segmented { display: grid; width: 100%; }
 .settings .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; border-radius: 8px; background: var(--card); }
@@ -366,6 +396,15 @@ kbd { font: inherit; padding: 1px 6px; border-radius: 4px; border: 1px solid var
 .chip-action:not([aria-disabled="true"]):hover { background: rgba(255, 255, 255, 0.16); }
 .chip-action:not([aria-disabled="true"]):active { background: rgba(0, 0, 0, 0.12); }
 .chip-action[aria-disabled="true"] { cursor: default; }
+/* The microphone works on an empty box too, so it stays bright on the dark pill. */
+.chip-ground:not([data-enabled]) .chip-mic { color: #ffffff; }
+.chip-mic:hover { background: rgba(255, 255, 255, 0.16); }
+/* Recording: cancel · a small level meter and what was heard so far · done. */
+.chip-voice-text { display: flex; align-items: center; gap: 6px; max-width: 220px; padding: 0 8px; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.28); }
+.chip-voice-text + .chip-action { box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.28); }
+.chip-voice-level { display: flex; align-items: center; gap: 2px; height: 12px; flex-shrink: 0; }
+.chip-voice-level i { width: 2px; border-radius: 1px; background: currentColor; height: calc(3px + 9px * var(--level)); transition: height 0.1s; }
+.chip-voice-level i:nth-child(2) { height: calc(3px + 9px * min(1, var(--level) * 1.4)); }
 @media (prefers-reduced-motion: reduce) { .chip-ground { transition: none; } }
 
 /* Icon options in a segmented switch. The name shows as a themed tip on hover (Coffee CLI's style). */

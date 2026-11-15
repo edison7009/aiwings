@@ -9,6 +9,7 @@ import { layouts } from '../lib/layouts';
 import { ShortcutRecorder } from './ShortcutRecorder';
 import { TextSize } from './TextSize';
 import { PaletteSwatches } from './PaletteSwatches';
+import { VoiceSettings } from './VoiceSettings';
 
 interface Props {
   prefs: Prefs;
@@ -19,7 +20,11 @@ interface Props {
   onBack: () => void;
 }
 
+/** The tabs along the bottom; each later feature adds one. */
+type Tab = 'general' | 'voice';
+
 export function Settings({ prefs, shortcut, onChange, onError, onShortcut, onBack }: Props) {
+  const [tab, setTab] = useState<Tab>('general');
   const [version, setVersion] = useState('');
   useEffect(() => { void getVersion().then(setVersion).catch(() => {}); }, []);
   const set = <K extends keyof Prefs>(k: K, v: Prefs[K]) => onChange({ ...prefs, [k]: v });
@@ -28,7 +33,7 @@ export function Settings({ prefs, shortcut, onChange, onError, onShortcut, onBac
       <header className="panel-head" data-tauri-drag-region>
         <span className="brand" data-tauri-drag-region>{t.settings}</span>
       </header>
-      <div className="panel-body settings">
+      {tab === 'voice' ? <div className="panel-body settings"><VoiceSettings onError={onError} /></div> : <div className="panel-body settings">
         <section>
           <Segmented value={prefs.layout} options={layouts()} onChange={v => set('layout', v)} />
           <p className="muted small hint">{t.layoutHint[prefs.layout]}</p>
@@ -66,13 +71,16 @@ export function Settings({ prefs, shortcut, onChange, onError, onShortcut, onBac
           <label>{t.shortcut}</label>
           <ShortcutRecorder label={shortcut} onChange={onShortcut} onError={onError} />
         </section>
-      </div>
-      <footer className="settings-foot">
-        <span className="settings-about">
+        <p className="settings-about muted small">
           {version ? `v${version}` : ''}
           {version && <span aria-hidden> · </span>}
           <button type="button" onClick={() => void invoke('open_url', { url: 'https://aiwings.app' })}>aiwings.app</button>
-        </span>
+        </p>
+      </div>}
+      <footer className="settings-foot">
+        <div className="settings-tabs">
+          <Segmented value={tab} options={[['general', t.tabGeneral], ['voice', t.tabVoice]]} onChange={setTab} />
+        </div>
         {/* Round back button in the gear's spot: settings opens and closes from the same place. */}
         <button type="button" className="gear settings-back" aria-label={t.back} onClick={onBack}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>

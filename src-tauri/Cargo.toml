@@ -12,6 +12,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
+cc = "1"
 
 [dependencies]
 tauri = { version = "2", features = ["macos-private-api", "tray-icon", "image-png"] }
@@ -24,6 +25,11 @@ png = "0.18"
 base64 = "0.22"
 ureq = { version = "2", features = ["json"] }
 sha2 = "0.10"
+# Voice input: microphone capture and the vendors' streaming speech-to-text sockets (ported from Coffee CLI).
+cpal = "0.17"
+tokio = { version = "1", features = ["sync", "time", "macros", "net"] }
+tokio-tungstenite = { version = "0.28", features = ["rustls-tls-webpki-roots"] }
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 core-foundation = "0.10"

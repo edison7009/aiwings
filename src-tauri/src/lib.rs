@@ -4,6 +4,7 @@ mod clip;
 mod platform;
 mod store;
 mod update;
+mod voice;
 mod watch;
 
 use serde::Serialize;
@@ -137,8 +138,17 @@ fn chip_state() -> Option<bool> { *watch::CHIP_STATE.lock().unwrap() }
 
 /// The chip page's pill width, so its window covers no more of the input box than the buttons do.
 #[tauri::command]
-fn set_chip_width(width: f64) {
-    *platform::CHIP_WIDTH.lock().unwrap() = width.clamp(60.0, 400.0);
+fn set_chip_width(app: AppHandle, width: f64) {
+    let width = width.clamp(60.0, 400.0);
+    *platform::CHIP_WIDTH.lock().unwrap() = width;
+    // Resize a shown chip right away, keeping its right edge in place: while recording the watcher holds
+    // it still and would not.
+    let Some(chip) = app.get_webview_window("chip") else { return };
+    if !chip.is_visible().unwrap_or(false) { return; }
+    let (Ok(pos), Ok(size), Ok(scale)) = (chip.outer_position(), chip.outer_size(), chip.scale_factor()) else { return };
+    let w = (width * scale).round() as i32;
+    let _ = chip.set_size(tauri::PhysicalSize::new(w as u32, size.height));
+    let _ = chip.set_position(tauri::PhysicalPosition::new(pos.x + size.width as i32 - w, pos.y));
 }
 
 /// The tray menu's items, kept so the UI can relabel them on a language change.
@@ -262,7 +272,9 @@ pub fn run() {
             bar_target, hide_wings, set_tray_labels, paste_note, capture_now, clear_input, input_text, share_link, set_chip_width, chip_state, chip_pressed, set_prefs, cursor_in_window,
             permission_granted, open_permission_settings, shortcut_label, set_shortcut,
             update::check_update, update::download_update, update::open_url,
-            store::load_notes, store::add_note, store::remove_note, store::image_data_url
+            store::load_notes, store::add_note, store::remove_note, store::image_data_url,
+            voice::voice_sources, voice::voice_start, voice::voice_finish, voice::voice_cancel, voice::voice_devices,
+            voice::voice_mic_test_start, voice::voice_mic_test_stop, voice::voice_api_get, voice::voice_api_set
         ])
         .run(tauri::generate_context!())
         .expect("error while running Wings");
