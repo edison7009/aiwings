@@ -10,6 +10,11 @@ pub static CHIP: AtomicBool = AtomicBool::new(true);
 /// chip page that loads after the event went out can ask for it.
 pub static CHIP_STATE: std::sync::Mutex<Option<bool>> = std::sync::Mutex::new(None);
 
+/// When the chip was last pressed. Pressing it makes Wings the active app for a moment, so the target's
+/// input looks gone; the chip keeps its state until the action has handed focus back.
+pub static PRESSED_AT: std::sync::Mutex<Option<std::time::Instant>> = std::sync::Mutex::new(None);
+const PRESS_HOLD: Duration = Duration::from_millis(1500);
+
 fn tell_chip(chip: &tauri::WebviewWindow, state: Option<bool>) {
     *CHIP_STATE.lock().unwrap() = state;
     let _ = chip.emit("wings://chip", state);
@@ -41,6 +46,7 @@ pub fn start(app: AppHandle) {
             let input = (platform::target_is_front() && !platform::target_input_unsupported() && !platform::target_is_terminal())
                 .then(platform::focused_input).flatten().filter(|_| CHIP.load(Ordering::SeqCst));
             let Some(chip) = app.get_webview_window("chip") else { continue };
+            if PRESSED_AT.lock().unwrap().is_some_and(|t| t.elapsed() < PRESS_HOLD) { continue; }
             match input {
                 Some((frame, has_text)) => {
                     hide_at = None;

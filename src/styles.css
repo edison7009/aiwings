@@ -376,9 +376,9 @@ kbd { font: inherit; padding: 1px 6px; border-radius: 4px; border: 1px solid var
 .chip-action + .chip-action { box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.28); }
 .chip-action.chip-icon { width: 26px; padding: 0; }
 .chip-action svg { width: 12px; height: 12px; }
-.chip-action:not(:disabled):hover { background: rgba(255, 255, 255, 0.16); }
-.chip-action:not(:disabled):active { background: rgba(0, 0, 0, 0.12); }
-.chip-action:disabled { cursor: default; }
+.chip-action:not([aria-disabled="true"]):hover { background: rgba(255, 255, 255, 0.16); }
+.chip-action:not([aria-disabled="true"]):active { background: rgba(0, 0, 0, 0.12); }
+.chip-action[aria-disabled="true"] { cursor: default; }
 @media (prefers-reduced-motion: reduce) { .chip-ground { transition: none; } }
 
 /* Icon options in a segmented switch. The name shows as a themed tip on hover (Coffee CLI's style). */
