@@ -25,6 +25,13 @@ pub fn target_prefers_inner_box() -> bool {
         || key.contains("kilo") || apps::is_qoder(&key)
 }
 
+/// Something sits wholly above the input box inside `parent`'s children (a "10 files changed" pill, a
+/// banner): the parent wraps the box and what is stacked on it, so it is not the box. Only asked once the
+/// box already has its toolbar row: attachments sit above the text too, but inside the box.
+pub fn stacked_above(input_box: Frame, children: &[Frame]) -> bool {
+    children.iter().any(|c| c.w > 0.0 && c.h > 0.0 && c.y + c.h <= input_box.y + 1.0)
+}
+
 pub fn input_box_has_toolbar(text: Frame, candidate: Frame, scale: f64, min_padding: f64) -> bool {
     candidate.w >= text.w + min_padding * scale
         && candidate.y + candidate.h >= text.y + text.h + 24.0 * scale
@@ -232,6 +239,16 @@ mod input_box_tests {
         assert_eq!(bar_x(f(1920.0, 2880.0), 560.0, Some(4800.0), 2.0, false), None);
         assert_eq!(bar_x(f(1920.0, 2880.0), 560.0, Some(4800.0), 2.0, true), Some(4240.0));
         assert_eq!(bar_x(f(1920.0, 1000.0), 560.0, None, 2.0, false), Some(2918.0));
+    }
+
+    #[test]
+    fn a_pill_above_the_box_is_not_part_of_it() {
+        let input = Frame { x: 0.0, y: 600.0, w: 700.0, h: 110.0 };
+        // "10 files changed" above the composer, with a gap.
+        assert!(stacked_above(input, &[Frame { x: 250.0, y: 550.0, w: 180.0, h: 32.0 }, input]));
+        // Only the box itself, or something overlapping its top: still the box.
+        assert!(!stacked_above(input, &[input]));
+        assert!(!stacked_above(input, &[Frame { x: 0.0, y: 590.0, w: 700.0, h: 40.0 }]));
     }
 
     #[test]

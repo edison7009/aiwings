@@ -448,11 +448,27 @@ unsafe fn input_box(el: AXUIElementRef, text: Frame) -> Frame {
             // the height cap is what stops the climb at the box instead of the whole conversation column.
             && f.h <= text.h + 420.0;
         if !hugs { break; }
+        // Already the whole box (toolbar included) and this parent also holds something stacked on top
+        // of it: stop here, or the chip rides that instead of the box's border.
+        if f.y < best.y - 1.0 && super::input_box_has_toolbar(text, best, 1.0, min_padding)
+            && super::stacked_above(best, &child_frames(parent)) { break; }
         best = f;
         if prefer_inner && super::input_box_has_toolbar(text, f, 1.0, min_padding) { break; }
     }
     for o in owned { CFRelease(o); }
     best
+}
+
+/// The frames of an element's direct children.
+unsafe fn child_frames(el: AXUIElementRef) -> Vec<Frame> {
+    use core_foundation_sys::array::{CFArrayGetCount, CFArrayGetValueAtIndex, CFArrayRef};
+    let Some(children) = copy_attr(el, "AXChildren") else { return Vec::new() };
+    let list = children as CFArrayRef;
+    // A composer's wrapper has a handful of children; a huge list is not one worth reading.
+    let count = CFArrayGetCount(list).min(32);
+    let frames = (0..count).filter_map(|i| frame_of(CFArrayGetValueAtIndex(list, i) as AXUIElementRef)).collect();
+    CFRelease(children);
+    frames
 }
 
 unsafe fn editable_input(el: AXUIElementRef, role: Option<&str>) -> bool {
