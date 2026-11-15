@@ -16,10 +16,11 @@ Queue your next prompt while the AI is busy, then paste it back in one click. Wi
 
 - **Save**: write in the input box, then click "Save to Wings" above it, or press **Alt+S** (⌥S on macOS). The text (or an image) goes into Wings and the input box is cleared.
 - **Send**: click an item in Wings to paste it back into the input box. It is never sent automatically, and it stays on the clipboard so you can paste it elsewhere too.
-- **Dock**: every open AI app gets its own Wings bar beside it, so nothing jumps around when you switch apps; a note pastes into the app whose bar you click. With no AI app open, Wings hovers on its own; you can also keep it hovering anywhere.
+- **Dock**: every open AI app gets its own Wings bar beside it, so nothing jumps around when you switch apps; a note pastes into the app whose bar you click. When a window is too wide for it, the bar tucks itself away; the arrow on the input box or the × on a bar hides or shows all bars at once.
+- **Voice**: click the microphone on the input box and speak; click ✓ when done and the text goes into the box. It uses the Claude Code or Codex sign-in on this computer, macOS dictation, or your own OpenAI-compatible API key; pick one in Settings → Voice.
 - **Notes**: all AI apps share one list by default. In Settings you can switch to per window, where each bar lists only the notes saved from its own app.
 - **Languages**: the interface comes in Simplified Chinese, Traditional Chinese, English, Japanese, Korean, Spanish, French, German, Portuguese and Russian. Switch in Settings; it follows your system by default.
-- **Terminals**: off by default; turn them on in Settings. Send only: clicking a note pastes it into the terminal without pressing Enter. Saving and clearing are not supported in terminals.
+- **Terminals**: off by default; turn them on in Settings. Send only: clicking a note pastes it into the terminal without pressing Enter. Saving is not supported in terminals.
 
 ## Supported apps
 
