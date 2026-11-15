@@ -54,6 +54,8 @@ sha1 = "0.10"
 pbkdf2 = "0.12"
 rsa = { version = "0.9", features = ["pem"] }
 rand = "0.8"
+# Doubao writes its imported session atomically through a temporary file (Windows).
+tempfile = "3"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 core-foundation = "0.10"
@@ -80,7 +82,6 @@ windows = { version = "0.58", features = [
 [dev-dependencies]
 # The ported speech adapters' tests run local stand-ins for the vendors' servers.
 axum = { version = "0.8", features = ["ws", "http2"] }
-tempfile = "3"
 
 [profile.release]
 lto = true
