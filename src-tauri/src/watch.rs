@@ -69,7 +69,7 @@ pub fn start(app: AppHandle) {
                     }
                     if hide_at.is_some_and(|t| std::time::Instant::now() >= t) {
                         hide_at = None;
-                        let _ = chip.hide();
+                        platform::hide(&chip);
                     }
                 }
             }

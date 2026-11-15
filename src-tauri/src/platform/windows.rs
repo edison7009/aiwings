@@ -22,7 +22,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
     DispatchMessageW, EnumWindows, GetAncestor, GetForegroundWindow, GetMessageW, GetWindow, GetWindowTextLengthW,
     GetWindowTextW, GetWindowThreadProcessId, IsIconic, IsWindow, IsWindowVisible, PostThreadMessageW,
     SetForegroundWindow, SetWindowLongPtrW, ShowWindow, TranslateMessage, GA_ROOTOWNER, GWLP_HWNDPARENT, GW_OWNER,
-    MSG, SW_RESTORE, SW_SHOWNOACTIVATE, WINEVENT_OUTOFCONTEXT, WM_QUIT,
+    MSG, SW_HIDE, SW_RESTORE, SW_SHOWNOACTIVATE, WINEVENT_OUTOFCONTEXT, WM_QUIT,
 };
 
 const EVENT_SYSTEM_MINIMIZESTART: u32 = 0x0016;
@@ -77,7 +77,7 @@ fn refresh_one(app: &AppHandle, t: HWND, label: &str) {
             place_bar(&bar, app, f, scale);
             show_no_activate(&bar);
         }
-        None => { let _ = bar.hide(); }
+        None => hide(&bar),
     }
 }
 
@@ -299,6 +299,14 @@ pub fn list_targets() -> Vec<TargetInfo> {
 
 pub fn show_no_activate(win: &tauri::WebviewWindow) {
     if let Ok(h) = win.hwnd() { unsafe { let _ = ShowWindow(HWND(h.0 as *mut _), SW_SHOWNOACTIVATE); } }
+}
+
+/// Hides a window. Tauri remembers whether it showed a window and skips a hide it thinks is already done,
+/// so a window shown by `show_no_activate` (behind its back) is hidden here directly; the Tauri hide after
+/// it keeps that memory in step for a later `show()`.
+pub fn hide(win: &tauri::WebviewWindow) {
+    if let Ok(h) = win.hwnd() { unsafe { let _ = ShowWindow(HWND(h.0 as *mut _), SW_HIDE); } }
+    let _ = win.hide();
 }
 
 pub fn front_app() -> Option<TargetInfo> {

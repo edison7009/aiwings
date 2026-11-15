@@ -148,7 +148,7 @@ unsafe fn refresh_one(app: &AppHandle, w: &Watched) {
     let Some(bar) = app.get_webview_window(&w.label) else { return };
     let up = !crate::bars::FLOAT.load(Ordering::SeqCst) && !crate::bars::HIDDEN.load(Ordering::SeqCst) && !w.window.is_null() && !is_minimized(w.window) && !app_hidden(w.pid);
     let frame = up.then(|| Some((read_pair(w.window, "AXPosition", 1)?, read_pair(w.window, "AXSize", 2)?))).flatten();
-    let Some((pos, size)) = frame else { let _ = bar.hide(); return };
+    let Some((pos, size)) = frame else { hide(&bar); return };
     let s = bar.scale_factor().unwrap_or(1.0);
     place_bar(&bar, app, Frame { x: pos.a * s, y: pos.b * s, w: size.a * s, h: size.b * s }, s);
     let mut wid = 0u32;
@@ -331,6 +331,8 @@ pub fn show_no_activate(win: &tauri::WebviewWindow) {
         }
     });
 }
+
+pub fn hide(win: &tauri::WebviewWindow) { let _ = win.hide(); }
 
 pub fn front_app() -> Option<TargetInfo> {
     let a = NSWorkspace::sharedWorkspace().frontmostApplication()?;

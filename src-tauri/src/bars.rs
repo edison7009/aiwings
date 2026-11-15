@@ -102,7 +102,7 @@ pub fn update_main(app: &AppHandle, trusted: bool) {
         if start.elapsed() < Duration::from_secs(1) { return; }
     }
     *since = None;
-    if want { platform::show_no_activate(&main); } else { let _ = main.hide(); }
+    if want { platform::show_no_activate(&main); } else { platform::hide(&main); }
 }
 
 /// Where an error from a save or paste is shown: the bar of the app it happened in, if it is up;
@@ -119,8 +119,8 @@ pub fn error_window(app: &AppHandle) -> String {
 /// The close button: puts every bar and the hover panel away. Wings keeps running in the tray.
 pub fn hide_all(app: &AppHandle) {
     HIDDEN.store(true, Ordering::SeqCst);
-    for l in labels() { if let Some(w) = app.get_webview_window(&l) { let _ = w.hide(); } }
-    if let Some(w) = app.get_webview_window("main") { let _ = w.hide(); }
+    for l in labels() { if let Some(w) = app.get_webview_window(&l) { platform::hide(&w); } }
+    if let Some(w) = app.get_webview_window("main") { platform::hide(&w); }
 }
 
 /// Brings Wings into view from the tray: the hover panel when that is what is showing, else the bars.
