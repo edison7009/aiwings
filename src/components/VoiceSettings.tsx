@@ -6,7 +6,7 @@ import { Channel, invoke } from '@tauri-apps/api/core';
 import { t } from '../strings';
 import { Segmented } from './Segmented';
 import { PickMenu } from './PickMenu';
-import { loadVoiceSources, setVoiceDevice, setVoiceEnabled, setVoiceSource, useVoiceDevice, useVoiceEnabled, useVoiceSource, type OwnSourceId, type VoiceSource } from '../lib/voice';
+import { cachedVoiceSources, scanVoiceSources, setVoiceDevice, voiceError, setVoiceEnabled, setVoiceSource, useVoiceDevice, useVoiceEnabled, useVoiceSource, type OwnSourceId, type VoiceSource } from '../lib/voice';
 
 const OWN = ['claude', 'codex', 'api', 'macos'];
 const sourceName = (s: VoiceSource) => OWN.includes(s.id) ? t.voiceSourceNames[s.id as OwnSourceId] : s.name;
@@ -55,20 +55,21 @@ export function VoiceSettings({ onError }: { onError: (msg: string) => void }) {
   const enabled = useVoiceEnabled();
   const device = useVoiceDevice();
   const source = useVoiceSource();
-  const [sources, setSources] = useState<VoiceSource[] | null>(null);
+  const [sources, setSources] = useState<VoiceSource[] | null>(cachedVoiceSources);
   const [scanning, setScanning] = useState(false);
   const [editApi, setEditApi] = useState(false);
   const [mics, setMics] = useState<{ devices: string[]; default: string | null } | null>(null);
   const [testing, setTesting] = useState(false);
   const [level, setLevel] = useState(0);
 
-  // "Refresh": signing in or out happens in the tools themselves, so look again.
+  // "Refresh": signing in or out happens in the tools themselves, so look again. Without a saved scan,
+  // the first look happens on its own.
   const scan = async () => {
     setScanning(true);
-    try { setSources(await loadVoiceSources()); } catch (e) { onError(String(e)); }
+    try { setSources(await scanVoiceSources()); } catch (e) { onError(voiceError(String(e))); }
     finally { setScanning(false); }
   };
-  useEffect(() => { if (enabled) void scan(); }, [enabled]);
+  useEffect(() => { if (enabled && !cachedVoiceSources()) void scan(); }, [enabled]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -111,7 +112,7 @@ export function VoiceSettings({ onError }: { onError: (msg: string) => void }) {
     if (s.issue) return;
     // Doubao: its session is copied into Wings' own store first (Coffee CLI's way).
     if (s.id === 'doubao' || s.id === 'doubaowork') {
-      void invoke('voice_select_source', { source: s.id }).then(() => setVoiceSource(s.id), e => onError(String(e)));
+      void invoke('voice_select_source', { source: s.id }).then(() => setVoiceSource(s.id), e => onError(voiceError(String(e))));
       return;
     }
     setVoiceSource(s.id);

@@ -4,6 +4,7 @@
 import { useSyncExternalStore } from 'react';
 import { Channel, invoke } from '@tauri-apps/api/core';
 import { readPrefs } from './prefs';
+import { t } from '../strings';
 
 /** Wings' own sources (always listed, named in the UI language); other apps' sign-ins come with their own name. */
 export type OwnSourceId = 'claude' | 'codex' | 'api' | 'macos';
@@ -55,11 +56,32 @@ export function voiceLanguage(): string {
   return tag.split('-')[0];
 }
 
-export const loadVoiceSources = () => invoke<VoiceSource[]>('voice_sources');
+/** A speech error code as words; anything unknown is shown as it came. */
+export function voiceError(message: string): string {
+  const known = (t.voiceErrors as Record<string, string>)[message];
+  return known ?? t.voiceFailed(message);
+}
 
-/** Starts a recording; events arrive on `onEvent` until the final text, an error, or a cancel. */
+// The last scan, kept on this machine: scanning reads other apps' sign-ins (spawning some of them, asking
+// the keychain), so it runs only the first time and on Refresh, as in Coffee CLI.
+const SOURCES = 'wings-voice-sources';
+export function cachedVoiceSources(): VoiceSource[] | null {
+  try {
+    const list: unknown = JSON.parse(localStorage.getItem(SOURCES) ?? 'null');
+    return Array.isArray(list) && list.every(s => s && typeof s.id === 'string' && typeof s.name === 'string') ? list as VoiceSource[] : null;
+  } catch { return null; }
+}
+export async function scanVoiceSources(): Promise<VoiceSource[]> {
+  const list = await invoke<VoiceSource[]>('voice_sources');
+  try { localStorage.setItem(SOURCES, JSON.stringify(list)); } catch { /* Best effort. */ }
+  return list;
+}
+
+/** Starts a recording; events arrive on `onEvent` until the final text, an error, or a cancel. Automatic
+ *  mode also tries the other apps' sign-ins the last scan found usable. */
 export function startVoice(onEvent: (e: VoiceEvent) => void): Promise<number> {
   const channel = new Channel<VoiceEvent>();
   channel.onmessage = onEvent;
-  return invoke<number>('voice_start', { source: voiceSource(), language: voiceLanguage(), device: voiceDevice() || null, onEvent: channel });
+  const found = (cachedVoiceSources() ?? []).filter(s => !s.issue).map(s => s.id);
+  return invoke<number>('voice_start', { source: voiceSource(), found, language: voiceLanguage(), device: voiceDevice() || null, onEvent: channel });
 }

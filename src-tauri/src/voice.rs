@@ -244,7 +244,7 @@ enum Input {
 /// One source's account, ready to record with.
 async fn input_of(app: &AppHandle, id: &str) -> Result<Input, String> {
     match id {
-        "claude" | "codex" | "api" | "macos" => {
+        id if OWN.contains(&id) => {
             let (app, id) = (app.clone(), id.to_string());
             // Reading the keychain and files blocks: keep it off the async runtime.
             tauri::async_runtime::spawn_blocking(move || match id.as_str() {
@@ -265,10 +265,13 @@ async fn input_of(app: &AppHandle, id: &str) -> Result<Input, String> {
     }
 }
 
-/// Automatic: Wings' own sources first, then every other app's sign-in Wings can use.
-fn auto_order() -> Vec<String> {
-    ["claude", "codex", "api", "macos", "workbuddy", "cursor", "doubao", "doubaowork"].into_iter()
-        .map(str::to_owned).chain(echo::channels().map(str::to_owned)).collect()
+/// Wings' own sources, always listed.
+const OWN: [&str; 4] = ["claude", "codex", "api", "macos"];
+
+/// Automatic: Wings' own sources first, then the other apps' sign-ins the last scan found usable (`found`).
+/// Trying every app Wings knows instead would take seconds before the microphone opens.
+fn auto_order(found: Vec<String>) -> Vec<String> {
+    OWN.into_iter().map(str::to_owned).chain(found.into_iter().filter(|id| !OWN.contains(&id.as_str()))).collect()
 }
 
 /// The next usable source from `ids`, with the last reason none was.
@@ -293,9 +296,9 @@ pub fn voice_cancel_all(window: tauri::WebviewWindow) {
 }
 
 #[tauri::command]
-pub async fn voice_start(app: AppHandle, window: tauri::WebviewWindow, source: String, language: String, device: Option<String>, on_event: Channel<VoiceEvent>) -> Result<u64, String> {
+pub async fn voice_start(app: AppHandle, window: tauri::WebviewWindow, source: String, found: Option<Vec<String>>, language: String, device: Option<String>, on_event: Channel<VoiceEvent>) -> Result<u64, String> {
     let auto = source.is_empty();
-    let mut ids = if auto { auto_order() } else { vec![source] }.into_iter();
+    let mut ids = if auto { auto_order(found.unwrap_or_default()) } else { vec![source] }.into_iter();
     // Found before the microphone opens, so a missing account is reported at once.
     let mut input = match next_input(&app, &mut ids).await {
         Ok(input) => input,

@@ -100,10 +100,6 @@ pub(super) async fn sources() -> Vec<VoiceSource> {
     }
     sources
 }
-/// Every channel id, for automatic selection.
-pub(super) fn channels() -> impl Iterator<Item = &'static str> {
-    accounts::CHANNELS.iter().map(|(id, _)| *id).chain(["workbuddyai"])
-}
 pub(super) fn supports(source: &str) -> bool {
     accounts::supports(source)
 }
