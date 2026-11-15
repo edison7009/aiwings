@@ -175,10 +175,10 @@ h1 { font-size: 15px; margin: 6px 0 4px; }
 .note-image { display: block; max-width: 100%; max-height: 72px; border-radius: 6px; object-fit: contain; }
 .note-image--loading { width: 72px; height: 48px; background: var(--line); }
 
-/* The text fades out under the trash icon instead of moving. */
+/* The text fades out under the share and trash icons instead of moving. */
 .note:is(:hover, .is-hover) .note-clamp {
-  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 52px), transparent calc(100% - 26px));
-  mask-image: linear-gradient(to right, #000 calc(100% - 52px), transparent calc(100% - 26px));
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 78px), transparent calc(100% - 52px));
+  mask-image: linear-gradient(to right, #000 calc(100% - 78px), transparent calc(100% - 52px));
 }
 .note-quick {
   position: absolute;
@@ -204,6 +204,7 @@ h1 { font-size: 15px; margin: 6px 0 4px; }
 }
 .note-btn svg { width: 15px; height: 15px; }
 .note-btn:is(:hover, .is-hover) { background: var(--line); }
+.note-btn:disabled { opacity: 0.4; cursor: default; background: none; }
 .note-delete:is(:hover, .is-hover) { color: #ef4444; } /* delete is always red, whatever the palette */
 @media (prefers-reduced-motion: reduce) { .note-quick, .note::before { transition: none; } .note-quick { transform: none; } }
 
@@ -338,44 +339,47 @@ kbd { font: inherit; padding: 1px 6px; border-radius: 4px; border: 1px solid var
 .shortcut-row.is-recording kbd { color: var(--accent); border-color: var(--accent); }
 .small-inline { font-size: 12px; }
 
-/* Chip window: only the button, on a fully transparent window. */
+/* Chip window: only the pill, on a fully transparent window. */
 [data-window="chip"] .shell { padding: 0; }
+/* The draft's actions (save · share · clear) as one solid pill, like Coffee CLI's composer. Always iOS
+   blue, whatever the palette: it sits on other apps' windows, not in Wings. While the input is empty it
+   darkens (still solid, so the border it sits on never shows through) and the buttons do nothing. */
 .chip-ground {
   position: absolute;
-  right: 0;
+  right: 1px;
   top: 50%;
-  transform: translateY(-50%);
   display: flex;
-  gap: 6px;
-}
-.chip-save {
-  position: relative;
   height: 22px;
-  padding: 0 10px;
   border-radius: 11px;
-  /* Always iOS blue, whatever the palette: it sits on other apps' windows, not in Wings. */
-  background: #007aff;
-  color: #ffffff;
+  overflow: hidden;
+  background: #0a3f7a;
+  color: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transform: translateY(-50%);
+  transition: background 0.15s, color 0.15s, opacity 0.15s, transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.chip-ground[data-enabled] { background: #007aff; color: #ffffff; box-shadow: 0 1px 3px rgba(0, 122, 255, 0.35); }
+/* The input box went away: fade out while sinking 4px (only opacity and transform, smooth even when throttled). */
+.chip-ground.is-leaving { opacity: 0; transform: translateY(calc(-50% + 4px)); pointer-events: none; }
+.chip-action {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  padding: 0 10px;
+  color: inherit;
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
-  box-shadow: 0 1px 3px rgba(0, 122, 255, 0.35);
-  /* Fade in while rising 4px: only opacity and transform, so it stays smooth even when the page is throttled,
-     on macOS and Windows alike. */
-  animation: chip-in 0.18s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  transition: background 0.15s;
 }
-.chip-save:hover { filter: brightness(1.08); }
-/* Clear: a round icon button in the same blue, appearing together with Save. */
-.chip-save.chip-clear { width: 22px; padding: 0; }
-.chip-clear .chip-face { display: grid; place-items: center; height: 100%; }
-.chip-clear svg { width: 12px; height: 12px; }
-.chip-save:active { filter: brightness(0.9); }
-.chip-face { display: block; }
-/* The slip's back, seen while it still lies face down. */
-@keyframes chip-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-.chip-save.is-leaving { pointer-events: none; animation: chip-out 0.15s ease-in both; }
-@keyframes chip-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(4px); } }
-@media (prefers-reduced-motion: reduce) { .chip-save, .chip-save.is-leaving { animation-name: none; } .chip-save.is-leaving { opacity: 0; } }
+/* Hairline dividers keep the three readable as one group. */
+.chip-action + .chip-action { box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.28); }
+.chip-action.chip-icon { width: 26px; padding: 0; }
+.chip-action svg { width: 12px; height: 12px; }
+.chip-action:not(:disabled):hover { background: rgba(255, 255, 255, 0.16); }
+.chip-action:not(:disabled):active { background: rgba(0, 0, 0, 0.12); }
+.chip-action:disabled { cursor: default; }
+@media (prefers-reduced-motion: reduce) { .chip-ground { transition: none; } }
 
 /* Icon options in a segmented switch. The name shows as a themed tip on hover (Coffee CLI's style). */
 .segmented button.icon { display: grid; place-items: center; padding: 4px 10px; }

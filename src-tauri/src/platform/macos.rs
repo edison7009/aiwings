@@ -278,8 +278,8 @@ pub fn wait_modifiers_released() {
 pub fn send_combo(key: Key) -> Result<(), String> {
     if !unsafe { AXIsProcessTrusted() } { return Err("需要先授予辅助功能权限".into()); }
     if !target_is_front() { return Err("目标窗口不在最前面，已取消".into()); }
-    let code: u16 = match key { Key::A => 0, Key::X => 7, Key::V => 9, Key::Delete => 51 };
-    let flags = if matches!(key, Key::Delete) { CGEventFlags::CGEventFlagNull } else { CGEventFlags::CGEventFlagCommand };
+    let code: u16 = match key { Key::A => 0, Key::C => 8, Key::X => 7, Key::V => 9, Key::Delete => 51, Key::Right => 124 };
+    let flags = if matches!(key, Key::Delete | Key::Right) { CGEventFlags::CGEventFlagNull } else { CGEventFlags::CGEventFlagCommand };
     let src = CGEventSource::new(CGEventSourceStateID::HIDSystemState).map_err(|_| "无法模拟按键")?;
     for down in [true, false] {
         let ev = CGEvent::new_keyboard_event(src.clone(), code, down).map_err(|_| "无法模拟按键")?;

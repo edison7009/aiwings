@@ -10,7 +10,7 @@ pub static CHIP: AtomicBool = AtomicBool::new(true);
 pub fn start(app: AppHandle) {
     std::thread::spawn(move || {
         let mut last_chip: Option<bool> = None;
-        // When the input goes away, the chip first flips down and fades; the window hides once that is over.
+        // When the input goes away, the chip first fades; the window hides once that is over.
         let mut hide_at: Option<std::time::Instant> = None;
         let mut tick: u32 = 0;
         let mut trusted = false;
@@ -44,13 +44,13 @@ pub fn start(app: AppHandle) {
                     if just_shown { continue; }
                     if last_chip != Some(has_text) {
                         last_chip = Some(has_text);
-                        let _ = chip.emit("wings://chip", has_text);
+                        let _ = chip.emit("wings://chip", Some(has_text));
                     }
                 }
                 None => {
                     if last_chip.is_some() {
                         last_chip = None;
-                        let _ = chip.emit("wings://chip", false);
+                        let _ = chip.emit("wings://chip", None::<bool>);
                         hide_at = Some(std::time::Instant::now() + Duration::from_millis(500));
                     }
                     if hide_at.is_some_and(|t| std::time::Instant::now() >= t) {

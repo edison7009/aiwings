@@ -8,7 +8,7 @@ mod watch;
 
 use serde::Serialize;
 use std::sync::atomic::Ordering;
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
 /// Default save shortcut; the user can pick another single modifier + single key in settings.
@@ -100,6 +100,31 @@ fn capture_now(app: AppHandle) {
 #[tauri::command]
 fn clear_input(app: AppHandle) {
     std::thread::spawn(move || actions::clear(&app));
+}
+
+/// Share from the chip: the input box's text, read on a worker thread (it waits on the target app).
+#[tauri::command]
+async fn input_text(app: AppHandle) -> Option<String> {
+    tauri::async_runtime::spawn_blocking(move || actions::read_input(&app)).await.ok().flatten()
+}
+
+/// Puts a share link on the clipboard (when given) and shows `msg` where the user is looking:
+/// the bar of the app in use, or the hover panel.
+#[tauri::command]
+fn share_link(app: AppHandle, link: Option<String>, msg: Option<String>) {
+    if let Some(link) = link {
+        let copied = arboard::Clipboard::new().and_then(|mut cb| cb.set_text(link));
+        if copied.is_err() { return actions::emit_error(&app, "无法写入剪贴板"); }
+    }
+    if let Some(msg) = msg {
+        let _ = app.emit_to(bars::error_window(&app).as_str(), "wings://toast", msg);
+    }
+}
+
+/// The chip page's pill width, so its window covers no more of the input box than the buttons do.
+#[tauri::command]
+fn set_chip_width(width: f64) {
+    *platform::CHIP_WIDTH.lock().unwrap() = width.clamp(60.0, 400.0);
 }
 
 /// The tray menu's items, kept so the UI can relabel them on a language change.
@@ -220,7 +245,7 @@ pub fn run() {
             if let WindowEvent::Focused(false) = ev { platform::refresh_later(win.app_handle()); }
         })
         .invoke_handler(tauri::generate_handler![
-            bar_target, hide_wings, set_tray_labels, paste_note, capture_now, clear_input, set_prefs, cursor_in_window,
+            bar_target, hide_wings, set_tray_labels, paste_note, capture_now, clear_input, input_text, share_link, set_chip_width, set_prefs, cursor_in_window,
             permission_granted, open_permission_settings, shortcut_label, set_shortcut,
             update::check_update, update::download_update, update::open_url,
             store::load_notes, store::add_note, store::remove_note, store::image_data_url

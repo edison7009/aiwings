@@ -14,7 +14,7 @@ use tauri::{AppHandle, LogicalSize, Manager, PhysicalPosition, PhysicalSize};
 
 #[derive(Clone, Copy)]
 /// A, X, V go with Cmd/Ctrl; Delete (Backspace) is sent bare.
-pub enum Key { A, X, V, Delete }
+pub enum Key { A, C, X, V, Delete, Right }
 
 // These home screens wrap the composer in a larger project/header surface.
 // Stop at the first padded ancestor that also contains the toolbar below the editor.
@@ -85,7 +85,7 @@ pub fn sort_targets(list: &mut [crate::TargetInfo]) {
 pub fn place_chip(app: &AppHandle, input: Frame, scale: f64) -> bool {
     static PLACED: std::sync::Mutex<Option<(i32, i32, u32, u32)>> = std::sync::Mutex::new(None);
     let Some(chip) = app.get_webview_window("chip") else { return false };
-    let (w, h) = (CHIP_W * scale, CHIP_H * scale);
+    let (w, h) = (*CHIP_WIDTH.lock().unwrap() * scale, CHIP_H * scale);
     // The button's centre is the window's vertical centre, so half the window above the line centres it on the border.
     // Preserve Grok Bot's verified 96-point inset independently of the shared default.
     let key = TARGET_KEY.lock().unwrap();
@@ -109,6 +109,9 @@ pub fn place_chip(app: &AppHandle, input: Frame, scale: f64) -> bool {
 }
 
 pub const CHIP_W: f64 = 140.0;
+/// The pill's measured width (logical px), reported by the chip page so the window covers no more of the
+/// input box than the buttons do. CHIP_W until the page has measured it.
+pub static CHIP_WIDTH: std::sync::Mutex<f64> = std::sync::Mutex::new(CHIP_W);
 pub const CHIP_H: f64 = 34.0;
 /// Room kept clear for the box's own buttons at its right end.
 pub const CHIP_RIGHT_INSET: f64 = 64.0;

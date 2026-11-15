@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type { Note } from '../lib/notes';
+import { canShare } from '../lib/share';
 import { t } from '../strings';
 
 interface Props {
@@ -8,6 +9,15 @@ interface Props {
   shortcut: string;
   onPaste: (note: Note) => void;
   onRemove: (id: string) => void;
+  onShare: (note: Note) => void;
+}
+
+function ShareIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7" /><polyline points="16 6 12 2 8 6" /><line x1="12" y1="2" x2="12" y2="15" />
+    </svg>
+  );
 }
 
 function DeleteIcon() {
@@ -23,10 +33,10 @@ function DeleteIcon() {
 
 /**
  * Notes were already written in the target's own input box, so here they are read-only:
- * up to three lines each, a click pastes one back, and hovering slides in a trash icon
- * over the end of the text without moving anything.
+ * up to three lines each, a click pastes one back, and hovering slides in share and trash icons
+ * over the end of the text without moving anything. Share copies a link to the prompt (text notes only).
  */
-export function NoteList({ notes, shortcut, onPaste, onRemove }: Props) {
+export function NoteList({ notes, shortcut, onPaste, onRemove, onShare }: Props) {
   return (
     <div className="panel-body notes">
       {notes.length === 0 && (
@@ -44,6 +54,7 @@ export function NoteList({ notes, shortcut, onPaste, onRemove }: Props) {
         >
           <button type="button" className="note-text" onClick={() => onPaste(note)}>{note.image ? <NoteImage id={note.image} /> : <span className="note-clamp">{note.text}</span>}</button>
           <span className="note-quick">
+            {!note.image && <button type="button" className="note-btn note-share" aria-label={t.shareLink} disabled={!canShare(note.text)} onClick={() => onShare(note)}><ShareIcon /></button>}
             <button type="button" className="note-btn note-delete" aria-label={t.delete} onClick={() => onRemove(note.id)}><DeleteIcon /></button>
           </span>
         </div>

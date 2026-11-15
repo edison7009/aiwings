@@ -15,7 +15,7 @@ use windows::Win32::System::Threading::{
 };
 use windows::Win32::UI::Accessibility::{SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    GetAsyncKeyState, SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP,
+    GetAsyncKeyState, SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYBD_EVENT_FLAGS, KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP,
     VIRTUAL_KEY, VK_CONTROL, VK_LWIN, VK_MENU, VK_RWIN, VK_SHIFT,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
@@ -228,8 +228,15 @@ pub fn send_combo(key: Key) -> Result<(), String> {
         }
         return Err("目标以管理员身份运行，当前 Wings 权限不足。请用普通权限打开目标，或手动以管理员身份启动 Wings".into());
     }
-    let vk = VIRTUAL_KEY(match key { Key::A => 0x41, Key::X => 0x58, Key::V => 0x56, Key::Delete => 0x08 });
-    let inputs: Vec<INPUT> = if matches!(key, Key::Delete) {
+    let vk = VIRTUAL_KEY(match key { Key::A => 0x41, Key::C => 0x43, Key::X => 0x58, Key::V => 0x56, Key::Delete => 0x08, Key::Right => 0x27 });
+    let inputs: Vec<INPUT> = if matches!(key, Key::Right) {
+        // An arrow key is an extended key; without the flag it reads as the keypad's 6.
+        let ext = |up: bool| INPUT {
+            r#type: INPUT_KEYBOARD,
+            Anonymous: INPUT_0 { ki: KEYBDINPUT { wVk: vk, wScan: 0, dwFlags: if up { KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP } else { KEYEVENTF_EXTENDEDKEY }, time: 0, dwExtraInfo: 0 } },
+        };
+        vec![ext(false), ext(true)]
+    } else if matches!(key, Key::Delete) {
         vec![key_input(vk, false), key_input(vk, true)]
     } else {
         vec![key_input(VK_CONTROL, false), key_input(vk, false), key_input(vk, true), key_input(VK_CONTROL, true)]

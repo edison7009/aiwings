@@ -1,42 +1,55 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { shareLink } from '../lib/share';
 import { t } from '../strings';
 
-const FADE_OUT_MS = 150;
-
-/** "Save to Wings" and "Clear" on the target's input box: fade in (rising slightly) when there is text, fade out when it goes. */
+/**
+ * The draft's actions on the target's input box (save to Wings · share link · clear), as one solid pill,
+ * like Coffee CLI's composer. It is there whenever an input box is focused; while the box is empty it
+ * darkens and does nothing. `wings://chip` carries whether the box has text, or null once it is gone.
+ */
 export function Chip() {
-  const [shown, setShown] = useState(false);
-  const [leaving, setLeaving] = useState(false);
-  const [prevShown, setPrevShown] = useState(shown);
-  if (prevShown !== shown) { setPrevShown(shown); setLeaving(!shown); }
+  const [hasText, setHasText] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const un = listen<boolean>('wings://chip', e => setShown(e.payload));
+    const un = listen<boolean | null>('wings://chip', e => setHasText(e.payload));
     return () => { void un.then(f => f()); };
   }, []);
-  useEffect(() => {
-    if (!leaving) return;
-    const timer = window.setTimeout(() => setLeaving(false), FADE_OUT_MS);
-    return () => window.clearTimeout(timer);
-  }, [leaving]);
+  // The window is as wide as the pill (it is anchored on the right), so it covers no more of the input box.
+  useLayoutEffect(() => {
+    if (ref.current) void invoke('set_chip_width', { width: ref.current.offsetWidth + 2 });
+  }, []);
 
-  if (!shown && !leaving) return null;
+  const enabled = !!hasText && !busy;
+  const share = async () => {
+    setBusy(true);
+    try {
+      const text = await invoke<string | null>('input_text');
+      if (!text) return;
+      const link = await shareLink(text);
+      await invoke('share_link', link ? { link, msg: t.linkCopied } : { link: null, msg: t.shareTooLong });
+    } finally { setBusy(false); }
+  };
+  const keep = (e: React.MouseEvent) => e.preventDefault();
+
   return (
-    <div className="chip-ground">
-      <button type="button" className={`chip-save${shown ? '' : ' is-leaving'}`} onMouseDown={e => e.preventDefault()} onClick={shown ? () => void invoke('capture_now') : undefined}>
-        <span className="chip-face">{t.saveToWings}</span>
+    <div ref={ref} className={`chip-ground${hasText === null ? ' is-leaving' : ''}`} data-enabled={enabled || undefined}>
+      <button type="button" className="chip-action" disabled={!enabled} onMouseDown={keep} onClick={() => void invoke('capture_now')}>{t.saveToWings}</button>
+      <button type="button" className="chip-action chip-icon" disabled={!enabled} aria-label={t.shareLink} onMouseDown={keep} onClick={() => void share()}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7" /><polyline points="16 6 12 2 8 6" /><line x1="12" y1="2" x2="12" y2="15" />
+        </svg>
       </button>
       {/* Clearing by hand is slow; this selects all and deletes in the target's input box. */}
-      <button type="button" className={`chip-save chip-clear${shown ? '' : ' is-leaving'}`} aria-label={t.clear} onMouseDown={e => e.preventDefault()} onClick={shown ? () => void invoke('clear_input') : undefined}>
-        <span className="chip-face">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6" />
-            <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
-          </svg>
-        </span>
+      <button type="button" className="chip-action chip-icon" disabled={!enabled} aria-label={t.clear} onMouseDown={keep} onClick={() => void invoke('clear_input')}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <polyline points="3 6 5 6 21 6" />
+          <path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6" />
+          <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+        </svg>
       </button>
     </div>
   );

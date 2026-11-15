@@ -13,6 +13,7 @@ import { layouts } from './lib/layouts';
 import { applyThemeMode, readPrefs, saveFloatRect, sendPrefs, writePrefs, type Prefs } from './lib/prefs';
 import { applyTheme, themeFor } from './lib/theme';
 import { useHoverWhileInactive } from './lib/hover';
+import { shareLink } from './lib/share';
 import { t, tr, setLang } from './strings';
 
 const IS_MAC = /Mac/.test(navigator.userAgent);
@@ -87,6 +88,8 @@ export function App() {
       listen<Note[]>('wings://notes', e => setNotes(e.payload)),
       // Errors are sent to the one window they concern.
       win.listen<string>('wings://error', e => flash(e.payload, 8000)),
+      // Short confirmations from the chip (a share link was copied).
+      win.listen<string>('wings://toast', e => flash(e.payload)),
     ];
     // Settings changed in another window: follow along.
     const onStorage = (e: StorageEvent) => {
@@ -143,6 +146,10 @@ export function App() {
         shortcut={shortcut}
         onPaste={note => { void invoke('paste_note', { text: note.text, image: note.image ?? null }); flash(t.pasted(PASTE_KEY)); }}
         onRemove={removeNote}
+        onShare={note => void shareLink(note.text).then(link => {
+          if (!link) return;
+          void invoke('share_link', { link, msg: null }).then(() => flash(t.linkCopied));
+        })}
       />
       <button type="button" className="gear" aria-label={t.settings} onClick={() => setView('settings')}><GearIcon /></button>
     </>
