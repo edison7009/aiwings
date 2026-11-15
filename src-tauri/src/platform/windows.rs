@@ -466,6 +466,12 @@ unsafe fn describe_input(uia: &windows::Win32::UI::Accessibility::IUIAutomation,
             || f.bottom < r.bottom - 1 || f.right - f.left > r.right - r.left + (width_slack * scale) as i32
             || f.bottom > r.bottom + (140.0 * scale) as i32
             || f.bottom - f.top > r.bottom - r.top + (420.0 * scale) as i32 { break; }
+        // Already the whole box (toolbar included) and this parent also holds something stacked on top
+        // of it (ChatGPT's "10 files changed"): stop here, or the chip rides that instead of the box.
+        let best_frame = Frame { x: best.left as f64, y: best.top as f64,
+            w: (best.right - best.left) as f64, h: (best.bottom - best.top) as f64 };
+        if f.top < best.top - 1 && super::input_box_has_toolbar(text_frame, best_frame, scale, min_padding)
+            && super::stacked_above(best_frame, &child_frames(&walker, &parent)) { break; }
         best = f;
         let candidate = Frame { x: f.left as f64, y: f.top as f64,
             w: (f.right - f.left) as f64, h: (f.bottom - f.top) as f64 };
@@ -473,6 +479,22 @@ unsafe fn describe_input(uia: &windows::Win32::UI::Accessibility::IUIAutomation,
     }
     Some((Frame { x: best.left as f64, y: best.top as f64,
         w: (best.right - best.left) as f64, h: (best.bottom - best.top) as f64 }, super::apps::has_input_text(&text, None)))
+}
+
+/// The frames of an element's direct children (a composer's wrapper has a handful; more are not read).
+unsafe fn child_frames(walker: &windows::Win32::UI::Accessibility::IUIAutomationTreeWalker,
+    el: &windows::Win32::UI::Accessibility::IUIAutomationElement) -> Vec<Frame> {
+    let mut frames = Vec::new();
+    let Ok(mut child) = walker.GetFirstChildElement(el) else { return frames };
+    for _ in 0..32 {
+        if let Ok(r) = child.CurrentBoundingRectangle() {
+            if r.right > r.left && r.bottom > r.top {
+                frames.push(Frame { x: r.left as f64, y: r.top as f64, w: (r.right - r.left) as f64, h: (r.bottom - r.top) as f64 });
+            }
+        }
+        match walker.GetNextSiblingElement(&child) { Ok(next) => child = next, Err(_) => break }
+    }
+    frames
 }
 
 pub fn focused_input() -> Option<(Frame, bool)> {
