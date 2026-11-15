@@ -1,30 +1,41 @@
 // Docked bars: one window beside each open AI app (and terminal, when the user turns terminals on).
 // Each bar stays put beside its own app instead of one bar jumping between apps.
-// The "main" window is the hover panel: used in hover mode, before permission is granted, and on its own
-// in docked mode whenever no followed app has a window up ("smart hover").
+// The "main" window only shows the permission steps before Wings may dock. Bars can be collapsed all at
+// once (the × on a bar, the arrow on the chip); a target too wide to leave room beside it collapses its
+// own bar until it narrows again.
 
 use crate::{platform, TargetInfo};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
-use std::time::{Duration, Instant};
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 
-/// Hover mode: bars are hidden and the main panel floats.
-pub static FLOAT: AtomicBool = AtomicBool::new(false);
 /// Terminals get bars too (paste only: Wings cannot save from them).
 pub static TERMINALS: AtomicBool = AtomicBool::new(false);
-/// Put away with the close button: every bar and the hover panel stay hidden until the tray brings them back.
+/// Collapsed: every bar stays hidden until the chip's arrow or the tray brings them back. Remembered across launches.
 pub static HIDDEN: AtomicBool = AtomicBool::new(false);
+/// Apps whose bar the user expanded while the app was too wide for one beside it: their bar shows over the
+/// app's right edge instead of collapsing. Cleared on the next collapse.
+static SHOW_WIDE: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
+/// Whether the bar window `label` was expanded by hand beside a too-wide app.
+pub fn shows_wide(label: &str) -> bool {
+    label.strip_prefix("bar-").is_some_and(|id| SHOW_WIDE.lock().unwrap().iter().any(|w| w == id))
+}
 
 /// The app each bar sits beside. The bar's window label is `label(&target.id)`.
 static BARS: Mutex<Vec<TargetInfo>> = Mutex::new(Vec::new());
 
 pub fn label(id: &str) -> String { format!("bar-{id}") }
+/// The window of the chip on that app's input box.
+pub fn chip_label(id: &str) -> String { format!("chip-{id}") }
 
-/// The app a bar window belongs to.
+/// The app a bar or chip window belongs to.
 pub fn target_of(label: &str) -> Option<TargetInfo> {
-    BARS.lock().unwrap().iter().find(|t| self::label(&t.id) == label).cloned()
+    BARS.lock().unwrap().iter().find(|t| self::label(&t.id) == label || chip_label(&t.id) == label).cloned()
 }
+
+/// Every followed app.
+pub fn targets() -> Vec<TargetInfo> { BARS.lock().unwrap().clone() }
 
 pub fn wants(t: &TargetInfo) -> bool {
     !platform::is_helper(t) && platform::follows(t, TERMINALS.load(Ordering::SeqCst))
@@ -56,6 +67,11 @@ pub fn sync(app: &AppHandle) {
     for t in removed {
         platform::untrack(&t.id);
         if let Some(w) = app.get_webview_window(&label(&t.id)) { let _ = w.destroy(); }
+        let chip = chip_label(&t.id);
+        if let Some(w) = app.get_webview_window(&chip) { let _ = w.destroy(); }
+        platform::forget_chip(&chip);
+        crate::watch::forget_chip(&chip);
+        SHOW_WIDE.lock().unwrap().retain(|w| w != &t.id);
     }
     for t in added {
         let label = label(&t.id);
@@ -74,63 +90,92 @@ pub fn sync(app: &AppHandle) {
             .visible(false)
             .build();
         match built {
-            Ok(_) => platform::track(app, &t, &label),
+            Ok(_) => { platform::track(app, &t, &label); build_chip(app, &t.id); }
             Err(_) => BARS.lock().unwrap().retain(|b| b.id != t.id),
         }
     }
 }
 
-fn labels() -> Vec<String> { BARS.lock().unwrap().iter().map(|t| label(&t.id)).collect() }
-
-fn any_bar_visible(app: &AppHandle) -> bool {
-    labels().iter().any(|l| app.get_webview_window(l).is_some_and(|w| w.is_visible().unwrap_or(false)))
+/// The app's chip: hidden until its input box has been used, then it stays on it.
+fn build_chip(app: &AppHandle, id: &str) {
+    let _ = WebviewWindowBuilder::new(app, chip_label(id), WebviewUrl::App("index.html".into()))
+        .title("Wings")
+        .inner_size(platform::CHIP_W, platform::CHIP_H)
+        .decorations(false)
+        .transparent(true)
+        .shadow(false)
+        .resizable(false)
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .focused(false)
+        .focusable(false)
+        .accept_first_mouse(true)
+        // Wings is never the active app while the user types elsewhere; without this, macOS 14+
+        // throttles the page and animations stutter.
+        .background_throttling(tauri::utils::config::BackgroundThrottlingPolicy::Disabled)
+        .visible(false)
+        .build();
 }
 
-/// Shows the hover panel when hovering, before permission, or (docked) once no bar has been up for a second;
-/// hides it as soon as a bar is up. The delay keeps it from flashing while windows open and close.
+fn labels() -> Vec<String> { BARS.lock().unwrap().iter().map(|t| label(&t.id)).collect() }
+
+/// The main window shows the permission steps, and only until permission is granted.
 pub fn update_main(app: &AppHandle, trusted: bool) {
-    static SINCE: Mutex<Option<Instant>> = Mutex::new(None);
     let Some(main) = app.get_webview_window("main") else { return };
-    let docked_idle = !FLOAT.load(Ordering::SeqCst) && trusted && !any_bar_visible(app);
-    let want = !HIDDEN.load(Ordering::SeqCst) && (!trusted || FLOAT.load(Ordering::SeqCst) || docked_idle);
-    // Read the window itself: the close button and the tray also show and hide it.
     let shown = main.is_visible().unwrap_or(false);
-    let mut since = SINCE.lock().unwrap();
-    if want == shown { *since = None; return; }
-    if want && docked_idle {
-        let start = *since.get_or_insert_with(Instant::now);
-        if start.elapsed() < Duration::from_secs(1) { return; }
-    }
-    *since = None;
-    if want { platform::show_no_activate(&main); } else { platform::hide(&main); }
+    if !trusted && !shown { platform::show_no_activate(&main); }
+    if trusted && shown { platform::hide(&main); }
 }
 
 /// Where an error from a save or paste is shown: the bar of the app it happened in, if it is up;
-/// otherwise the hover panel.
+/// otherwise the main window (seen only before permission is granted).
 pub fn error_window(app: &AppHandle) -> String {
     let active = platform::active_id();
     let bar = label(&active);
-    let up = !FLOAT.load(Ordering::SeqCst)
-        && BARS.lock().unwrap().iter().any(|t| t.id == active)
-        && app.get_webview_window(&bar).is_some_and(|w| w.is_visible().unwrap_or(false));
-    if up { bar } else { "main".into() }
+    if bar_up(app, &active) { bar } else { "main".into() }
 }
 
-/// The close button: puts every bar and the hover panel away. Wings keeps running in the tray.
-pub fn hide_all(app: &AppHandle) {
-    HIDDEN.store(true, Ordering::SeqCst);
-    for l in labels() { if let Some(w) = app.get_webview_window(&l) { platform::hide(&w); } }
-    if let Some(w) = app.get_webview_window("main") { platform::hide(&w); }
+/// Whether the bar beside `id` is on screen.
+pub fn bar_up(app: &AppHandle, id: &str) -> bool {
+    BARS.lock().unwrap().iter().any(|t| t.id == id)
+        && app.get_webview_window(&label(id)).is_some_and(|w| w.is_visible().unwrap_or(false))
 }
 
-/// Brings Wings into view from the tray: the hover panel when that is what is showing, else the bars.
+fn collapsed_flag(app: &AppHandle) -> Option<std::path::PathBuf> { Some(app.path().app_data_dir().ok()?.join("bars-collapsed")) }
+
+/// Restores the collapsed state of the last session.
+pub fn load_collapsed(app: &AppHandle) {
+    HIDDEN.store(collapsed_flag(app).is_some_and(|p| p.exists()), Ordering::SeqCst);
+}
+
+/// Collapses (`true`) or expands every bar, and remembers it.
+pub fn set_collapsed(app: &AppHandle, collapsed: bool) {
+    HIDDEN.store(collapsed, Ordering::SeqCst);
+    if collapsed { SHOW_WIDE.lock().unwrap().clear(); }
+    if let Some(path) = collapsed_flag(app) {
+        if collapsed {
+            if let Some(dir) = path.parent() { let _ = std::fs::create_dir_all(dir); }
+            let _ = std::fs::write(&path, b"");
+        } else { let _ = std::fs::remove_file(&path); }
+    }
+    if collapsed { for l in labels() { if let Some(w) = app.get_webview_window(&l) { platform::hide(&w); } } }
+    platform::refresh_later(app);
+}
+
+/// A chip's arrow: collapses the bars when its app's bar is up, otherwise brings them back,
+/// even beside a target too wide for one.
+pub fn toggle(app: &AppHandle, id: &str) {
+    if bar_up(app, id) { set_collapsed(app, true); return; }
+    SHOW_WIDE.lock().unwrap().push(id.to_string());
+    set_collapsed(app, false);
+}
+
+/// From the tray or a second launch: expand the bars (or show the permission steps).
 pub fn show(app: &AppHandle) {
-    let was_hidden = HIDDEN.swap(false, Ordering::SeqCst);
-    // Docked: the bars come back beside their apps; with none on screen the panel follows within a second.
-    if FLOAT.load(Ordering::SeqCst) || (!was_hidden && !any_bar_visible(app)) {
+    set_collapsed(app, false);
+    if !platform::accessibility_trusted(false) {
         if let Some(w) = app.get_webview_window("main") { let _ = w.show(); let _ = w.unminimize(); let _ = w.set_focus(); }
     }
-    platform::refresh_later(app);
 }
 
 #[cfg(test)]

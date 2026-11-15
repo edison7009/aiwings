@@ -15,7 +15,7 @@ use windows::Win32::System::Threading::{
 };
 use windows::Win32::UI::Accessibility::{SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    GetAsyncKeyState, SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYBD_EVENT_FLAGS, KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP,
+    GetAsyncKeyState, SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP,
     VIRTUAL_KEY, VK_CONTROL, VK_LWIN, VK_MENU, VK_RWIN, VK_SHIFT,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
@@ -65,17 +65,16 @@ fn cloaked(h: HWND) -> bool {
 }
 
 /// Places one bar beside its window. The bar is owned by that window, so Windows keeps it just above it in
-/// z-order and minimizes it along with it. Hidden in hover mode, or while the window is minimized, hidden
-/// or on another virtual desktop.
+/// z-order and minimizes it along with it. Hidden while collapsed, while the window is minimized, hidden
+/// or on another virtual desktop, or when there is no room beside it.
 fn refresh_one(app: &AppHandle, t: HWND, label: &str) {
     let Some(bar) = app.get_webview_window(label) else { return };
-    let up = !crate::bars::FLOAT.load(Ordering::SeqCst) && !crate::bars::HIDDEN.load(Ordering::SeqCst)
+    let up = !crate::bars::HIDDEN.load(Ordering::SeqCst)
         && unsafe { IsWindow(t).as_bool() && IsWindowVisible(t).as_bool() && !IsIconic(t).as_bool() } && !cloaked(t);
     match up.then(|| frame_of(t)).flatten() {
         Some(f) => {
             let scale = bar.scale_factor().unwrap_or(1.0);
-            place_bar(&bar, app, f, scale);
-            show_no_activate(&bar);
+            if place_bar(&bar, app, f, scale) { show_no_activate(&bar); } else { hide(&bar); }
         }
         None => hide(&bar),
     }
@@ -142,7 +141,7 @@ pub fn untrack(id: &str) {
     restart_hooks();
 }
 
-/// Re-places every bar (after a mode switch).
+/// Re-places every bar (after collapsing or expanding).
 pub fn refresh_later(app: &AppHandle) {
     let bars = BARS.lock().unwrap().clone();
     for (h, label) in bars { refresh_one(app, HWND(h as *mut _), &label); }
@@ -160,6 +159,31 @@ pub fn active_id() -> String { TARGET.load(Ordering::SeqCst).to_string() }
 pub fn has_target() -> bool { !target().0.is_null() }
 
 pub fn target_is_front() -> bool { target_owns_foreground() }
+
+/// An app's window frame (physical pixels) while it is on screen; its chip stays only then. `id` is the hwnd.
+pub fn window_frame(id: &str) -> Option<Frame> {
+    let t = HWND(id.parse::<isize>().ok()? as *mut _);
+    let up = unsafe { IsWindow(t).as_bool() && IsWindowVisible(t).as_bool() && !IsIconic(t).as_bool() } && !cloaked(t);
+    if up { frame_of(t) } else { None }
+}
+
+/// Nothing to forget: ownership is keyed by the chip window's own handle.
+pub fn forget_chip_layer(_label: &str) {}
+
+/// Layers an app's chip like its bar: owned by that app's window, so Windows keeps it just above that
+/// window (and covered by whatever covers it). Set once per chip.
+pub fn layer_chip(chip: &tauri::WebviewWindow, id: &str, _force: bool) {
+    // Chip windows already owned (by their own handle: a reopened app gets a new chip window).
+    static OWNED: Mutex<Vec<isize>> = Mutex::new(Vec::new());
+    let (Ok(raw), Ok(h)) = (id.parse::<isize>(), chip.hwnd()) else { return };
+    let mut owned = OWNED.lock().unwrap();
+    if owned.contains(&(h.0 as isize)) { return; }
+    let _ = chip.set_always_on_top(false);
+    // Tauri links its own windows-crate version, so rebuild the handle from the raw pointer.
+    unsafe { SetWindowLongPtrW(HWND(h.0 as *mut _), GWLP_HWNDPARENT, raw); }
+    owned.retain(|c| unsafe { IsWindow(HWND(*c as *mut _)).as_bool() });
+    owned.push(h.0 as isize);
+}
 
 pub fn activate_target() -> bool {
     let t = target();
@@ -228,19 +252,8 @@ pub fn send_combo(key: Key) -> Result<(), String> {
         }
         return Err("目标以管理员身份运行，当前 Wings 权限不足。请用普通权限打开目标，或手动以管理员身份启动 Wings".into());
     }
-    let vk = VIRTUAL_KEY(match key { Key::A => 0x41, Key::C => 0x43, Key::X => 0x58, Key::V => 0x56, Key::Delete => 0x08, Key::Right => 0x27 });
-    let inputs: Vec<INPUT> = if matches!(key, Key::Right) {
-        // An arrow key is an extended key; without the flag it reads as the keypad's 6.
-        let ext = |up: bool| INPUT {
-            r#type: INPUT_KEYBOARD,
-            Anonymous: INPUT_0 { ki: KEYBDINPUT { wVk: vk, wScan: 0, dwFlags: if up { KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP } else { KEYEVENTF_EXTENDEDKEY }, time: 0, dwExtraInfo: 0 } },
-        };
-        vec![ext(false), ext(true)]
-    } else if matches!(key, Key::Delete) {
-        vec![key_input(vk, false), key_input(vk, true)]
-    } else {
-        vec![key_input(VK_CONTROL, false), key_input(vk, false), key_input(vk, true), key_input(VK_CONTROL, true)]
-    };
+    let vk = VIRTUAL_KEY(match key { Key::A => 0x41, Key::X => 0x58, Key::V => 0x56 });
+    let inputs = [key_input(VK_CONTROL, false), key_input(vk, false), key_input(vk, true), key_input(VK_CONTROL, true)];
     let sent = unsafe { SendInput(&inputs, std::mem::size_of::<INPUT>() as i32) };
     if (sent as usize) < inputs.len() {
         // SendInput's return value alone does not identify UIPI as the failure cause.
@@ -335,12 +348,20 @@ fn input_worker() -> &'static std::sync::mpsc::SyncSender<InputRequest> {
                 for request in rx {
                     match request {
                         InputRequest::Inspect(reply) => {
-                            let result = inspect_input(&uia).map(|(element, frame, has_text)| {
-                                let hwnd = TARGET.load(Ordering::SeqCst);
-                                remembered.retain(|(h, _)| *h != hwnd && IsWindow(HWND(*h as *mut _)).as_bool());
-                                remembered.push((hwnd, element));
-                                (frame, has_text)
-                            });
+                            let hwnd = TARGET.load(Ordering::SeqCst);
+                            let result = match inspect_input(&uia) {
+                                Some((element, frame, has_text)) => {
+                                    remembered.retain(|(h, _)| *h != hwnd && IsWindow(HWND(*h as *mut _)).as_bool());
+                                    remembered.push((hwnd, element));
+                                    Some((frame, has_text))
+                                }
+                                // Focus is elsewhere: the chip stays on the composer used last,
+                                // wherever it is now. Gone (another page), and the chip goes too.
+                                // Also while another app is in front: the chip stays on the target's window.
+                                None => remembered.iter().find(|(h, _)| *h == hwnd)
+                                    .filter(|(_, el)| belongs_to_target(&uia, el))
+                                    .and_then(|(_, el)| describe_input(&uia, el)),
+                            };
                             let _ = reply.send(result);
                         }
                         InputRequest::Focus(reply) => {
@@ -409,7 +430,14 @@ unsafe fn inspect_input(uia: &windows::Win32::UI::Accessibility::IUIAutomation)
     if !target_owns_foreground() { return None; }
     let el = uia.GetFocusedElement().ok()?;
     if !belongs_to_target(uia, &el) { return None; }
-    let text = input_value(&el)?;
+    let (frame, has_text) = describe_input(uia, &el)?;
+    Some((el, frame, has_text))
+}
+
+/// A composer's painted box and whether it has text; None when `el` is not (or no longer) a usable composer.
+unsafe fn describe_input(uia: &windows::Win32::UI::Accessibility::IUIAutomation,
+    el: &windows::Win32::UI::Accessibility::IUIAutomationElement) -> Option<(Frame, bool)> {
+    let text = input_value(el)?;
     let r = el.CurrentBoundingRectangle().ok()?;
     if r.right <= r.left || r.bottom <= r.top { return None; }
     let scale = APP.get().and_then(|a| a.get_webview_window("main"))
@@ -443,7 +471,7 @@ unsafe fn inspect_input(uia: &windows::Win32::UI::Accessibility::IUIAutomation)
             w: (f.right - f.left) as f64, h: (f.bottom - f.top) as f64 };
         if prefer_inner && super::input_box_has_toolbar(text_frame, candidate, scale, min_padding) { break; }
     }
-    Some((el, Frame { x: best.left as f64, y: best.top as f64,
+    Some((Frame { x: best.left as f64, y: best.top as f64,
         w: (best.right - best.left) as f64, h: (best.bottom - best.top) as f64 }, super::apps::has_input_text(&text, None)))
 }
 

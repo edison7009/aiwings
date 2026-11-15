@@ -7,10 +7,8 @@ import { UpdateButton } from './components/UpdateButton';
 import { NoteList } from './components/NoteList';
 import { Settings } from './components/Settings';
 import { savedShortcut } from './components/ShortcutRecorder';
-import { Segmented } from './components/Segmented';
 import { loadNotes, removeNote, type Note } from './lib/notes';
-import { layouts } from './lib/layouts';
-import { applyThemeMode, readPrefs, saveFloatRect, sendPrefs, writePrefs, type Prefs } from './lib/prefs';
+import { applyThemeMode, readPrefs, sendPrefs, writePrefs, type Prefs } from './lib/prefs';
 import { applyTheme, themeFor } from './lib/theme';
 import { useHoverWhileInactive } from './lib/hover';
 import { shareLink } from './lib/share';
@@ -19,7 +17,7 @@ import { t, tr, setLang } from './strings';
 const IS_MAC = /Mac/.test(navigator.userAgent);
 const PASTE_KEY = IS_MAC ? '⌘V' : 'Ctrl+V';
 const win = getCurrentWebviewWindow();
-/** "main" is the hover panel; every other window is the bar beside one app. */
+/** "main" shows the permission steps; every other window is the bar beside one app. */
 const IS_PANEL = win.label === 'main';
 
 /** The app a bar sits beside. `terminal`: paste only, nothing is saved from it. */
@@ -34,7 +32,7 @@ function GearIcon() {
   );
 }
 
-/** Puts Wings away to the tray; it does not quit. The × of Coffee CLI's dialogs; on the left on macOS, the right on Windows. */
+/** Collapses every bar; the chip's arrow or the tray brings them back. The × of Coffee CLI's dialogs. */
 function CloseButton() {
   return (
     <button type="button" className="win-close" aria-label={t.closeTip} onClick={() => void invoke('hide_wings')}>
@@ -108,20 +106,6 @@ export function App() {
 
   useEffect(() => { applyTheme(themeFor(target?.key ?? null)); }, [target]);
 
-  // The panel remembers where it is and how big, so it comes back there (also on the next launch).
-  useEffect(() => {
-    if (!IS_PANEL) return;
-    let timer: number | undefined;
-    const save = () => {
-      window.clearTimeout(timer);
-      timer = window.setTimeout(() => {
-        void Promise.all([win.outerPosition(), win.innerSize()]).then(([p, z]) => saveFloatRect([p.x, p.y, z.width, z.height]));
-      }, 300);
-    };
-    const subs = [win.onMoved(save), win.onResized(save)];
-    return () => { window.clearTimeout(timer); subs.forEach(s => void s.then(f => f())); };
-  }, []);
-
   // A bar lists only its own app's notes when the user asked for that; notes from before (no app) show everywhere.
   // Terminals cannot save, so their bar always shows every note.
   const ownKey = target && !target.terminal && prefs.notesPerApp ? target.key.toLowerCase() : null;
@@ -135,10 +119,8 @@ export function App() {
   );
   else body = (
     <>
-      {/* The panel's header drags it anywhere; a bar follows its app instead. */}
-      {/* Close and the layout switch, mirrored per platform: macOS keeps window buttons on the left, Windows on the right. */}
-      <header className={`panel-head${IS_MAC ? ' panel-head--mac' : ''}`} data-tauri-drag-region={IS_PANEL || undefined}>
-        <Segmented value={prefs.layout} options={layouts()} onChange={layout => changePrefs({ ...prefs, layout })} />
+      {/* Collapse: on the left on macOS, where its window buttons are, on the right on Windows. */}
+      <header className={`panel-head${IS_MAC ? ' panel-head--mac' : ''}`}>
         <CloseButton />
       </header>
       <NoteList
@@ -156,7 +138,7 @@ export function App() {
   );
 
   return (
-    <div className={`shell${IS_PANEL ? ' shell--float' : ' shell--docked'}`}>
+    <div className="shell shell--docked">
       <div className="panel" ref={panelRef}>
         {body}
         {/* Mounted for the window's lifetime so a running download keeps its progress while settings is open. */}

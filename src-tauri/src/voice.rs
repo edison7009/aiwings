@@ -41,7 +41,8 @@ pub enum VoiceEvent {
 
 pub enum Control { Finish, Cancel }
 
-static SESSIONS: LazyLock<Mutex<HashMap<u64, mpsc::UnboundedSender<Control>>>> = LazyLock::new(Default::default);
+/// Running recordings: the window that started each (a chip), and how to stop it.
+static SESSIONS: LazyLock<Mutex<HashMap<u64, (String, mpsc::UnboundedSender<Control>)>>> = LazyLock::new(Default::default);
 static NEXT_ID: AtomicU64 = AtomicU64::new(1);
 
 // ---- Local sign-ins (Claude Code, Codex) ----
@@ -111,6 +112,8 @@ struct ApiConfig { base: String, key: String, model: String }
 
 const API_BASE: &str = "https://api.openai.com/v1";
 const API_MODEL: &str = "whisper-1";
+/// Ten minutes of 16 kHz PCM16 is about 19 MB of WAV.
+const API_MAX_SAMPLES: usize = SAMPLE_RATE as usize * 600;
 
 fn api_path(app: &AppHandle) -> Option<PathBuf> { Some(app.path().app_data_dir().ok()?.join("voice-api.json")) }
 
@@ -152,7 +155,14 @@ pub fn voice_api_set(app: AppHandle, base: String, model: String, key: Option<St
         key: key.map(|k| k.trim().to_string()).unwrap_or(old.key),
     };
     if let Some(dir) = path.parent() { std::fs::create_dir_all(dir).map_err(|_| "无法保存设置")?; }
-    std::fs::write(&path, serde_json::to_vec(&config).map_err(|e| e.to_string())?).map_err(|_| "无法保存设置".into())
+    std::fs::write(&path, serde_json::to_vec(&config).map_err(|e| e.to_string())?).map_err(|_| "无法保存设置")?;
+    // The key is readable by this user only (on Windows the per-user AppData folder already is).
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600));
+    }
+    Ok(())
 }
 
 // ---- Sources ----
@@ -191,8 +201,8 @@ pub async fn voice_sources(app: AppHandle) -> Vec<VoiceSource> {
 
 enum Input { Claude(Account), Codex(Account), Api(ApiConfig), #[cfg(target_os = "macos")] Apple }
 
-/// The chosen source, or with "" (automatic) the first usable one.
-fn resolve(app: &AppHandle, source: &str) -> Result<Input, String> {
+/// The chosen source, or with "" (automatic) every usable one in order of preference.
+fn resolve(app: &AppHandle, source: &str) -> Result<Vec<Input>, String> {
     let one = |id: &str| -> Result<Input, String> {
         match id {
             "claude" => claude_account().map(Input::Claude).map_err(|_| "signed_out".into()),
@@ -203,30 +213,51 @@ fn resolve(app: &AppHandle, source: &str) -> Result<Input, String> {
             _ => Err("no_source".into()),
         }
     };
-    if !source.is_empty() { return one(source); }
-    ["claude", "codex", "api", "macos"].into_iter().find_map(|id| one(id).ok()).ok_or_else(|| "no_source".into())
+    if !source.is_empty() { return one(source).map(|input| vec![input]); }
+    let usable: Vec<Input> = ["claude", "codex", "api", "macos"].into_iter().filter_map(|id| one(id).ok()).collect();
+    if usable.is_empty() { Err("no_source".into()) } else { Ok(usable) }
+}
+
+/// The service turned the stored sign-in or key away; in automatic mode the next source is tried.
+fn rejected(error: &str) -> bool { error.starts_with("http_401") || error.starts_with("http_403") }
+
+/// Ends the recordings this window started. A chip page that (re)loads calls it: a recording started by
+/// its earlier page would otherwise keep the microphone open, with nothing on screen to stop it.
+#[tauri::command]
+pub fn voice_cancel_all(window: tauri::WebviewWindow) {
+    for (label, sender) in SESSIONS.lock().unwrap().values() {
+        if label == window.label() { let _ = sender.send(Control::Cancel); }
+    }
 }
 
 #[tauri::command]
-pub async fn voice_start(app: AppHandle, source: String, language: String, device: Option<String>, on_event: Channel<VoiceEvent>) -> Result<u64, String> {
+pub async fn voice_start(app: AppHandle, window: tauri::WebviewWindow, source: String, language: String, device: Option<String>, on_event: Channel<VoiceEvent>) -> Result<u64, String> {
     let handle = app.clone();
-    let input = tauri::async_runtime::spawn_blocking(move || resolve(&handle, &source)).await.map_err(|e| e.to_string())??;
-    let (audio_tx, audio_rx) = mpsc::unbounded_channel();
+    let inputs = tauri::async_runtime::spawn_blocking(move || resolve(&handle, &source)).await.map_err(|e| e.to_string())??;
+    let (audio_tx, mut audio_rx) = mpsc::unbounded_channel();
     let capture = capture::start(audio_tx, device)?;
-    let (control_tx, control_rx) = mpsc::unbounded_channel();
+    let (control_tx, mut control_rx) = mpsc::unbounded_channel();
     let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
-    SESSIONS.lock().unwrap().insert(id, control_tx);
+    SESSIONS.lock().unwrap().insert(id, (window.label().to_string(), control_tx));
     ACTIVE.store(true, Ordering::SeqCst);
     tauri::async_runtime::spawn(async move {
         let emit = |event: VoiceEvent| { let _ = on_event.send(event); };
         let stop = || capture.stop();
-        let result = match input {
-            Input::Claude(account) => run_claude(&account.token, &language, audio_rx, control_rx, &emit, stop).await,
-            Input::Codex(account) => run_codex(&account.token, audio_rx, control_rx, &emit, stop).await,
-            Input::Api(config) => run_api(config, &language, audio_rx, control_rx, &emit, stop).await,
-            #[cfg(target_os = "macos")]
-            Input::Apple => apple::run(&language, audio_rx, control_rx, &emit, stop).await,
-        };
+        let (audio, control) = (&mut audio_rx, &mut control_rx);
+        let count = inputs.len();
+        let mut result = Ok(());
+        // A rejection happens while connecting, before any audio was sent: what was spoken meanwhile is
+        // still queued and goes to the next source.
+        for (index, input) in inputs.into_iter().enumerate() {
+            result = match input {
+                Input::Claude(account) => run_claude(&account.token, base_language(&language), audio, control, &emit, &stop).await,
+                Input::Codex(account) => run_codex(&account.token, audio, control, &emit, &stop).await,
+                Input::Api(config) => run_api(config, base_language(&language), audio, control, &emit, &stop).await,
+                #[cfg(target_os = "macos")]
+                Input::Apple => apple::run(&language, audio, control, &emit, &stop).await,
+            };
+            if !result.as_ref().is_err_and(|e| rejected(e)) || index + 1 == count { break; }
+        }
         capture.stop();
         let mut sessions = SESSIONS.lock().unwrap();
         sessions.remove(&id);
@@ -237,8 +268,11 @@ pub async fn voice_start(app: AppHandle, source: String, language: String, devic
     Ok(id)
 }
 
+/// "zh-TW" → "zh": the online services take a plain language code; Apple's dictation keeps the region.
+fn base_language(language: &str) -> &str { language.split('-').next().unwrap_or(language) }
+
 fn control(id: u64, command: Control) {
-    if let Some(sender) = SESSIONS.lock().unwrap().get(&id) { let _ = sender.send(command); }
+    if let Some((_, sender)) = SESSIONS.lock().unwrap().get(&id) { let _ = sender.send(command); }
 }
 
 /// Stop listening and wait for the service's final text.
@@ -344,7 +378,7 @@ impl ClaudeTranscript {
 }
 
 async fn run_claude(
-    token: &str, language: &str, mut audio: mpsc::UnboundedReceiver<Vec<i16>>, mut control: mpsc::UnboundedReceiver<Control>,
+    token: &str, language: &str, audio: &mut mpsc::UnboundedReceiver<Vec<i16>>, control: &mut mpsc::UnboundedReceiver<Control>,
     emit: &(dyn Fn(VoiceEvent) + Send + Sync), stop_capture: impl Fn() + Send,
 ) -> Result<(), String> {
     let language = if language.trim().is_empty() { "en" } else { language };
@@ -436,7 +470,7 @@ impl CodexTranscript {
 }
 
 async fn run_codex(
-    token: &str, mut audio: mpsc::UnboundedReceiver<Vec<i16>>, mut control: mpsc::UnboundedReceiver<Control>,
+    token: &str, audio: &mut mpsc::UnboundedReceiver<Vec<i16>>, control: &mut mpsc::UnboundedReceiver<Control>,
     emit: &(dyn Fn(VoiceEvent) + Send + Sync), stop_capture: impl Fn() + Send,
 ) -> Result<(), String> {
     let mut request = "wss://chatgpt.com/backend-api/dictation/stream?client_type=desktop&dictation_surface=composer"
@@ -517,7 +551,7 @@ async fn run_codex(
 
 /// The user's OpenAI-compatible endpoint: record everything, then send it as one WAV file.
 async fn run_api(
-    config: ApiConfig, language: &str, mut audio: mpsc::UnboundedReceiver<Vec<i16>>, mut control: mpsc::UnboundedReceiver<Control>,
+    config: ApiConfig, language: &str, audio: &mut mpsc::UnboundedReceiver<Vec<i16>>, control: &mut mpsc::UnboundedReceiver<Control>,
     emit: &(dyn Fn(VoiceEvent) + Send + Sync), stop_capture: impl Fn() + Send,
 ) -> Result<(), String> {
     emit(VoiceEvent::Ready);
@@ -525,7 +559,12 @@ async fn run_api(
     loop {
         tokio::select! {
             chunk = audio.recv() => match chunk {
-                Some(chunk) => { emit(VoiceEvent::Level { level: level(&chunk) }); samples.extend(chunk); }
+                Some(chunk) => {
+                    emit(VoiceEvent::Level { level: level(&chunk) });
+                    samples.extend(chunk);
+                    // Stay under the services' upload limit (OpenAI takes 25 MB): finish on our own.
+                    if samples.len() >= API_MAX_SAMPLES { stop_capture(); break; }
+                }
                 None => return Err("microphone_closed".into()),
             },
             command = control.recv() => match command {

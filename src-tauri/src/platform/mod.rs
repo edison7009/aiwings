@@ -10,11 +10,12 @@ mod windows;
 #[cfg(windows)]
 pub use self::windows::*;
 
-use tauri::{AppHandle, LogicalSize, Manager, PhysicalPosition, PhysicalSize};
+use std::sync::Mutex;
+use tauri::{AppHandle, PhysicalPosition, PhysicalSize};
 
 #[derive(Clone, Copy)]
-/// A, X, V go with Cmd/Ctrl; Delete (Backspace) is sent bare.
-pub enum Key { A, C, X, V, Delete, Right }
+/// Sent with Cmd/Ctrl: select all, cut, paste.
+pub enum Key { A, X, V }
 
 // These home screens wrap the composer in a larger project/header surface.
 // Stop at the first padded ancestor that also contains the toolbar below the editor.
@@ -35,27 +36,32 @@ pub const BAR_WIDTH: f64 = 280.0;
 #[derive(Clone, Copy, Debug)]
 pub struct Frame { pub x: f64, pub y: f64, pub w: f64, pub h: f64 }
 
-/// Left edge of the bar: just outside the target's right edge. When that runs off the screen while the
-/// target itself still fits (a maximized window), inside it, or the bar could not be seen at all.
-/// When the target itself already runs past the screen (an app widening to open its built-in browser),
-/// the bar follows it out rather than cover the app's content.
-fn bar_x(f: Frame, bar_w: f64, screen_right: Option<f64>, scale: f64) -> f64 {
+/// Left edge of the bar: just outside the target's right edge, or None when that runs off the screen
+/// (a maximized window, or an app widening to open its built-in browser): the bar then collapses.
+/// Expanded by hand anyway (`wide`), it goes inside the target's right edge while the target fits the
+/// screen, and otherwise follows it out rather than cover the app's content.
+fn bar_x(f: Frame, bar_w: f64, screen_right: Option<f64>, scale: f64, wide: bool) -> Option<f64> {
     // Tuck 1pt under the target's edge so no sliver of desktop shows between the two windows.
     let outside = f.x + f.w - scale;
     match screen_right {
-        Some(right) if outside + bar_w > right && f.x + f.w <= right + 2.0 * scale => f.x + f.w - bar_w,
-        _ => outside,
+        Some(right) if outside + bar_w > right => {
+            if !wide { return None; }
+            Some(if f.x + f.w <= right + 2.0 * scale { f.x + f.w - bar_w } else { outside })
+        }
+        _ => Some(outside),
     }
 }
 
-/// Places a bar beside its target's right edge (see `bar_x`).
-pub fn place_bar(win: &tauri::WebviewWindow, app: &AppHandle, f: Frame, scale: f64) {
+/// Places a bar beside its target's right edge (see `bar_x`). False when there is no room and the bar
+/// should be hidden.
+pub fn place_bar(win: &tauri::WebviewWindow, app: &AppHandle, f: Frame, scale: f64) -> bool {
     let bar_w = BAR_WIDTH * scale;
     let right = app.monitor_from_point(f.x + f.w / 2.0, f.y + f.h / 2.0).ok().flatten()
         .map(|m| (m.position().x as f64) + m.size().width as f64);
-    let x = bar_x(f, bar_w, right, scale);
+    let Some(x) = bar_x(f, bar_w, right, scale, crate::bars::shows_wide(win.label())) else { return false };
     let _ = win.set_size(PhysicalSize::new(bar_w.round() as u32, f.h.max(200.0).round() as u32));
     let _ = win.set_position(PhysicalPosition::new(x.round() as i32, f.y.round() as i32));
+    true
 }
 
 mod apps;
@@ -77,15 +83,35 @@ pub fn sort_targets(list: &mut [crate::TargetInfo]) {
     list.sort_by(|a, b| ai_rank(a).cmp(&ai_rank(b)).then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase())));
 }
 
-/// Places the "save to Wings" chip astride the input box's top border, left of the box's
-/// mic and send/stop buttons, reserving two icon widths.
+/// Each app's chip window: its pill's measured width (logical px), reported by its page so the window covers
+/// no more of the input box than the buttons do (CHIP_W until measured), and where it was last put.
+static CHIP_WIDTHS: Mutex<Vec<(String, f64)>> = Mutex::new(Vec::new());
+static PLACED: Mutex<Vec<(String, (i32, i32, u32, u32))>> = Mutex::new(Vec::new());
+
+pub fn chip_width(label: &str) -> f64 {
+    CHIP_WIDTHS.lock().unwrap().iter().find(|(l, _)| l == label).map_or(CHIP_W, |(_, w)| *w)
+}
+
+pub fn set_chip_width(label: &str, width: f64) {
+    let mut all = CHIP_WIDTHS.lock().unwrap();
+    all.retain(|(l, _)| l != label);
+    all.push((label.to_string(), width));
+}
+
+/// Forgets a closed app's chip.
+pub fn forget_chip(label: &str) {
+    CHIP_WIDTHS.lock().unwrap().retain(|(l, _)| l != label);
+    PLACED.lock().unwrap().retain(|(l, _)| l != label);
+    forget_chip_layer(label);
+}
+
+/// Places a chip astride the input box's top border, left of the box's mic and send/stop buttons,
+/// reserving two icon widths. Only for the app in use (the inset depends on it).
 /// Returns true when the chip window was hidden and has just been shown.
 /// Only touches the window when its spot changes or it was hidden: re-setting the frame and re-ordering
 /// it every tick makes the button stutter.
-pub fn place_chip(app: &AppHandle, input: Frame, scale: f64) -> bool {
-    static PLACED: std::sync::Mutex<Option<(i32, i32, u32, u32)>> = std::sync::Mutex::new(None);
-    let Some(chip) = app.get_webview_window("chip") else { return false };
-    let (w, h) = (*CHIP_WIDTH.lock().unwrap() * scale, CHIP_H * scale);
+pub fn place_chip(chip: &tauri::WebviewWindow, input: Frame, scale: f64) -> bool {
+    let (w, h) = (chip_width(chip.label()) * scale, CHIP_H * scale);
     // The button's centre is the window's vertical centre, so half the window above the line centres it on the border.
     // Preserve Grok Bot's verified 96-point inset independently of the shared default.
     let key = TARGET_KEY.lock().unwrap();
@@ -95,7 +121,19 @@ pub fn place_chip(app: &AppHandle, input: Frame, scale: f64) -> bool {
     drop(key);
     let x = input.x + input.w - w - inset * scale;
     let spot = (x.round() as i32, (input.y - h / 2.0).round() as i32, w.round() as u32, h.round() as u32);
-    let mut placed = PLACED.lock().unwrap();
+    put_chip(chip, spot)
+}
+
+/// Moves a chip by a distance in physical pixels: its app's window moved while another app was in use.
+pub fn shift_chip(chip: &tauri::WebviewWindow, dx: f64, dy: f64) -> bool {
+    let placed = PLACED.lock().unwrap().iter().find(|(l, _)| l == chip.label()).map(|(_, p)| *p);
+    let Some(p) = placed else { return false };
+    put_chip(chip, ((p.0 as f64 + dx).round() as i32, (p.1 as f64 + dy).round() as i32, p.2, p.3))
+}
+
+fn put_chip(chip: &tauri::WebviewWindow, spot: (i32, i32, u32, u32)) -> bool {
+    let mut all = PLACED.lock().unwrap();
+    let placed = all.iter().find(|(l, _)| l == chip.label()).map(|(_, p)| *p);
     if placed.is_none_or(|p| (p.2, p.3) != (spot.2, spot.3)) {
         let _ = chip.set_size(PhysicalSize::new(spot.2, spot.3));
     }
@@ -103,44 +141,16 @@ pub fn place_chip(app: &AppHandle, input: Frame, scale: f64) -> bool {
         let _ = chip.set_position(PhysicalPosition::new(spot.0, spot.1));
     }
     let was_hidden = !chip.is_visible().unwrap_or(false);
-    if was_hidden { show_no_activate(&chip); }
-    *placed = Some(spot);
+    if was_hidden { show_no_activate(chip); }
+    all.retain(|(l, _)| l != chip.label());
+    all.push((chip.label().to_string(), spot));
     was_hidden
 }
 
 pub const CHIP_W: f64 = 140.0;
-/// The pill's measured width (logical px), reported by the chip page so the window covers no more of the
-/// input box than the buttons do. CHIP_W until the page has measured it.
-pub static CHIP_WIDTH: std::sync::Mutex<f64> = std::sync::Mutex::new(CHIP_W);
 pub const CHIP_H: f64 = 34.0;
 /// Room kept clear for the box's own buttons at its right end.
 pub const CHIP_RIGHT_INSET: f64 = 64.0;
-
-/// Hover returns to where (and how big) it was last hovering, or on first use keeps the docked
-/// width and trims the height. It is resizable by the edges; docked, the target sets the size again.
-/// `last` is the remembered hover frame in physical pixels: x, y, width, height.
-pub fn shape_for_mode(app: &AppHandle, float: bool, last: Option<[f64; 4]>) {
-    let Some(win) = app.get_webview_window("main") else { return };
-    let _ = win.set_resizable(float);
-    if !float { return; }
-    let _ = win.set_min_size(Some(LogicalSize::new(200.0, 240.0)));
-    // Only if that spot is still on a screen (a monitor may have been unplugged since).
-    if let Some([x, y, w, h]) = last {
-        if let Ok(Some(_)) = app.monitor_from_point(x + w / 2.0, y + 20.0) {
-            let _ = win.set_size(PhysicalSize::new(w.round() as u32, h.round() as u32));
-            let _ = win.set_position(PhysicalPosition::new(x.round() as i32, y.round() as i32));
-            return;
-        }
-    }
-    let scale = win.scale_factor().unwrap_or(1.0);
-    if let Ok(size) = win.inner_size() {
-        let h = (size.height as f64).min(FLOAT_HEIGHT * scale);
-        let _ = win.set_size(PhysicalSize::new(size.width, h.round() as u32));
-    }
-}
-
-/// Default hover height; shorter than a docked bar, which matches the whole target window.
-pub const FLOAT_HEIGHT: f64 = 460.0;
 
 /// Terminals: Wings can follow them and paste into them, but cannot save from them. Select-all grabs the
 /// whole scrollback and cut does nothing, because the line being typed belongs to the program running inside.
@@ -208,17 +218,20 @@ mod input_box_tests {
     }
 
     #[test]
-    fn bar_stays_inside_maximized_but_follows_an_overflowing_window_out() {
+    fn bar_collapses_without_room_unless_expanded_by_hand() {
         let f = |x: f64, w: f64| Frame { x, y: 0.0, w, h: 800.0 };
         // Room on the right: outside, tucked 1pt under the edge.
-        assert_eq!(bar_x(f(100.0, 1000.0), 280.0, Some(1920.0), 1.0), 1099.0);
-        // Maximized: no room, inside the right edge.
-        assert_eq!(bar_x(f(0.0, 1920.0), 280.0, Some(1920.0), 1.0), 1640.0);
-        // Window widened past the screen: follow it out, cover nothing.
-        assert_eq!(bar_x(f(600.0, 1800.0), 280.0, Some(1920.0), 1.0), 2399.0);
-        // Second monitor to the right, scaled.
-        assert_eq!(bar_x(f(1920.0, 2880.0), 560.0, Some(4800.0), 2.0), 4240.0);
-        assert_eq!(bar_x(f(1920.0, 1000.0), 560.0, None, 2.0), 2918.0);
+        assert_eq!(bar_x(f(100.0, 1000.0), 280.0, Some(1920.0), 1.0, false), Some(1099.0));
+        // Maximized, or widened past the screen: no room, collapsed.
+        assert_eq!(bar_x(f(0.0, 1920.0), 280.0, Some(1920.0), 1.0, false), None);
+        assert_eq!(bar_x(f(600.0, 1800.0), 280.0, Some(1920.0), 1.0, false), None);
+        // Expanded by hand: inside a maximized window; an overflowing one is followed out, covering nothing.
+        assert_eq!(bar_x(f(0.0, 1920.0), 280.0, Some(1920.0), 1.0, true), Some(1640.0));
+        assert_eq!(bar_x(f(600.0, 1800.0), 280.0, Some(1920.0), 1.0, true), Some(2399.0));
+        // Maximized on a second monitor to the right, scaled: collapsed, or inside when expanded by hand.
+        assert_eq!(bar_x(f(1920.0, 2880.0), 560.0, Some(4800.0), 2.0, false), None);
+        assert_eq!(bar_x(f(1920.0, 2880.0), 560.0, Some(4800.0), 2.0, true), Some(4240.0));
+        assert_eq!(bar_x(f(1920.0, 1000.0), 560.0, None, 2.0, false), Some(2918.0));
     }
 
     #[test]

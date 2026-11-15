@@ -61,13 +61,13 @@ pub(super) fn available() -> bool {
 
 pub(super) async fn run(
     language: &str,
-    mut audio: mpsc::UnboundedReceiver<Vec<i16>>,
-    mut control: mpsc::UnboundedReceiver<Control>,
+    audio: &mut mpsc::UnboundedReceiver<Vec<i16>>,
+    control: &mut mpsc::UnboundedReceiver<Control>,
     emit: &(dyn Fn(VoiceEvent) + Send + Sync),
     stop_capture: impl Fn() + Send,
 ) -> Result<(), String> {
     let locale = match language {
-        "zh" => "zh-CN",
+        "zh" | "zh-CN" => "zh-CN",
         "en" => "en-US",
         "ja" => "ja-JP",
         "ko" => "ko-KR",

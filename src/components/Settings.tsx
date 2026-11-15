@@ -5,7 +5,6 @@ import type { Prefs } from '../lib/prefs';
 import { t } from '../strings';
 import { LangMenu } from './LangMenu';
 import { Segmented } from './Segmented';
-import { layouts } from '../lib/layouts';
 import { ShortcutRecorder } from './ShortcutRecorder';
 import { TextSize } from './TextSize';
 import { PaletteSwatches } from './PaletteSwatches';
@@ -35,16 +34,9 @@ export function Settings({ prefs, shortcut, onChange, onError, onShortcut, onBac
       </header>
       {tab === 'voice' ? <div className="panel-body settings"><VoiceSettings onError={onError} /></div> : <div className="panel-body settings">
         <section>
-          <Segmented value={prefs.layout} options={layouts()} onChange={v => set('layout', v)} />
-          <p className="muted small hint">{t.layoutHint[prefs.layout]}</p>
+          <label>{t.notesLabel}</label>
+          <Segmented value={prefs.notesPerApp ? 'own' : 'shared'} options={[['shared', t.notesShared], ['own', t.notesPerApp]]} onChange={v => set('notesPerApp', v === 'own')} />
         </section>
-        {/* Only bars can tell apps apart; the hover panel always lists every note. */}
-        {prefs.layout === 'follow' && (
-          <section>
-            <label>{t.notesLabel}</label>
-            <Segmented value={prefs.notesPerApp ? 'own' : 'shared'} options={[['shared', t.notesShared], ['own', t.notesPerApp]]} onChange={v => set('notesPerApp', v === 'own')} />
-          </section>
-        )}
         <section>
           <label>{t.terminalsLabel}</label>
           <Segmented value={prefs.terminals ? 'on' : 'off'} options={[['on', t.on], ['off', t.off]]} onChange={v => set('terminals', v === 'on')} />

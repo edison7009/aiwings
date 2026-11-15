@@ -8,7 +8,8 @@ import { installTips } from './lib/tips';
 import { installZoom } from './lib/zoom';
 import './styles.css';
 
-const isChip = getCurrentWindow().label === 'chip';
+// Each AI app has its own chip window, "chip-<id>".
+const isChip = getCurrentWindow().label.startsWith('chip-');
 document.documentElement.dataset.window = isChip ? 'chip' : 'main';
 { const p = readPrefs(); applyThemeMode(p.theme, p.palette); };
 // The bar's text can be enlarged; the chip keeps its size so it still fits on the input's border.

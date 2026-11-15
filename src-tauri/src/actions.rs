@@ -74,47 +74,6 @@ pub fn capture(app: &AppHandle) {
     }
 }
 
-/// Share: copy (not cut) the target's input text so the chip can turn it into a link, then put the
-/// caret back at the end and the clipboard back as it was. The input box keeps its text.
-pub fn read_input(app: &AppHandle) -> Option<String> {
-    if platform::target_input_unsupported() {
-        emit_error(app, "此应用暂不支持输入框操作");
-        return None;
-    }
-    if platform::target_is_terminal() { emit_error(app, "终端里不支持分享"); return None; }
-    if !platform::activate_target() { emit_error(app, "没能切换到目标窗口"); return None; }
-    if !platform::focus_input() {
-        emit_error(app, "没能定位聊天输入框，请先点一下输入框再试");
-        return None;
-    }
-    let Ok(mut cb) = arboard::Clipboard::new() else { emit_error(app, "无法访问剪贴板"); return None };
-    let saved = clip::snapshot(&mut cb);
-    let _ = cb.clear();
-    let ok = platform::send_combo(platform::Key::A)
-        .and_then(|_| { sleep(Duration::from_millis(60)); platform::send_combo(platform::Key::C) });
-    if let Err(e) = ok {
-        clip::restore(&mut cb, saved);
-        emit_error(app, &e);
-        return None;
-    }
-    let start = Instant::now();
-    let mut text = String::new();
-    while start.elapsed() < CLIP_WAIT {
-        sleep(Duration::from_millis(40));
-        if let Ok(t) = cb.get_text() {
-            if !t.trim().is_empty() { text = t; break; }
-        }
-    }
-    // Everything is still selected: collapse the selection so the next keystroke does not replace it.
-    let _ = platform::send_combo(platform::Key::Right);
-    clip::restore(&mut cb, saved);
-    if text.trim().is_empty() {
-        emit_error(app, "输入框里没有可分享的文字");
-        return None;
-    }
-    Some(text)
-}
-
 /// Bring the target forward, put the caret in its input box and paste the note. Never presses Enter.
 /// The note stays on the clipboard afterwards, so the user can paste it anywhere else too.
 pub fn paste(app: &AppHandle, text: String, image: Option<String>) {
@@ -140,21 +99,4 @@ pub fn paste(app: &AppHandle, text: String, image: Option<String>) {
     if let Err(e) = platform::send_combo(platform::Key::V) {
         emit_error(app, &format!("{e}（内容已复制，可手动粘贴）"));
     }
-}
-
-/// Empties the target's input box: select all, then Delete. Clicked from the chip, so focus is handed back first.
-pub fn clear(app: &AppHandle) {
-    if platform::target_input_unsupported() {
-        return emit_error(app, "此应用暂不支持输入框操作");
-    }
-    if platform::target_is_terminal() { return emit_error(app, "终端里不支持清空"); }
-    if !platform::activate_target() {
-        return emit_error(app, "没能切换到目标窗口");
-    }
-    if !platform::focus_input() {
-        return emit_error(app, "没能定位聊天输入框，请先点一下输入框再试");
-    }
-    let res = platform::send_combo(platform::Key::A)
-        .and_then(|_| { sleep(Duration::from_millis(60)); platform::send_combo(platform::Key::Delete) });
-    if let Err(e) = res { emit_error(app, &e); }
 }

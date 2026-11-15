@@ -54,8 +54,6 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .shell { height: 100%; padding: 6px; position: relative; }
 /* Docked: flush against the target window, top, bottom and the side facing it; a gap shows the desktop through. */
 .shell--docked { padding: 0; }
-/* Hover: same horizontal inset as docked, so switching modes never changes the bar's width. */
-.shell--float { padding: 0; }
 
 .panel {
   position: relative;
@@ -82,9 +80,10 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
   gap: 8px;
   padding: 10px 12px 6px;
 }
-/* macOS puts window buttons on the left, so the close dot leads and the layout switch moves right. */
-.panel-head--mac { flex-direction: row-reverse; }
-/* Close: puts Wings away to the tray. The same × as Coffee CLI's dialogs: muted, red tint on hover. */
+/* The collapse × alone: on the right on Windows, on the left on macOS, where window buttons are. */
+.panel-head:has(> .win-close:only-child) { justify-content: flex-end; }
+.panel-head--mac:has(> .win-close:only-child) { justify-content: flex-start; }
+/* Close: collapses every bar. The same × as Coffee CLI's dialogs: muted, red tint on hover. */
 .win-close {
   flex-shrink: 0;
   width: 28px;
@@ -348,6 +347,8 @@ h1 { font-size: 15px; margin: 6px 0 4px; }
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.16);
 }
 .app-menu-list button:hover { background: var(--card-hover); }
+/* Overlay variant: the list floats over what follows instead of pushing it down. */
+.app-menu--overlay .app-menu-list { position: absolute; top: 100%; left: 0; right: 0; z-index: 20; max-height: 240px; overflow-y: auto; }
 .app-menu-list button { justify-content: flex-start; }
 .app-menu-list .row-text { flex: 1; }
 .app-menu-check { width: 14px; flex-shrink: 0; color: var(--accent); font-weight: 600; }
@@ -358,9 +359,9 @@ kbd { font: inherit; padding: 1px 6px; border-radius: 4px; border: 1px solid var
 
 /* Chip window: only the pill, on a fully transparent window. */
 [data-window="chip"] .shell { padding: 0; }
-/* The draft's actions (save · share · clear) as one solid pill, like Coffee CLI's composer. Always iOS
-   blue, whatever the palette: it sits on other apps' windows, not in Wings. While the input is empty it
-   darkens (still solid, so the border it sits on never shows through) and the buttons do nothing. */
+/* The draft's actions (save · voice · collapse) as one solid pill, like Coffee CLI's composer. Always iOS
+   blue, whatever the palette: it sits on other apps' windows, not in Wings. It never darkens: with the
+   input empty, saving simply does nothing. */
 .chip-ground {
   position: absolute;
   right: 1px;
@@ -369,13 +370,12 @@ kbd { font: inherit; padding: 1px 6px; border-radius: 4px; border: 1px solid var
   height: 22px;
   border-radius: 11px;
   overflow: hidden;
-  background: #0a3f7a;
-  color: rgba(255, 255, 255, 0.55);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  background: #007aff;
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 122, 255, 0.35);
   transform: translateY(-50%);
   transition: background 0.15s, color 0.15s, opacity 0.15s, transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-.chip-ground[data-enabled] { background: #007aff; color: #ffffff; box-shadow: 0 1px 3px rgba(0, 122, 255, 0.35); }
 /* The input box went away: fade out while sinking 4px (only opacity and transform, smooth even when throttled). */
 .chip-ground.is-leaving { opacity: 0; transform: translateY(calc(-50% + 4px)); pointer-events: none; }
 .chip-action {
@@ -389,22 +389,19 @@ kbd { font: inherit; padding: 1px 6px; border-radius: 4px; border: 1px solid var
   white-space: nowrap;
   transition: background 0.15s;
 }
-/* Hairline dividers keep the three readable as one group. */
+/* Hairline dividers keep the buttons readable as one group. */
 .chip-action + .chip-action { box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.28); }
 .chip-action.chip-icon { width: 26px; padding: 0; }
 .chip-action svg { width: 12px; height: 12px; }
 .chip-action:not([aria-disabled="true"]):hover { background: rgba(255, 255, 255, 0.16); }
 .chip-action:not([aria-disabled="true"]):active { background: rgba(0, 0, 0, 0.12); }
 .chip-action[aria-disabled="true"] { cursor: default; }
-/* The microphone works on an empty box too, so it stays bright on the dark pill. */
-.chip-ground:not([data-enabled]) .chip-mic { color: #ffffff; }
-.chip-mic:hover { background: rgba(255, 255, 255, 0.16); }
-/* Recording: cancel · a small level meter and what was heard so far · done. */
-.chip-voice-text { display: flex; align-items: center; gap: 6px; max-width: 220px; padding: 0 8px; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.28); }
-.chip-voice-text + .chip-action { box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.28); }
-.chip-voice-level { display: flex; align-items: center; gap: 2px; height: 12px; flex-shrink: 0; }
-.chip-voice-level i { width: 2px; border-radius: 1px; background: currentColor; height: calc(3px + 9px * var(--level)); transition: height 0.1s; }
-.chip-voice-level i:nth-child(2) { height: calc(3px + 9px * min(1, var(--level) * 1.4)); }
+/* Recording: cancel · Coffee CLI's dot waveform · done, no words. Connecting and transcribing dim the dots. */
+.chip-voice-body { display: grid; place-items: center; padding: 0 6px; box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.28); }
+.chip-voice-body + .chip-action { box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.28); }
+.chip-voice-wave { display: block; color: #ffffff; transition: opacity 0.2s; }
+.chip-voice:not(.is-recording) .chip-voice-wave { opacity: 0.45; }
+.chip-spin { animation: update-spin 0.9s linear infinite; }
 @media (prefers-reduced-motion: reduce) { .chip-ground { transition: none; } }
 
 /* Icon options in a segmented switch. The name shows as a themed tip on hover (Coffee CLI's style). */

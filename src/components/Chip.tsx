@@ -1,11 +1,61 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
-import { shareLink } from '../lib/share';
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { startVoice, useVoiceEnabled, type VoiceEvent } from '../lib/voice';
 import { t } from '../strings';
 
+/** This chip's own window: each app has one, and events are sent to the one they concern. */
+const win = getCurrentWebviewWindow();
+
 type Phase = 'idle' | 'connecting' | 'recording' | 'processing';
+
+/** Start and stop chimes for recording, as in Coffee CLI. */
+const sounds: Record<'start' | 'stop', HTMLAudioElement | null> = { start: null, stop: null };
+function chime(which: 'start' | 'stop') {
+  const audio = sounds[which] ??= Object.assign(new Audio(`/sounds/voice-${which}.mp3`), { volume: 0.3 });
+  audio.currentTime = 0;
+  void audio.play().catch(() => {});
+}
+
+// Coffee CLI's waveform: dots 2px wide on a 4px step drifting left at 40px/s; each new dot takes the
+// current loudness, so speech raises the dots and silence leaves a dotted line.
+const WAVE_WIDTH = 64, WAVE_HEIGHT = 14, WAVE_STEP = 4, WAVE_DOT = 2, WAVE_SPEED = 40;
+
+/** Reads the level from a ref in its own animation loop, so nothing re-renders per update. */
+function VoiceWave({ level }: { level: React.RefObject<number> }) {
+  const canvas = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const element = canvas.current;
+    const context = element?.getContext('2d');
+    if (!element || !context) return;
+    const ratio = window.devicePixelRatio || 1;
+    element.width = WAVE_WIDTH * ratio;
+    element.height = WAVE_HEIGHT * ratio;
+    const dots: number[] = new Array(Math.ceil(WAVE_WIDTH / WAVE_STEP) + 1).fill(0);
+    let offset = 0, smoothed = 0, last = performance.now(), frame = 0;
+    const draw = (now: number) => {
+      const elapsed = Math.min(now - last, 100) / 1000;
+      last = now;
+      // Ease toward the latest level so a 100 ms update does not snap.
+      smoothed += (level.current - smoothed) * Math.min(1, elapsed * 12);
+      offset += elapsed * WAVE_SPEED;
+      while (offset >= WAVE_STEP) { offset -= WAVE_STEP; dots.shift(); dots.push(smoothed); }
+      context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      context.clearRect(0, 0, WAVE_WIDTH, WAVE_HEIGHT);
+      context.fillStyle = getComputedStyle(element).color;
+      dots.forEach((l, i) => {
+        const h = WAVE_DOT + l * (WAVE_HEIGHT - WAVE_DOT);
+        context.beginPath();
+        context.roundRect(i * WAVE_STEP - offset, (WAVE_HEIGHT - h) / 2, WAVE_DOT, h, WAVE_DOT / 2);
+        context.fill();
+      });
+      frame = requestAnimationFrame(draw);
+    };
+    frame = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(frame);
+  }, [level]);
+  return <canvas ref={canvas} className="chip-voice-wave" style={{ width: WAVE_WIDTH, height: WAVE_HEIGHT }} aria-hidden />;
+}
 
 /** Shows `msg` where the user is looking (the bar of the app in use, or the hover panel). */
 const toast = (msg: string) => void invoke('share_link', { link: null, msg });
@@ -17,24 +67,34 @@ function voiceError(message: string) {
 }
 
 /**
- * The draft's actions on the target's input box (save to Wings · share link · clear · voice), as one solid
- * pill, like Coffee CLI's composer. It is there whenever an input box is focused; while the box is empty it
- * darkens and only the microphone works. `wings://chip` carries whether the box has text, or null once it is gone.
- * While recording the pill becomes: cancel · what was heard so far · done; the text is pasted when done.
+ * The draft's actions on the target's input box (save to Wings · voice · collapse/expand the bars), as one solid
+ * pill, like Coffee CLI's composer. It stays on the app's input box while the app is in front, focused or not,
+ * always bright; with the box empty, saving does nothing. `wings://chip` carries whether the box has text, or
+ * null once it is gone.
+ * While recording the pill becomes: cancel · waveform · done, with no words (Coffee CLI's look); the text is
+ * pasted when done.
  */
 export function Chip() {
   const [hasText, setHasText] = useState<boolean | null>(null);
-  const [busy, setBusy] = useState(false);
   const voiceOn = useVoiceEnabled();
   const [phase, setPhase] = useState<Phase>('idle');
-  const [heard, setHeard] = useState('');
-  const [level, setLevel] = useState(0);
-  const session = useRef<{ id: number | null; cancelled: boolean } | null>(null);
+  const level = useRef(0);
+  const session = useRef<{ id: number | null; cancelled: boolean; finishing?: boolean } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
+  // A recording started by an earlier load of this page (it reloads on a language change) has nothing left
+  // to stop it: end it.
+  useEffect(() => { void invoke('voice_cancel_all'); }, []);
+  // Whether the current app's bar is up: the arrow then collapses the bars, otherwise it brings them back.
+  const [barUp, setBarUp] = useState(true);
+  useEffect(() => {
+    const un = win.listen<boolean>('wings://bar', e => setBarUp(e.payload));
+    void un.then(() => invoke<boolean>('bar_state')).then(setBarUp, () => {});
+    return () => { void un.then(f => f()); };
+  }, []);
   useEffect(() => {
     // Listen first, then ask: an event sent while this page was still loading is not lost.
-    const un = listen<boolean | null>('wings://chip', e => setHasText(e.payload));
+    const un = win.listen<boolean | null>('wings://chip', e => setHasText(e.payload));
     void un.then(() => invoke<boolean | null>('chip_state')).then(setHasText, () => {});
     return () => { void un.then(f => f()); };
   }, []);
@@ -42,29 +102,19 @@ export function Chip() {
   // The recording pill grows with its text, so measure again whenever that changes.
   useLayoutEffect(() => {
     if (ref.current) void invoke('set_chip_width', { width: ref.current.offsetWidth + 2 });
-  }, [phase, heard, voiceOn]);
+  }, [phase, voiceOn]);
 
-  const enabled = !!hasText && !busy;
-  const share = async () => {
-    setBusy(true);
-    try {
-      const text = await invoke<string | null>('input_text');
-      if (!text) return;
-      const link = await shareLink(text);
-      await invoke('share_link', link ? { link, msg: t.linkCopied } : { link: null, msg: t.shareTooLong });
-    } finally { setBusy(false); }
-  };
-
-  const reset = () => { session.current = null; setPhase('idle'); setHeard(''); setLevel(0); };
+  const enabled = !!hasText;
+  const reset = () => { session.current = null; setPhase('idle'); level.current = 0; };
   const onVoice = (e: VoiceEvent) => {
     if (!session.current || session.current.cancelled) return;
     switch (e.kind) {
-      case 'ready': setPhase('recording'); break;
-      case 'processing': setPhase('processing'); break;
-      case 'level': setLevel(e.level); break;
+      case 'ready': chime('start'); setPhase('recording'); break;
+      // The custom API also finishes on its own at its length limit; chime then too.
+      case 'processing': if (!session.current.finishing) chime('stop'); setPhase('processing'); break;
+      case 'level': level.current = e.level; break;
       case 'error': reset(); toast(voiceError(e.message)); break;
       case 'text':
-        setHeard(e.text);
         if (!e.done) break;
         reset();
         if (e.text.trim()) void invoke('paste_note', { text: e.text.trim(), image: null });
@@ -85,6 +135,9 @@ export function Chip() {
     if (!current) return;
     // Nothing heard yet (still connecting): there is nothing to wait for.
     if (current.id == null || phase === 'connecting') { cancel(); return; }
+    chime('stop');
+    current.finishing = true;
+    level.current = 0;
     setPhase('processing');
     void invoke('voice_finish', { id: current.id });
   };
@@ -103,47 +156,41 @@ export function Chip() {
   const press = () => void invoke('chip_pressed', { refocus: !enabled });
 
   if (phase !== 'idle') {
-    const status = phase === 'connecting' ? t.voiceConnecting : phase === 'processing' ? t.voiceProcessing : heard ? `…${heard.slice(-16)}` : t.voiceListening;
     return (
-      <div ref={ref} className="chip-ground chip-voice" data-enabled>
+      <div ref={ref} className={`chip-ground chip-voice is-${phase}`}>
         <button type="button" className="chip-action chip-icon" aria-label={t.voiceCancel} onMouseDown={keepVoice} onClick={cancel}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden><path d="M18 6 6 18M6 6l12 12" /></svg>
         </button>
-        <span className="chip-voice-text" onMouseDown={keepVoice}>
-          <span className="chip-voice-level" style={{ '--level': phase === 'recording' ? level : 0 } as React.CSSProperties} aria-hidden><i /><i /><i /></span>
-          {status}
-        </span>
+        <span className="chip-voice-body" onMouseDown={keepVoice}><VoiceWave level={level} /></span>
         <button type="button" className="chip-action chip-icon" aria-label={t.voiceDone} aria-disabled={phase === 'processing'} onMouseDown={keepVoice} onClick={phase === 'processing' ? undefined : finish}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><polyline points="20 6 9 17 4 12" /></svg>
+          {phase === 'processing' ? (
+            <svg className="chip-spin" viewBox="0 0 16 16" fill="none" aria-hidden><circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.8" opacity="0.35" /><path d="M8 2.5 A5.5 5.5 0 0 1 13.5 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
+          ) : (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><polyline points="20 6 9 17 4 12" /></svg>
+          )}
         </button>
       </div>
     );
   }
 
   return (
-    <div ref={ref} onMouseDown={press} className={`chip-ground${hasText === null ? ' is-leaving' : ''}`} data-enabled={enabled || undefined}>
+    <div ref={ref} onMouseDown={press} className={`chip-ground${hasText === null ? ' is-leaving' : ''}`}>
       <button type="button" className="chip-action" aria-disabled={!enabled} onMouseDown={keep} onClick={enabled ? () => void invoke('capture_now') : undefined}>{t.saveToWings}</button>
-      <button type="button" className="chip-action chip-icon" aria-disabled={!enabled} aria-label={t.shareLink} onMouseDown={keep} onClick={enabled ? () => void share() : undefined}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7" /><polyline points="16 6 12 2 8 6" /><line x1="12" y1="2" x2="12" y2="15" />
-        </svg>
-      </button>
-      {/* Clearing by hand is slow; this selects all and deletes in the target's input box. */}
-      <button type="button" className="chip-action chip-icon" aria-disabled={!enabled} aria-label={t.clear} onMouseDown={keep} onClick={enabled ? () => void invoke('clear_input') : undefined}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <polyline points="3 6 5 6 21 6" />
-          <path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6" />
-          <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
-        </svg>
-      </button>
       {/* Speaking works on an empty box too, so the microphone is never dimmed. */}
       {voiceOn && (
-        <button type="button" className="chip-action chip-icon chip-mic" aria-label={t.voiceStart} onMouseDown={keepVoice} onClick={record}>
+        <button type="button" className="chip-action chip-icon" aria-label={t.voiceStart} onMouseDown={keepVoice} onClick={record}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 10v1a7 7 0 0 0 14 0v-1" /><line x1="12" y1="18" x2="12" y2="22" />
           </svg>
         </button>
       )}
+      {/* Collapse or expand the bars; like the microphone it works on an empty box too. */}
+      <button type="button" className="chip-action chip-icon" aria-label={barUp ? t.closeTip : t.barExpand} onMouseDown={keepVoice} onClick={() => void invoke('toggle_bars')}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          {/* ‹ while the bars are up, › once collapsed. */}
+          <polyline points={barUp ? '15 6 9 12 15 18' : '9 6 15 12 9 18'} />
+        </svg>
+      </button>
     </div>
   );
 }

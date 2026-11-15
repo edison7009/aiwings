@@ -142,15 +142,15 @@ fn app_hidden(pid: i32) -> bool {
 }
 
 /// Places one bar beside its app's window and orders it just above that window, so whatever covers the
-/// app covers the bar too, and the bar never floats over other apps. Hidden in hover mode, while the app is
-/// hidden, or while its window is minimized. Main thread only (AppKit).
+/// app covers the bar too, and the bar never floats over other apps. Hidden while collapsed, while the app is
+/// hidden, while its window is minimized, or when there is no room beside it. Main thread only (AppKit).
 unsafe fn refresh_one(app: &AppHandle, w: &Watched) {
     let Some(bar) = app.get_webview_window(&w.label) else { return };
-    let up = !crate::bars::FLOAT.load(Ordering::SeqCst) && !crate::bars::HIDDEN.load(Ordering::SeqCst) && !w.window.is_null() && !is_minimized(w.window) && !app_hidden(w.pid);
+    let up = !crate::bars::HIDDEN.load(Ordering::SeqCst) && !w.window.is_null() && !is_minimized(w.window) && !app_hidden(w.pid);
     let frame = up.then(|| Some((read_pair(w.window, "AXPosition", 1)?, read_pair(w.window, "AXSize", 2)?))).flatten();
     let Some((pos, size)) = frame else { hide(&bar); return };
     let s = bar.scale_factor().unwrap_or(1.0);
-    place_bar(&bar, app, Frame { x: pos.a * s, y: pos.b * s, w: size.a * s, h: size.b * s }, s);
+    if !place_bar(&bar, app, Frame { x: pos.a * s, y: pos.b * s, w: size.a * s, h: size.b * s }, s) { hide(&bar); return; }
     let mut wid = 0u32;
     let known = _AXUIElementGetWindow(w.window, &mut wid) == 0 && wid != 0;
     if let Ok(ns) = bar.ns_window() {
@@ -212,7 +212,7 @@ pub fn untrack(id: &str) {
     }
 }
 
-/// Re-places every bar: after a mode switch, and when Wings itself loses focus (clicking a bar can bring it
+/// Re-places every bar: after collapsing or expanding, and when Wings itself loses focus (clicking a bar can bring it
 /// above other apps' windows).
 pub fn refresh_later(app: &AppHandle) {
     let app = app.clone();
@@ -252,6 +252,54 @@ pub fn target_is_front() -> bool {
     pid != 0 && front_pid() == pid
 }
 
+/// An app's followed window while it is on screen (not minimized, the app not hidden): its window number
+/// and frame in points. `id` is the pid.
+fn window_of(id: &str) -> Option<(u32, Frame)> {
+    let pid: i32 = id.parse().ok()?;
+    // Take our own reference and let go of the list before asking the app: a hung app could otherwise hold
+    // the lock (and the main thread's AX callbacks waiting on it) for the whole messaging timeout.
+    let win = {
+        let watched = WATCHED.lock().unwrap();
+        let w = watched.iter().find(|w| w.pid == pid)?;
+        if w.window.is_null() { return None; }
+        unsafe { CFRetain(w.window) }
+    };
+    let result = unsafe {
+        let mut wid = 0u32;
+        if is_minimized(win) || app_hidden(pid) || _AXUIElementGetWindow(win, &mut wid) != 0 || wid == 0 { None }
+        else { frame_of(win).map(|f| (wid, f)) }
+    };
+    unsafe { CFRelease(win) };
+    result
+}
+
+/// An app's window frame (points) while it is on screen; its chip stays only then.
+pub fn window_frame(id: &str) -> Option<Frame> { window_of(id).map(|(_, f)| f) }
+
+/// Layers an app's chip like its bar: above everything while that app is in front; otherwise just above
+/// its window, so whatever covers the app covers the chip too. Only when that changes (or `force`, right
+/// after the chip was shown): re-ordering every tick makes it stutter.
+static LAYERED: Mutex<Vec<(String, (bool, u32))>> = Mutex::new(Vec::new());
+
+/// Forgets how a closed app's chip was layered.
+pub fn forget_chip_layer(label: &str) { LAYERED.lock().unwrap().retain(|(l, _)| l != label); }
+
+pub fn layer_chip(chip: &tauri::WebviewWindow, id: &str, force: bool) {
+    let Some((wid, _)) = window_of(id) else { return };
+    let state = (id.parse::<i32>().is_ok_and(|pid| front_pid() == pid), wid);
+    let mut last = LAYERED.lock().unwrap();
+    if !force && last.iter().any(|(l, s)| l == chip.label() && *s == state) { return; }
+    last.retain(|(l, _)| l != chip.label());
+    last.push((chip.label().to_string(), state));
+    let _ = chip.set_always_on_top(state.0);
+    let c = chip.clone();
+    let _ = chip.run_on_main_thread(move || unsafe {
+        let Ok(ns) = c.ns_window() else { return };
+        let ns = &*(ns as *const NSWindow);
+        if state.0 { ns.orderFrontRegardless(); } else { ns.orderWindow_relativeTo(NSWindowOrderingMode::Above, wid as isize); }
+    });
+}
+
 pub fn activate_target() -> bool {
     let pid = TARGET_PID.load(Ordering::SeqCst);
     let Some(app) = NSRunningApplication::runningApplicationWithProcessIdentifier(pid) else { return false };
@@ -278,8 +326,8 @@ pub fn wait_modifiers_released() {
 pub fn send_combo(key: Key) -> Result<(), String> {
     if !unsafe { AXIsProcessTrusted() } { return Err("需要先授予辅助功能权限".into()); }
     if !target_is_front() { return Err("目标窗口不在最前面，已取消".into()); }
-    let code: u16 = match key { Key::A => 0, Key::C => 8, Key::X => 7, Key::V => 9, Key::Delete => 51, Key::Right => 124 };
-    let flags = if matches!(key, Key::Delete | Key::Right) { CGEventFlags::CGEventFlagNull } else { CGEventFlags::CGEventFlagCommand };
+    let code: u16 = match key { Key::A => 0, Key::X => 7, Key::V => 9 };
+    let flags = CGEventFlags::CGEventFlagCommand;
     let src = CGEventSource::new(CGEventSourceStateID::HIDSystemState).map_err(|_| "无法模拟按键")?;
     for down in [true, false] {
         let ev = CGEvent::new_keyboard_event(src.clone(), code, down).map_err(|_| "无法模拟按键")?;
@@ -349,19 +397,23 @@ pub fn focused_input() -> Option<(Frame, bool)> {
     let mut all = ACTIVE.lock().unwrap();
     let d = current(&mut all)?;
     unsafe {
-        let el = copy_attr(d.app_el, "AXFocusedUIElement")?;
-        let role = copy_attr(el, "AXRole").map(|r| CFString::wrap_under_create_rule(r as CFStringRef).to_string());
-        let editable = editable_input(el, role.as_deref());
-        let frame = if editable { frame_of(el) } else { None };
-        if editable && el != d.input {
-            // Remember it, so a paste can put the caret back after focus wandered off.
-            if !d.input.is_null() { CFRelease(d.input); }
-            d.input = CFRetain(el);
+        if let Some(el) = copy_attr(d.app_el, "AXFocusedUIElement") {
+            let role = copy_attr(el, "AXRole").map(|r| CFString::wrap_under_create_rule(r as CFStringRef).to_string());
+            let editable = editable_input(el, role.as_deref());
+            if editable && el != d.input {
+                // Remember it, so a paste can put the caret back after focus wandered off.
+                if !d.input.is_null() { CFRelease(d.input); }
+                d.input = CFRetain(el);
+            }
+            let found = if editable { frame_of(el).map(|f| (input_box(el, f), has_real_text(el))) } else { None };
+            CFRelease(el);
+            if found.is_some() { return found; }
         }
-        let has_text = has_real_text(el);
-        let frame = frame.map(|f| input_box(el, f));
-        CFRelease(el);
-        Some((frame?, has_text))
+        // Focus is elsewhere in the app (or the app reports none for a moment): the chip stays on the input
+        // box used last, wherever it is now. Gone (another page), and the chip goes too.
+        if d.input.is_null() { return None; }
+        let f = frame_of(d.input).filter(|f| f.w > 0.0 && f.h > 0.0)?;
+        Some((input_box(d.input, f), has_real_text(d.input)))
     }
 }
 

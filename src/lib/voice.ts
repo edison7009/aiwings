@@ -37,10 +37,13 @@ export const useVoiceEnabled = () => useSyncExternalStore(subscribe, voiceEnable
 export const useVoiceDevice = () => useSyncExternalStore(subscribe, voiceDevice);
 export const useVoiceSource = () => useSyncExternalStore(subscribe, voiceSource);
 
-/** The services want a plain language code: the UI language, or the system's when that is automatic. */
+/** The UI language, or the system's when that is automatic. Traditional Chinese keeps its region (Apple's
+ *  dictation needs it); the Rust side gives the online services the plain code. */
 export function voiceLanguage(): string {
   const lang = readPrefs().lang;
-  return (lang === 'auto' ? navigator.language || 'en' : lang).split('-')[0].toLowerCase();
+  const tag = (lang === 'auto' ? navigator.language || 'en' : lang).toLowerCase();
+  if (tag.startsWith('zh')) return /tw|hk|mo|hant/.test(tag) ? 'zh-TW' : 'zh';
+  return tag.split('-')[0];
 }
 
 export const loadVoiceSources = () => invoke<VoiceSource[]>('voice_sources');

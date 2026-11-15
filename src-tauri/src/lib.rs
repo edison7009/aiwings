@@ -9,7 +9,7 @@ mod watch;
 
 use serde::Serialize;
 use std::sync::atomic::Ordering;
-use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+use tauri::{AppHandle, Emitter, Manager, WindowEvent};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
 /// Default save shortcut; the user can pick another single modifier + single key in settings.
@@ -82,9 +82,10 @@ fn paste_note(app: AppHandle, window: tauri::WebviewWindow, text: String, image:
     std::thread::spawn(move || actions::paste(&app, text, image));
 }
 
-/// Clicked from the chip: the click moved focus to Wings, so hand it back before cutting.
+/// Clicked from a chip: the click moved focus to Wings, so hand it back (to that chip's app) before cutting.
 #[tauri::command]
-fn capture_now(app: AppHandle) {
+fn capture_now(app: AppHandle, window: tauri::WebviewWindow) {
+    if let Some(t) = bars::target_of(window.label()) { platform::set_active(&t); }
     if platform::target_input_unsupported() {
         return actions::emit_error(&app, "此应用暂不支持输入框操作");
     }
@@ -96,17 +97,6 @@ fn capture_now(app: AppHandle) {
         }
         actions::capture(&app);
     });
-}
-
-#[tauri::command]
-fn clear_input(app: AppHandle) {
-    std::thread::spawn(move || actions::clear(&app));
-}
-
-/// Share from the chip: the input box's text, read on a worker thread (it waits on the target app).
-#[tauri::command]
-async fn input_text(app: AppHandle) -> Option<String> {
-    tauri::async_runtime::spawn_blocking(move || actions::read_input(&app)).await.ok().flatten()
 }
 
 /// Puts a share link on the clipboard (when given) and shows `msg` where the user is looking:
@@ -122,33 +112,35 @@ fn share_link(app: AppHandle, link: Option<String>, msg: Option<String>) {
     }
 }
 
-/// The chip was pressed (mouse down). Its buttons hand focus back themselves; pressing it while it is
-/// dark (empty input) does nothing else, so give the caret back to the target's input here.
+/// A chip was pressed (mouse down): its app becomes the one saves and pastes go to. Its buttons hand
+/// focus back themselves; with `refocus`, give the caret back to that app's input here.
 #[tauri::command]
-fn chip_pressed(refocus: bool) {
+fn chip_pressed(window: tauri::WebviewWindow, refocus: bool) {
     *watch::PRESSED_AT.lock().unwrap() = Some(std::time::Instant::now());
+    if let Some(t) = bars::target_of(window.label()) { platform::set_active(&t); }
     if refocus {
         std::thread::spawn(|| { if platform::activate_target() { platform::focus_input(); } });
     }
 }
 
-/// The chip's current state, for a chip page that missed the last `wings://chip` event while loading.
+/// A chip's current state, for a chip page that missed the last `wings://chip` event while loading.
 #[tauri::command]
-fn chip_state() -> Option<bool> { *watch::CHIP_STATE.lock().unwrap() }
+fn chip_state(window: tauri::WebviewWindow) -> Option<bool> {
+    watch::CHIP_STATES.lock().unwrap().iter().find(|(l, _)| l == window.label()).and_then(|(_, s)| *s)
+}
 
-/// The chip page's pill width, so its window covers no more of the input box than the buttons do.
+/// A chip page's pill width, so its window covers no more of the input box than the buttons do.
 #[tauri::command]
-fn set_chip_width(app: AppHandle, width: f64) {
+fn set_chip_width(window: tauri::WebviewWindow, width: f64) {
     let width = width.clamp(60.0, 400.0);
-    *platform::CHIP_WIDTH.lock().unwrap() = width;
+    platform::set_chip_width(window.label(), width);
     // Resize a shown chip right away, keeping its right edge in place: while recording the watcher holds
     // it still and would not.
-    let Some(chip) = app.get_webview_window("chip") else { return };
-    if !chip.is_visible().unwrap_or(false) { return; }
-    let (Ok(pos), Ok(size), Ok(scale)) = (chip.outer_position(), chip.outer_size(), chip.scale_factor()) else { return };
+    if !window.is_visible().unwrap_or(false) { return; }
+    let (Ok(pos), Ok(size), Ok(scale)) = (window.outer_position(), window.outer_size(), window.scale_factor()) else { return };
     let w = (width * scale).round() as i32;
-    let _ = chip.set_size(tauri::PhysicalSize::new(w as u32, size.height));
-    let _ = chip.set_position(tauri::PhysicalPosition::new(pos.x + size.width as i32 - w, pos.y));
+    let _ = window.set_size(tauri::PhysicalSize::new(w as u32, size.height));
+    let _ = window.set_position(tauri::PhysicalPosition::new(pos.x + size.width as i32 - w, pos.y));
 }
 
 /// The tray menu's items, kept so the UI can relabel them on a language change.
@@ -190,20 +182,28 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
     Ok(())
 }
 
-/// `float`: hover mode. `terminals`: terminals get bars too. The hover panel is always free-floating;
-/// the first call puts it back where it was last left.
+/// `terminals`: terminals get bars too. `chip`: show the chip on the target's input box.
 #[tauri::command]
-fn set_prefs(app: AppHandle, float: bool, terminals: bool, chip: bool, float_rect: Option<[f64; 4]>) {
+fn set_prefs(terminals: bool, chip: bool) {
     watch::CHIP.store(chip, Ordering::SeqCst);
     bars::TERMINALS.store(terminals, Ordering::SeqCst);
-    static SHAPED: std::sync::Once = std::sync::Once::new();
-    SHAPED.call_once(|| platform::shape_for_mode(&app, true, float_rect));
-    if bars::FLOAT.swap(float, Ordering::SeqCst) != float { platform::refresh_later(&app); }
 }
 
-/// The close button on a bar or the hover panel: hides Wings to the tray (it does not quit).
+/// The × on a bar: collapses every bar (Wings keeps running; the chip's arrow or the tray brings them back).
 #[tauri::command]
-fn hide_wings(app: AppHandle) { bars::hide_all(&app); }
+fn hide_wings(app: AppHandle) { bars::set_collapsed(&app, true); }
+
+/// A chip's arrow: collapse or expand the bars.
+#[tauri::command]
+fn toggle_bars(app: AppHandle, window: tauri::WebviewWindow) {
+    if let Some(t) = bars::target_of(window.label()) { bars::toggle(&app, &t.id); }
+}
+
+/// Whether a chip's app has its bar on screen, for a chip page that missed the last `wings://bar` event.
+#[tauri::command]
+fn bar_state(app: AppHandle, window: tauri::WebviewWindow) -> bool {
+    bars::target_of(window.label()).is_some_and(|t| bars::bar_up(&app, &t.id))
+}
 
 /// Cursor position inside the window, in CSS pixels. macOS sends no mouse-move events to a window of an
 /// inactive app, so the UI polls this to keep hover effects working while the target has focus.
@@ -241,26 +241,9 @@ pub fn run() {
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
             // Docked beside other apps, Wings has no window chrome or Dock icon: the tray is the one way to quit.
             build_tray(app)?;
+            bars::load_collapsed(app.handle());
             register_shortcut(app.handle(), SHORTCUT)?;
             *CURRENT_SHORTCUT.lock().unwrap() = SHORTCUT.to_string();
-            // The "save to Wings" chip that sits on the target's input box; hidden until an input is focused.
-            WebviewWindowBuilder::new(app, "chip", WebviewUrl::App("index.html".into()))
-                .title("Wings")
-                .inner_size(platform::CHIP_W, platform::CHIP_H)
-                .decorations(false)
-                .transparent(true)
-                .shadow(false)
-                .resizable(false)
-                .always_on_top(true)
-                .skip_taskbar(true)
-                .focused(false)
-                .focusable(false)
-                .accept_first_mouse(true)
-                // Wings is never the active app while the user types elsewhere; without this, macOS 14+
-                // throttles the page and animations stutter.
-                .background_throttling(tauri::utils::config::BackgroundThrottlingPolicy::Disabled)
-                .visible(false)
-                .build()?;
             watch::start(app.handle().clone());
             Ok(())
         })
@@ -269,11 +252,11 @@ pub fn run() {
             if let WindowEvent::Focused(false) = ev { platform::refresh_later(win.app_handle()); }
         })
         .invoke_handler(tauri::generate_handler![
-            bar_target, hide_wings, set_tray_labels, paste_note, capture_now, clear_input, input_text, share_link, set_chip_width, chip_state, chip_pressed, set_prefs, cursor_in_window,
+            bar_target, hide_wings, set_tray_labels, paste_note, capture_now, share_link, set_chip_width, chip_state, chip_pressed, set_prefs, toggle_bars, bar_state, cursor_in_window,
             permission_granted, open_permission_settings, shortcut_label, set_shortcut,
             update::check_update, update::download_update, update::open_url,
             store::load_notes, store::add_note, store::remove_note, store::image_data_url,
-            voice::voice_sources, voice::voice_start, voice::voice_finish, voice::voice_cancel, voice::voice_devices,
+            voice::voice_sources, voice::voice_start, voice::voice_finish, voice::voice_cancel, voice::voice_cancel_all, voice::voice_devices,
             voice::voice_mic_test_start, voice::voice_mic_test_stop, voice::voice_api_get, voice::voice_api_set
         ])
         .run(tauri::generate_context!())

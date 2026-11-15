@@ -25,7 +25,8 @@
         "shadow": false,
         "acceptFirstMouse": true,
         "backgroundThrottling": "disabled",
-        "center": true
+        "center": true,
+        "visible": false
       }
     ],
     "security": { "csp": null }
