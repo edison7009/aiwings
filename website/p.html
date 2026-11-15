@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Shared prompt · Wings</title>
+<meta property="og:site_name" content="Wings">
+<meta property="og:title" content="A prompt shared from Wings">
+<meta property="og:description" content="Copy it and paste it into your AI. Nothing is sent until you press Enter.">
+<link rel="icon" href="/assets/wings-icon-1024.png">
+<!-- Share links come from the app's src/lib/share.ts: the prompt rides in the fragment (#z= deflated and
+     base64url-encoded, #t= plain), which browsers never send to the server. This page only decodes it
+     and stores nothing. Same format as Coffee CLI's coffeecli.com/p. -->
+<style>
+/* The homepage's look: pink on paper with a dot grid, black outlines and hard purple shadows. */
+:root { --pink: #f84890; --deep: #200038; --ink: #15111a; --paper: #fff7fb; --white: #fff; --muted: #6d6474; --line: 3px solid var(--ink); }
+* { box-sizing: border-box; }
+body {
+  margin: 0; min-height: 100svh; display: flex; flex-direction: column; color: var(--ink); background: var(--paper);
+  background-image: radial-gradient(color-mix(in srgb, #4a0a78 16%, transparent) 1.2px, transparent 1.4px);
+  background-size: 22px 22px;
+  font: 400 17px/1.7 -apple-system, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+}
+.nav { display: flex; align-items: center; justify-content: space-between; width: min(860px, 100% - 32px); margin: 0 auto; padding: 10px 0; }
+.nav img { height: 44px; display: block; }
+.nav a.get { padding: 8px 18px; border-radius: 999px; background: #1a1320; color: #fff; font-weight: 700; font-size: 15px; text-decoration: none; }
+/* Centered between the nav and the footer; a long prompt still starts at the top and scrolls. */
+main { flex: 1; display: flex; flex-direction: column; justify-content: center; width: min(760px, 100% - 32px); margin: 0 auto; padding: 24px 0 40px; }
+.kicker { margin: 0 0 6px; color: var(--pink); font-weight: 700; font-size: 14px; letter-spacing: .06em; }
+h1 { margin: 0; font-size: clamp(26px, 4vw, 36px); line-height: 1.25; }
+.sub { margin: 10px 0 0; color: var(--muted); }
+.card { margin-top: 26px; background: var(--white); border: var(--line); border-radius: 20px; box-shadow: 6px 6px 0 var(--deep); overflow: hidden; }
+.prompt { margin: 0; padding: 18px 22px; max-height: 50vh; overflow: auto; white-space: pre-wrap; word-break: break-word; font: 15px/1.7 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.note { margin: 16px 0 0; padding: 10px 14px; border: 2px solid var(--pink); border-radius: 12px; background: #ffe6f1; font-size: 15px; }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 26px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px; padding: 12px 22px; border: var(--line); border-radius: 999px;
+  background: var(--white); color: var(--ink); font-family: inherit; font-size: 16px; font-weight: 700; line-height: 1; text-decoration: none; cursor: pointer;
+  box-shadow: 4px 4px 0 var(--deep); transition: transform .2s, box-shadow .2s;
+}
+.btn:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--deep); }
+.btn:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--deep); }
+.btn.primary { background: var(--pink); color: var(--white); }
+.btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+/* Copy and Copied share one cell, so the button keeps its width when the label changes. */
+.swap { display: inline-grid; }
+.swap > * { grid-area: 1 / 1; justify-self: center; }
+.swap .done, .is-copied .swap .idle { visibility: hidden; }
+.is-copied .swap .done { visibility: visible; }
+footer { width: min(860px, 100% - 32px); margin: 0 auto; padding: 18px 0 28px; color: var(--muted); font-size: 14px; display: flex; justify-content: space-between; gap: 12px; }
+footer a { color: inherit; }
+[hidden] { display: none !important; }
+@media (max-width: 600px) { .btn { flex: 1 1 auto; justify-content: center; } }
+</style>
+</head>
+<body>
+<header class="nav">
+  <a href="/" id="home"><img src="/assets/wings-logo.png" alt="Wings"></a>
+  <a class="get" id="get" href="https://github.com/edison7009/aiwings/releases/latest">Download</a>
+</header>
+
+<main>
+  <p class="kicker" id="kicker"></p>
+  <h1 id="title"></h1>
+  <p class="sub" id="sub"></p>
+  <div class="card" id="card"><pre class="prompt" id="prompt"></pre></div>
+  <p class="note" id="note" hidden></p>
+  <div class="actions">
+    <button class="btn primary" id="copy" type="button">
+      <span class="swap" aria-hidden="true">
+        <svg class="idle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+        <svg class="done" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+      </span>
+      <span class="swap"><span class="idle" id="copy-label"></span><span class="done" id="copied-label"></span></span>
+    </button>
+    <a class="btn" id="about" href="/"><img src="/assets/wings-icon-1024.png" alt="" width="20" height="20"><span id="about-label"></span></a>
+  </div>
+</main>
+
+<footer>
+  <span>Wings · aiwings.app</span>
+  <a href="https://github.com/edison7009/aiwings">GitHub</a>
+</footer>
+
+<script>
+(function () {
+  // Language: the site's remembered choice, else the browser's.
+  var pick = '';
+  try { pick = localStorage.getItem('wings-site-lang') || ''; } catch (e) {}
+  var nav = navigator.language || '';
+  var zh = pick ? pick === 'zh' : /^zh/i.test(nav);
+  var tw = zh && /^zh-(tw|hk|mo|hant)/i.test(nav);
+  var S = zh ? (tw ? {
+    kicker: '分享的提示詞', title: '朋友和你分享了一段提示詞', sub: '複製後貼到你的 AI 輸入框裡，確認沒問題再按 Enter 傳送。',
+    copy: '複製提示詞', copied: '已複製', about: '用 Wings 存下一句', get: '下載',
+    hidden: '這段提示詞裡有看不見的字元，已經移除。這類字元可能藏著指令，請先讀一遍再用。',
+    bad: '這個連結沒有可用的提示詞', badSub: '連結可能不完整，或提示詞超過 8000 字。',
+    badBrowser: '這個瀏覽器打不開這個連結，請換用最新版的 Chrome、Edge 或 Safari。'
+  } : {
+    kicker: '分享的提示词', title: '朋友和你分享了一段提示词', sub: '复制后粘贴到你的 AI 输入框里，确认没问题再按回车发送。',
+    copy: '复制提示词', copied: '已复制', about: '用 Wings 存下一句', get: '下载',
+    hidden: '这段提示词里有看不见的字符，已经移除。这类字符可能藏着指令，请先读一遍再用。',
+    bad: '这个链接没有可用的提示词', badSub: '链接可能不完整，或提示词超过 8000 字。',
+    badBrowser: '这个浏览器打不开这个链接，请换用最新版的 Chrome、Edge 或 Safari。'
+  }) : {
+    kicker: 'Shared prompt', title: 'A friend shared a prompt with you', sub: 'Copy it into your AI\'s input box, read it over, then press Enter.',
+    copy: 'Copy prompt', copied: 'Copied', about: 'Get Wings', get: 'Download',
+    hidden: 'This prompt contained invisible characters, which were removed. They can hide instructions, so read it before you use it.',
+    bad: 'This link has no usable prompt', badSub: 'The link may be cut off, or the prompt is longer than 8,000 characters.',
+    badBrowser: "This browser can't open this link. Try the latest Chrome, Edge or Safari."
+  };
+  var $ = function (id) { return document.getElementById(id); };
+  if (zh) {
+    document.documentElement.lang = tw ? 'zh-Hant' : 'zh-CN';
+    $('home').href = '/zh/';
+    $('about').href = '/zh/';
+  }
+  $('get').textContent = S.get;
+  $('about-label').textContent = S.about;
+
+  // Same list as the app's src/lib/share.ts.
+  var HIDDEN = /[\u00AD\u034F\u061C\u115F\u1160\u17B4\u17B5\u180B-\u180F\u200B\u200C\u200E\u200F\u202A-\u202E\u2060-\u206F\u3164\uFEFF\uFFA0\uFFF0-\uFFFB\u{1D173}-\u{1D17A}\u{E0000}-\u{E0FFF}\u0000-\u0008\u000B-\u001F\u007F-\u009F]/gu;
+  var MAX_INFLATED = 64 * 1024; // a tiny link can't expand into a huge one
+  function fromBase64Url(text) {
+    var b64 = text.replace(/-/g, '+').replace(/_/g, '/');
+    while (b64.length % 4) b64 += '=';
+    var bin = atob(b64), bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
+  }
+  function inflate(packed) {
+    if (typeof DecompressionStream === 'undefined') return Promise.reject(new Error('unsupported'));
+    var reader = new Blob([fromBase64Url(packed)]).stream().pipeThrough(new DecompressionStream('deflate-raw')).getReader();
+    var chunks = [], size = 0;
+    function pump() {
+      return reader.read().then(function (part) {
+        if (part.done) {
+          var all = new Uint8Array(size), at = 0;
+          chunks.forEach(function (c) { all.set(c, at); at += c.length; });
+          return new TextDecoder('utf-8', { fatal: true }).decode(all);
+        }
+        size += part.value.length;
+        if (size > MAX_INFLATED) { reader.cancel(); throw new Error('too large'); }
+        chunks.push(part.value);
+        return pump();
+      });
+    }
+    return pump();
+  }
+  function readPrompt() {
+    var hash = new URLSearchParams(location.hash.slice(1));
+    var packed = hash.get('z');
+    if (packed) return inflate(packed);
+    return Promise.resolve(hash.get('t') || '');
+  }
+  function showBad(message) {
+    $('title').textContent = S.bad;
+    $('sub').textContent = message;
+    $('card').hidden = true;
+    $('copy').hidden = true;
+  }
+  readPrompt().then(show, function (e) { showBad(e && e.message === 'unsupported' ? S.badBrowser : S.badSub); });
+
+  function show(text) {
+    var raw = text.replace(/\r\n/g, '\n');
+    var prompt = raw.replace(HIDDEN, '');
+    if (!prompt.trim() || Array.from(prompt).length > 8000) { showBad(S.badSub); return; }
+    document.title = S.title + ' · Wings';
+    $('kicker').textContent = S.kicker;
+    $('title').textContent = S.title;
+    $('sub').textContent = S.sub;
+    $('prompt').textContent = prompt;
+    if (prompt !== raw) { $('note').textContent = S.hidden; $('note').hidden = false; }
+    $('copy-label').textContent = S.copy;
+    $('copied-label').textContent = S.copied;
+    $('copy').addEventListener('click', function () {
+      var btn = $('copy');
+      var done = function () {
+        btn.classList.add('is-copied');
+        clearTimeout(btn._reset);
+        btn._reset = setTimeout(function () { btn.classList.remove('is-copied'); }, 1800);
+      };
+      var fallback = function () {
+        var ta = document.createElement('textarea');
+        ta.value = prompt; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); done(); } catch (e) { /* the prompt stays selectable on the page */ }
+        document.body.removeChild(ta);
+      };
+      if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(prompt).then(done, fallback);
+      else fallback();
+    });
+  }
+})();
+</script>
+</body>
+</html>
