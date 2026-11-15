@@ -2,9 +2,9 @@
 // with a Copy button. The prompt rides in the fragment (#z= deflated, #t= plain), which browsers never send
 // to the server, so the site only decodes it in the page and stores nothing. website/p.html reads it.
 
-export const SHARE_PAGE = 'https://aiwings.app/p';
+const SHARE_PAGE = 'https://aiwings.app/p';
 /** Same limit as the page and Coffee CLI, counted in characters. */
-export const MAX_SHARE_CHARS = 8000;
+const MAX_SHARE_CHARS = 8000;
 
 // Zero-width, bidi, invisible operators, tag characters and stray controls; the emoji joiner and
 // variation selectors stay because emoji need them. Same list as website/p.html.
