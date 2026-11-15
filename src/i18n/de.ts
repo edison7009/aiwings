@@ -81,6 +81,7 @@ Gelesen? Fahr mit der Maus darüber und klick rechts auf den Papierkorb, um dies
   voiceSignedIn: 'Angemeldet',
   voiceMissing: 'Nicht angemeldet',
   voiceExpired: 'Abgelaufen; öffne Claude Code einmal, um es zu erneuern',
+  voiceBusy: 'Läuft: einmal beenden, dann aktualisieren zum Übernehmen',
   voiceUnset: 'Noch kein API-Schlüssel',
   voiceSystem: 'Auf diesem Mac, kein Konto nötig',
   voiceUnavailable: 'Auf diesem Computer nicht verfügbar',
@@ -98,7 +99,7 @@ Gelesen? Fahr mit der Maus darüber und klick rechts auf den Papierkorb, um dies
   voiceCancel: 'Abbrechen',
   voiceNothing: 'Nichts gehört',
   voiceFailed: (detail: string) => `Spracheingabe fehlgeschlagen: ${detail}`,
-  voiceErrors: { no_source: 'Kein nutzbares Sprachkonto; wähle eines unter Einstellungen → Sprache', signed_out: 'Dieses Konto ist nicht angemeldet oder abgelaufen', api_unset: 'Gib zuerst unter Einstellungen → Sprache einen API-Schlüssel ein', no_microphone: 'Kein nutzbares Mikrofon gefunden', microphone_closed: 'Das Mikrofon wurde getrennt', speech_permission: 'Erlaube Wings in den Systemeinstellungen Spracherkennung und Mikrofon', speech_unavailable: 'Das Systemdiktat ist gerade nicht verfügbar', speech_dictation_disabled: 'Schalte Diktat unter Systemeinstellungen → Tastatur ein', speech_timeout: 'Das Systemdiktat antwortet nicht' },
+  voiceErrors: { source_busy: 'Beende zuerst diese App und aktualisiere dann die Konten', speech_network: 'Netzwerkverbindung fehlgeschlagen; versuche es später erneut', no_source: 'Kein nutzbares Sprachkonto; wähle eines unter Einstellungen → Sprache', signed_out: 'Dieses Konto ist nicht angemeldet oder abgelaufen', api_unset: 'Gib zuerst unter Einstellungen → Sprache einen API-Schlüssel ein', no_microphone: 'Kein nutzbares Mikrofon gefunden', microphone_closed: 'Das Mikrofon wurde getrennt', speech_permission: 'Erlaube Wings in den Systemeinstellungen Spracherkennung und Mikrofon', speech_unavailable: 'Das Systemdiktat ist gerade nicht verfügbar', speech_dictation_disabled: 'Schalte Diktat unter Systemeinstellungen → Tastatur ein', speech_timeout: 'Das Systemdiktat antwortet nicht' },
   errors: {
     '无法保存设置': 'Einstellungen konnten nicht gespeichert werden',
     '请用一个修饰键加一个键，比如 ⌥S': 'Nimm eine Sondertaste plus eine Taste, etwa ⌥S',

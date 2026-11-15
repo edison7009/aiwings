@@ -81,6 +81,7 @@ export const ja: Strings = {
   voiceSignedIn: 'ログイン済み',
   voiceMissing: '未ログイン',
   voiceExpired: '期限切れです。Claude Code を一度開くと更新されます',
+  voiceBusy: '起動中：一度終了してから更新で取り込みます',
   voiceUnset: 'API キー未設定',
   voiceSystem: 'この Mac で認識、アカウント不要',
   voiceUnavailable: 'このコンピュータでは使えません',
@@ -98,7 +99,7 @@ export const ja: Strings = {
   voiceCancel: 'キャンセル',
   voiceNothing: '何も聞き取れませんでした',
   voiceFailed: (detail: string) => `音声入力に失敗しました：${detail}`,
-  voiceErrors: { no_source: '使える音声認識アカウントがありません。設定 → 音声 で選んでください', signed_out: 'このアカウントは未ログインか期限切れです', api_unset: '先に 設定 → 音声 で API キーを入力してください', no_microphone: '使えるマイクが見つかりません', microphone_closed: 'マイクが切断されました', speech_permission: 'システム設定で Wings に音声認識とマイクの使用を許可してください', speech_unavailable: 'システムの音声入力は今使えません', speech_dictation_disabled: 'システム設定 → キーボード で「音声入力」をオンにしてください', speech_timeout: 'システムの音声入力が応答しません' },
+  voiceErrors: { source_busy: '先にそのアプリを終了してから、アカウントを更新してください', speech_network: 'ネットワーク接続に失敗しました。しばらくしてからお試しください', no_source: '使える音声認識アカウントがありません。設定 → 音声 で選んでください', signed_out: 'このアカウントは未ログインか期限切れです', api_unset: '先に 設定 → 音声 で API キーを入力してください', no_microphone: '使えるマイクが見つかりません', microphone_closed: 'マイクが切断されました', speech_permission: 'システム設定で Wings に音声認識とマイクの使用を許可してください', speech_unavailable: 'システムの音声入力は今使えません', speech_dictation_disabled: 'システム設定 → キーボード で「音声入力」をオンにしてください', speech_timeout: 'システムの音声入力が応答しません' },
   errors: {
     '无法保存设置': '設定を保存できません',
     '请用一个修饰键加一个键，比如 ⌥S': '修飾キー 1 つとキー 1 つを使ってください（例：⌥S）',

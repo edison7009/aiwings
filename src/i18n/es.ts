@@ -81,6 +81,7 @@ export const es: Strings = {
   voiceSignedIn: 'Sesión iniciada',
   voiceMissing: 'Sin sesión',
   voiceExpired: 'Caducada; abre Claude Code una vez para renovarla',
+  voiceBusy: 'Abierta: ciérrala una vez y actualiza para importarla',
   voiceUnset: 'Falta la clave de API',
   voiceSystem: 'En este Mac, sin cuenta',
   voiceUnavailable: 'No disponible en este equipo',
@@ -98,7 +99,7 @@ export const es: Strings = {
   voiceCancel: 'Cancelar',
   voiceNothing: 'No se oyó nada',
   voiceFailed: (detail: string) => `Falló la entrada de voz: ${detail}`,
-  voiceErrors: { no_source: 'No hay cuentas de voz disponibles; elige una en Ajustes → Voz', signed_out: 'Esa cuenta no tiene sesión o ha caducado', api_unset: 'Primero introduce una clave de API en Ajustes → Voz', no_microphone: 'No se encontró ningún micrófono', microphone_closed: 'El micrófono se desconectó', speech_permission: 'Permite a Wings usar el reconocimiento de voz y el micrófono en Ajustes del Sistema', speech_unavailable: 'El dictado del sistema no está disponible ahora', speech_dictation_disabled: 'Activa el Dictado en Ajustes del Sistema → Teclado', speech_timeout: 'El dictado del sistema no responde' },
+  voiceErrors: { source_busy: 'Cierra primero esa app y actualiza las cuentas', speech_network: 'Falló la conexión de red; inténtalo más tarde', no_source: 'No hay cuentas de voz disponibles; elige una en Ajustes → Voz', signed_out: 'Esa cuenta no tiene sesión o ha caducado', api_unset: 'Primero introduce una clave de API en Ajustes → Voz', no_microphone: 'No se encontró ningún micrófono', microphone_closed: 'El micrófono se desconectó', speech_permission: 'Permite a Wings usar el reconocimiento de voz y el micrófono en Ajustes del Sistema', speech_unavailable: 'El dictado del sistema no está disponible ahora', speech_dictation_disabled: 'Activa el Dictado en Ajustes del Sistema → Teclado', speech_timeout: 'El dictado del sistema no responde' },
   errors: {
     '无法保存设置': 'No se pudieron guardar los ajustes',
     '请用一个修饰键加一个键，比如 ⌥S': 'Usa un modificador más una tecla, como ⌥S',

@@ -81,6 +81,7 @@ Lu ? Survolez puis cliquez sur la corbeille à droite pour supprimer cette note.
   voiceSignedIn: 'Connecté',
   voiceMissing: 'Non connecté',
   voiceExpired: 'Expiré ; ouvrez Claude Code une fois pour le renouveler',
+  voiceBusy: 'Ouverte : quittez-la une fois puis actualisez pour l’importer',
   voiceUnset: 'Pas encore de clé API',
   voiceSystem: 'Sur ce Mac, sans compte',
   voiceUnavailable: 'Indisponible sur cet ordinateur',
@@ -98,7 +99,7 @@ Lu ? Survolez puis cliquez sur la corbeille à droite pour supprimer cette note.
   voiceCancel: 'Annuler',
   voiceNothing: 'Rien n’a été entendu',
   voiceFailed: (detail: string) => `Échec de la saisie vocale : ${detail}`,
-  voiceErrors: { no_source: 'Aucun compte vocal disponible ; choisissez-en un dans Réglages → Voix', signed_out: 'Ce compte n’est pas connecté ou a expiré', api_unset: 'Saisissez d’abord une clé API dans Réglages → Voix', no_microphone: 'Aucun micro utilisable', microphone_closed: 'Le micro a été déconnecté', speech_permission: 'Autorisez Wings à utiliser la reconnaissance vocale et le micro dans Réglages Système', speech_unavailable: 'La dictée du système est indisponible pour le moment', speech_dictation_disabled: 'Activez la Dictée dans Réglages Système → Clavier', speech_timeout: 'La dictée du système ne répond pas' },
+  voiceErrors: { source_busy: 'Quittez d’abord cette app, puis actualisez les comptes', speech_network: 'Échec de la connexion réseau ; réessayez plus tard', no_source: 'Aucun compte vocal disponible ; choisissez-en un dans Réglages → Voix', signed_out: 'Ce compte n’est pas connecté ou a expiré', api_unset: 'Saisissez d’abord une clé API dans Réglages → Voix', no_microphone: 'Aucun micro utilisable', microphone_closed: 'Le micro a été déconnecté', speech_permission: 'Autorisez Wings à utiliser la reconnaissance vocale et le micro dans Réglages Système', speech_unavailable: 'La dictée du système est indisponible pour le moment', speech_dictation_disabled: 'Activez la Dictée dans Réglages Système → Clavier', speech_timeout: 'La dictée du système ne répond pas' },
   errors: {
     '无法保存设置': 'Impossible d’enregistrer les réglages',
     '请用一个修饰键加一个键，比如 ⌥S': 'Utilisez un modificateur et une touche, comme ⌥S',

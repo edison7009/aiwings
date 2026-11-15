@@ -81,6 +81,7 @@ export const zhTW: Strings = {
   voiceSignedIn: '已登入',
   voiceMissing: '未登入',
   voiceExpired: '已過期，開啟一次 Claude Code 即可續期',
+  voiceBusy: '正在執行：先退出它，點重新整理匯入一次',
   voiceUnset: '尚未填寫 API Key',
   voiceSystem: '本機辨識，不需要帳號',
   voiceUnavailable: '這台電腦無法使用',
@@ -98,7 +99,7 @@ export const zhTW: Strings = {
   voiceCancel: '取消',
   voiceNothing: '沒有聽到內容',
   voiceFailed: (detail: string) => `語音辨識失敗：${detail}`,
-  voiceErrors: { no_source: '沒有可用的辨識帳號，請到 設定 → 語音 選一個', signed_out: '這個帳號沒有登入或已過期', api_unset: '請先到 設定 → 語音 填寫 API Key', no_microphone: '找不到可用的麥克風', microphone_closed: '麥克風已中斷', speech_permission: '請在系統設定中允許 Wings 使用語音辨識和麥克風', speech_unavailable: '系統聽寫目前無法使用', speech_dictation_disabled: '請在 系統設定 → 鍵盤 開啟「聽寫」', speech_timeout: '系統聽寫沒有回應' },
+  voiceErrors: { source_busy: '請先退出該應用，再重新整理辨識帳號', speech_network: '網路連線失敗，請稍後再試', no_source: '沒有可用的辨識帳號，請到 設定 → 語音 選一個', signed_out: '這個帳號沒有登入或已過期', api_unset: '請先到 設定 → 語音 填寫 API Key', no_microphone: '找不到可用的麥克風', microphone_closed: '麥克風已中斷', speech_permission: '請在系統設定中允許 Wings 使用語音辨識和麥克風', speech_unavailable: '系統聽寫目前無法使用', speech_dictation_disabled: '請在 系統設定 → 鍵盤 開啟「聽寫」', speech_timeout: '系統聽寫沒有回應' },
   errors: {
     '无法保存设置': '無法儲存設定',
     '请用一个修饰键加一个键，比如 ⌥S': '請用一個修飾鍵加一個鍵，比如 ⌥S',

@@ -6,7 +6,10 @@ import { Channel, invoke } from '@tauri-apps/api/core';
 import { t } from '../strings';
 import { Segmented } from './Segmented';
 import { PickMenu } from './PickMenu';
-import { loadVoiceSources, setVoiceDevice, setVoiceEnabled, setVoiceSource, useVoiceDevice, useVoiceEnabled, useVoiceSource, type VoiceSource } from '../lib/voice';
+import { loadVoiceSources, setVoiceDevice, setVoiceEnabled, setVoiceSource, useVoiceDevice, useVoiceEnabled, useVoiceSource, type OwnSourceId, type VoiceSource } from '../lib/voice';
+
+const OWN = ['claude', 'codex', 'api', 'macos'];
+const sourceName = (s: VoiceSource) => OWN.includes(s.id) ? t.voiceSourceNames[s.id as OwnSourceId] : s.name;
 
 interface ApiView { base: string; model: string; keyHint: string | null }
 
@@ -96,6 +99,7 @@ export function VoiceSettings({ onError }: { onError: (msg: string) => void }) {
 
   const status = (s: VoiceSource) => {
     if (s.issue === 'expired') return t.voiceExpired;
+    if (s.issue === 'busy') return t.voiceBusy;
     if (s.issue === 'unset') return t.voiceUnset;
     if (s.issue === 'missing') return s.id === 'macos' ? t.voiceUnavailable : t.voiceMissing;
     if (s.id === 'macos') return t.voiceSystem;
@@ -104,7 +108,13 @@ export function VoiceSettings({ onError }: { onError: (msg: string) => void }) {
   // An unusable source can still be picked when it only needs a key, so the form opens straight away.
   const pick = (s: VoiceSource) => {
     if (s.id === 'api' && s.issue) { setEditApi(true); return; }
-    if (!s.issue) setVoiceSource(s.id);
+    if (s.issue) return;
+    // Doubao: its session is copied into Wings' own store first (Coffee CLI's way).
+    if (s.id === 'doubao' || s.id === 'doubaowork') {
+      void invoke('voice_select_source', { source: s.id }).then(() => setVoiceSource(s.id), e => onError(String(e)));
+      return;
+    }
+    setVoiceSource(s.id);
   };
 
   return (
@@ -138,7 +148,7 @@ export function VoiceSettings({ onError }: { onError: (msg: string) => void }) {
             {(sources ?? []).map(s => (
               <div key={s.id} className="voice-source-wrap">
                 <button type="button" className="voice-source" aria-pressed={source === s.id} data-issue={s.issue ?? undefined} onClick={() => pick(s)}>
-                  <span className="voice-source-name">{t.voiceSourceNames[s.id]}<span className="voice-source-mode">{s.mode === 'batch' ? t.voiceBatch : t.voiceStreaming}</span></span>
+                  <span className="voice-source-name">{sourceName(s)}<span className="voice-source-mode">{s.transcriptionMode === 'batch' ? t.voiceBatch : t.voiceStreaming}</span></span>
                   <span className="voice-source-status">{status(s)}</span>
                 </button>
                 {s.id === 'api' && <button type="button" className="ghost voice-source-edit" aria-expanded={editApi} onClick={() => setEditApi(!editApi)}>{t.voiceApiEdit}</button>}

@@ -80,6 +80,7 @@ export const zh = {
   voiceSignedIn: '已登录',
   voiceMissing: '未登录',
   voiceExpired: '已过期，打开一次 Claude Code 即可续期',
+  voiceBusy: '正在运行：先退出它，点刷新导入一次',
   voiceUnset: '还没填 API Key',
   voiceSystem: '本机识别，不需要账号',
   voiceUnavailable: '这台电脑不可用',
@@ -97,7 +98,7 @@ export const zh = {
   voiceCancel: '取消',
   voiceNothing: '没有听到内容',
   voiceFailed: (detail: string) => `语音识别失败：${detail}`,
-  voiceErrors: { no_source: '没有可用的识别账号，请到 设置 → 语音 里选一个', signed_out: '这个账号没有登录或已过期', api_unset: '请先到 设置 → 语音 里填写 API Key', no_microphone: '没有找到可用的麦克风', microphone_closed: '麦克风断开了', speech_permission: '请在系统设置里允许 Wings 使用语音识别和麦克风', speech_unavailable: '系统听写当前不可用', speech_dictation_disabled: '请在 系统设置 → 键盘 里打开「听写」', speech_timeout: '系统听写没有响应' },
+  voiceErrors: { source_busy: '请先退出该应用，再刷新识别账号', speech_network: '网络连接失败，请稍后再试', no_source: '没有可用的识别账号，请到 设置 → 语音 里选一个', signed_out: '这个账号没有登录或已过期', api_unset: '请先到 设置 → 语音 里填写 API Key', no_microphone: '没有找到可用的麦克风', microphone_closed: '麦克风断开了', speech_permission: '请在系统设置里允许 Wings 使用语音识别和麦克风', speech_unavailable: '系统听写当前不可用', speech_dictation_disabled: '请在 系统设置 → 键盘 里打开「听写」', speech_timeout: '系统听写没有响应' },
   /** Messages from the Rust side arrive in Chinese; each language maps them (or parts of them) to its own words. */
   errors: {} as Record<string, string>,
 };

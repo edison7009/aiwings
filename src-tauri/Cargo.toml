@@ -27,9 +27,33 @@ ureq = { version = "2", features = ["json"] }
 sha2 = "0.10"
 # Voice input: microphone capture and the vendors' streaming speech-to-text sockets (ported from Coffee CLI).
 cpal = "0.17"
-tokio = { version = "1", features = ["sync", "time", "macros", "net"] }
+tokio = { version = "1", features = ["sync", "time", "macros", "net", "process", "io-util", "rt"] }
 tokio-tungstenite = { version = "0.28", features = ["rustls-tls-webpki-roots"] }
 futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+# Speech services behind other apps' sign-ins (Doubao, WorkBuddy, Cursor, TRAE, Qoder, MiniMax...), ported
+# with Coffee CLI's adapters: their wire formats and the way each app stores its session.
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "system-proxy", "http2", "stream", "multipart"] }
+http = "1"
+bytes = "1"
+http-body-util = "0.1"
+tokio-stream = "0.1"
+url = "2"
+uuid = { version = "1", features = ["v4"] }
+chrono = "0.4"
+dirs = "5"
+rusqlite = { version = "0.32", features = ["bundled"] }
+toml = "0.9"
+flate2 = "1"
+hex = "0.4"
+aes = "0.8"
+aes-gcm = "0.10"
+cbc = { version = "0.1", features = ["alloc", "block-padding"] }
+hmac = "0.12"
+md-5 = "0.10"
+sha1 = "0.10"
+pbkdf2 = "0.12"
+rsa = { version = "0.9", features = ["pem"] }
+rand = "0.8"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 core-foundation = "0.10"
@@ -40,7 +64,9 @@ objc2-foundation = "0.3"
 objc2-app-kit = { version = "0.3", features = ["NSWorkspace", "NSRunningApplication", "NSWindow", "NSResponder", "NSGraphics"] }
 
 [target.'cfg(windows)'.dependencies]
+ring = "0.17"
 windows = { version = "0.58", features = [
+  "Win32_Security_Cryptography",
   "Win32_Foundation",
   "Win32_Graphics_Dwm",
   "Win32_Security",
@@ -50,6 +76,11 @@ windows = { version = "0.58", features = [
   "Win32_UI_Input_KeyboardAndMouse",
   "Win32_UI_WindowsAndMessaging",
 ] }
+
+[dev-dependencies]
+# The ported speech adapters' tests run local stand-ins for the vendors' servers.
+axum = { version = "0.8", features = ["ws", "http2"] }
+tempfile = "3"
 
 [profile.release]
 lto = true

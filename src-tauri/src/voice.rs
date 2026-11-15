@@ -17,6 +17,10 @@ use tokio::{sync::mpsc, time::Instant};
 use tokio_tungstenite::tungstenite::{client::IntoClientRequest, http::HeaderValue, Message};
 #[cfg(target_os = "macos")]
 mod apple;
+mod cursor;
+mod doubao;
+mod echo;
+mod workbuddy;
 
 pub const SAMPLE_RATE: u32 = 16_000;
 /// 100 ms of audio per frame.
@@ -170,52 +174,110 @@ pub fn voice_api_set(app: AppHandle, base: String, model: String, key: Option<St
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VoiceSource {
-    id: &'static str,
+    id: String,
+    name: String,
     account_id: Option<String>,
-    /// Why it cannot be used now: "missing" (not signed in), "expired", "unset" (no key yet).
+    /// Why it cannot be used now: "missing" (not signed in), "expired", "unset" (no key yet), "busy".
     issue: Option<&'static str>,
-    /// "streaming": words appear while speaking; "batch": all at once after the recording.
-    mode: &'static str,
+    /// "batch": all at once after the recording; streaming (words while speaking) when absent.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    transcription_mode: Option<&'static str>,
 }
 
-/// Every source Wings knows, each with whether it can be used right now. Tokens never cross IPC.
+impl VoiceSource {
+    fn new(id: &str, name: &str, account_id: Option<String>, issue: Option<&'static str>) -> Self {
+        Self { id: id.into(), name: name.into(), account_id, issue, transcription_mode: None }
+    }
+}
+
+/// Wings' own sources are always listed (with why one cannot be used); the other apps' sign-ins found on
+/// this machine follow, as in Coffee CLI. Tokens never cross IPC.
 #[tauri::command]
 pub async fn voice_sources(app: AppHandle) -> Vec<VoiceSource> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let local = |id: &'static str, account: Result<Account, &'static str>| match account {
-            Ok(a) => VoiceSource { id, account_id: a.account_id, issue: None, mode: "streaming" },
-            Err(issue) => VoiceSource { id, account_id: None, issue: Some(issue), mode: "streaming" },
+    let own = tauri::async_runtime::spawn_blocking(move || {
+        let local = |id: &str, name: &str, account: Result<Account, &'static str>| match account {
+            Ok(a) => VoiceSource::new(id, name, a.account_id, None),
+            Err(issue) => VoiceSource::new(id, name, None, Some(issue)),
         };
         let api = load_api(&app);
         #[allow(unused_mut)]
         let mut list = vec![
-            local("claude", claude_account()),
-            local("codex", codex_account()),
-            VoiceSource { id: "api", account_id: api.as_ref().map(|c| key_hint(&c.key)), issue: api.is_none().then_some("unset"), mode: "batch" },
+            local("claude", "Claude Code", claude_account()),
+            local("codex", "Codex / ChatGPT", codex_account()),
+            VoiceSource { transcription_mode: Some("batch"), ..VoiceSource::new("api", "API", api.as_ref().map(|c| key_hint(&c.key)), api.is_none().then_some("unset")) },
         ];
         #[cfg(target_os = "macos")]
-        list.push(VoiceSource { id: "macos", account_id: None, issue: (!apple::available()).then_some("missing"), mode: "streaming" });
+        list.push(VoiceSource::new("macos", "macOS", None, (!apple::available()).then_some("missing")));
         list
-    }).await.unwrap_or_default()
+    });
+    let (own, consumer, work, buddy, editor, others) = tokio::join!(
+        own, doubao::account("doubao"), doubao::account("doubaowork"), workbuddy::account(), cursor::account(), echo::sources());
+    let mut list = own.unwrap_or_default();
+    for (result, id, name) in [(consumer, "doubao", "Doubao"), (work, "doubaowork", "Doubao Work")] {
+        match result {
+            Ok(account) => list.push(VoiceSource::new(id, name, Some(account.user_id), None)),
+            // The Doubao app is running and holds its session: it is there, just not readable right now.
+            Err(error) if error == "source_busy" => list.push(VoiceSource::new(id, name, None, Some("busy"))),
+            Err(_) => {}
+        }
+    }
+    if let Ok(account) = buddy { list.push(VoiceSource::new("workbuddy", "WorkBuddy", Some(account.user_id), None)); }
+    if let Ok(account) = editor { list.push(VoiceSource::new("cursor", "Cursor", Some(account.user_id), None)); }
+    list.extend(others);
+    list
 }
 
-enum Input { Claude(Account), Codex(Account), Api(ApiConfig), #[cfg(target_os = "macos")] Apple }
+/// Choosing Doubao copies its current desktop session into Wings' own encrypted store (Coffee CLI's way),
+/// so dictation keeps working while the Doubao app holds the original.
+#[tauri::command]
+pub async fn voice_select_source(source: String) -> Result<(), String> {
+    if doubao::supports(&source) { doubao::select(&source).await?; }
+    Ok(())
+}
 
-/// The chosen source, or with "" (automatic) every usable one in order of preference.
-fn resolve(app: &AppHandle, source: &str) -> Result<Vec<Input>, String> {
-    let one = |id: &str| -> Result<Input, String> {
-        match id {
-            "claude" => claude_account().map(Input::Claude).map_err(|_| "signed_out".into()),
-            "codex" => codex_account().map(Input::Codex).map_err(|_| "signed_out".into()),
-            "api" => load_api(app).map(Input::Api).ok_or_else(|| "api_unset".into()),
-            #[cfg(target_os = "macos")]
-            "macos" => if apple::available() { Ok(Input::Apple) } else { Err("speech_unavailable".into()) },
-            _ => Err("no_source".into()),
+enum Input {
+    Claude(Account), Codex(Account), Api(ApiConfig),
+    Doubao(doubao::Credentials), WorkBuddy(workbuddy::Credentials), Cursor(cursor::Credentials), Native(echo::Credentials),
+    #[cfg(target_os = "macos")] Apple,
+}
+
+/// One source's account, ready to record with.
+async fn input_of(app: &AppHandle, id: &str) -> Result<Input, String> {
+    match id {
+        "claude" | "codex" | "api" | "macos" => {
+            let (app, id) = (app.clone(), id.to_string());
+            // Reading the keychain and files blocks: keep it off the async runtime.
+            tauri::async_runtime::spawn_blocking(move || match id.as_str() {
+                "claude" => claude_account().map(Input::Claude).map_err(|_| "signed_out".to_string()),
+                "codex" => codex_account().map(Input::Codex).map_err(|_| "signed_out".to_string()),
+                "api" => load_api(&app).map(Input::Api).ok_or_else(|| "api_unset".to_string()),
+                #[cfg(target_os = "macos")]
+                _ => if apple::available() { Ok(Input::Apple) } else { Err("speech_unavailable".to_string()) },
+                #[cfg(not(target_os = "macos"))]
+                _ => Err("no_source".to_string()),
+            }).await.map_err(|e| e.to_string())?
         }
-    };
-    if !source.is_empty() { return one(source).map(|input| vec![input]); }
-    let usable: Vec<Input> = ["claude", "codex", "api", "macos"].into_iter().filter_map(|id| one(id).ok()).collect();
-    if usable.is_empty() { Err("no_source".into()) } else { Ok(usable) }
+        "workbuddy" => workbuddy::account().await.map(Input::WorkBuddy),
+        "cursor" => cursor::account().await.map(Input::Cursor),
+        id if doubao::supports(id) => doubao::account(id).await.map(Input::Doubao),
+        id if echo::supports(id) => echo::account(id.to_string()).await.map(Input::Native),
+        _ => Err("no_source".into()),
+    }
+}
+
+/// Automatic: Wings' own sources first, then every other app's sign-in Wings can use.
+fn auto_order() -> Vec<String> {
+    ["claude", "codex", "api", "macos", "workbuddy", "cursor", "doubao", "doubaowork"].into_iter()
+        .map(str::to_owned).chain(echo::channels().map(str::to_owned)).collect()
+}
+
+/// The next usable source from `ids`, with the last reason none was.
+async fn next_input(app: &AppHandle, ids: &mut std::vec::IntoIter<String>) -> Result<Input, String> {
+    let mut error = "no_source".to_string();
+    for id in ids.by_ref() {
+        match input_of(app, &id).await { Ok(input) => return Ok(input), Err(e) => error = e }
+    }
+    Err(error)
 }
 
 /// The service turned the stored sign-in or key away; in automatic mode the next source is tried.
@@ -232,8 +294,13 @@ pub fn voice_cancel_all(window: tauri::WebviewWindow) {
 
 #[tauri::command]
 pub async fn voice_start(app: AppHandle, window: tauri::WebviewWindow, source: String, language: String, device: Option<String>, on_event: Channel<VoiceEvent>) -> Result<u64, String> {
-    let handle = app.clone();
-    let inputs = tauri::async_runtime::spawn_blocking(move || resolve(&handle, &source)).await.map_err(|e| e.to_string())??;
+    let auto = source.is_empty();
+    let mut ids = if auto { auto_order() } else { vec![source] }.into_iter();
+    // Found before the microphone opens, so a missing account is reported at once.
+    let mut input = match next_input(&app, &mut ids).await {
+        Ok(input) => input,
+        Err(error) => return Err(if auto { "no_source".into() } else { error }),
+    };
     let (audio_tx, mut audio_rx) = mpsc::unbounded_channel();
     let capture = capture::start(audio_tx, device)?;
     let (control_tx, mut control_rx) = mpsc::unbounded_channel();
@@ -244,20 +311,23 @@ pub async fn voice_start(app: AppHandle, window: tauri::WebviewWindow, source: S
         let emit = |event: VoiceEvent| { let _ = on_event.send(event); };
         let stop = || capture.stop();
         let (audio, control) = (&mut audio_rx, &mut control_rx);
-        let count = inputs.len();
-        let mut result = Ok(());
         // A rejection happens while connecting, before any audio was sent: what was spoken meanwhile is
         // still queued and goes to the next source.
-        for (index, input) in inputs.into_iter().enumerate() {
-            result = match input {
+        let result = loop {
+            let result = match input {
                 Input::Claude(account) => run_claude(&account.token, base_language(&language), audio, control, &emit, &stop).await,
                 Input::Codex(account) => run_codex(&account.token, audio, control, &emit, &stop).await,
                 Input::Api(config) => run_api(config, base_language(&language), audio, control, &emit, &stop).await,
+                Input::Doubao(account) => doubao::run(account, audio, control, &emit, &stop).await,
+                Input::WorkBuddy(account) => workbuddy::run(account, audio, control, &emit, &stop).await,
+                Input::Cursor(account) => cursor::run(account, audio, control, &emit, &stop).await,
+                Input::Native(account) => echo::run(account, audio, control, &emit, &stop).await,
                 #[cfg(target_os = "macos")]
                 Input::Apple => apple::run(&language, audio, control, &emit, &stop).await,
             };
-            if !result.as_ref().is_err_and(|e| rejected(e)) || index + 1 == count { break; }
-        }
+            if !(auto && result.as_ref().is_err_and(|e| rejected(e))) { break result; }
+            match next_input(&app, &mut ids).await { Ok(next) => input = next, Err(_) => break result }
+        };
         capture.stop();
         let mut sessions = SESSIONS.lock().unwrap();
         sessions.remove(&id);

@@ -256,7 +256,7 @@ pub fn run() {
             permission_granted, open_permission_settings, shortcut_label, set_shortcut,
             update::check_update, update::download_update, update::open_url,
             store::load_notes, store::add_note, store::remove_note, store::image_data_url,
-            voice::voice_sources, voice::voice_start, voice::voice_finish, voice::voice_cancel, voice::voice_cancel_all, voice::voice_devices,
+            voice::voice_sources, voice::voice_start, voice::voice_finish, voice::voice_cancel, voice::voice_cancel_all, voice::voice_select_source, voice::voice_devices,
             voice::voice_mic_test_start, voice::voice_mic_test_stop, voice::voice_api_get, voice::voice_api_set
         ])
         .run(tauri::generate_context!())

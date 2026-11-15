@@ -81,6 +81,7 @@ export const ko: Strings = {
   voiceSignedIn: '로그인됨',
   voiceMissing: '로그인 안 됨',
   voiceExpired: '만료됨. Claude Code 를 한 번 열면 갱신됩니다',
+  voiceBusy: '실행 중: 한 번 종료한 뒤 새로고침하여 가져오세요',
   voiceUnset: 'API 키 없음',
   voiceSystem: '이 Mac 에서 인식, 계정 불필요',
   voiceUnavailable: '이 컴퓨터에서는 사용할 수 없음',
@@ -98,7 +99,7 @@ export const ko: Strings = {
   voiceCancel: '취소',
   voiceNothing: '들린 내용이 없습니다',
   voiceFailed: (detail: string) => `음성 입력 실패: ${detail}`,
-  voiceErrors: { no_source: '쓸 수 있는 음성 인식 계정이 없습니다. 설정 → 음성 에서 선택하세요', signed_out: '이 계정은 로그인되지 않았거나 만료되었습니다', api_unset: '먼저 설정 → 음성 에서 API 키를 입력하세요', no_microphone: '사용할 수 있는 마이크가 없습니다', microphone_closed: '마이크 연결이 끊어졌습니다', speech_permission: '시스템 설정에서 Wings 의 음성 인식과 마이크 사용을 허용하세요', speech_unavailable: '지금은 시스템 받아쓰기를 쓸 수 없습니다', speech_dictation_disabled: '시스템 설정 → 키보드 에서 받아쓰기를 켜세요', speech_timeout: '시스템 받아쓰기가 응답하지 않습니다' },
+  voiceErrors: { source_busy: '먼저 그 앱을 종료한 뒤 계정을 새로고침하세요', speech_network: '네트워크 연결에 실패했습니다. 잠시 후 다시 시도하세요', no_source: '쓸 수 있는 음성 인식 계정이 없습니다. 설정 → 음성 에서 선택하세요', signed_out: '이 계정은 로그인되지 않았거나 만료되었습니다', api_unset: '먼저 설정 → 음성 에서 API 키를 입력하세요', no_microphone: '사용할 수 있는 마이크가 없습니다', microphone_closed: '마이크 연결이 끊어졌습니다', speech_permission: '시스템 설정에서 Wings 의 음성 인식과 마이크 사용을 허용하세요', speech_unavailable: '지금은 시스템 받아쓰기를 쓸 수 없습니다', speech_dictation_disabled: '시스템 설정 → 키보드 에서 받아쓰기를 켜세요', speech_timeout: '시스템 받아쓰기가 응답하지 않습니다' },
   errors: {
     '无法保存设置': '설정을 저장할 수 없습니다',
     '请用一个修饰键加一个键，比如 ⌥S': '보조 키 하나와 키 하나를 쓰세요 (예: ⌥S)',

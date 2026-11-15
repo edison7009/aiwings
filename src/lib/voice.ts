@@ -5,8 +5,17 @@ import { useSyncExternalStore } from 'react';
 import { Channel, invoke } from '@tauri-apps/api/core';
 import { readPrefs } from './prefs';
 
-export type VoiceSourceId = 'claude' | 'codex' | 'api' | 'macos';
-export interface VoiceSource { id: VoiceSourceId; accountId: string | null; issue: 'missing' | 'expired' | 'unset' | null; mode: 'streaming' | 'batch' }
+/** Wings' own sources (always listed, named in the UI language); other apps' sign-ins come with their own name. */
+export type OwnSourceId = 'claude' | 'codex' | 'api' | 'macos';
+export interface VoiceSource {
+  id: string;
+  name: string;
+  accountId: string | null;
+  /** Why it cannot be used now; "busy": the app is running and holds its session. */
+  issue: 'missing' | 'expired' | 'unset' | 'busy' | null;
+  /** "batch": all at once after the recording; streaming when absent. */
+  transcriptionMode?: 'batch';
+}
 export type VoiceEvent =
   | { kind: 'ready' } | { kind: 'processing' }
   | { kind: 'text'; text: string; done: boolean }
