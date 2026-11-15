@@ -121,6 +121,10 @@ fn share_link(app: AppHandle, link: Option<String>, msg: Option<String>) {
     }
 }
 
+/// The chip's current state, for a chip page that missed the last `wings://chip` event while loading.
+#[tauri::command]
+fn chip_state() -> Option<bool> { *watch::CHIP_STATE.lock().unwrap() }
+
 /// The chip page's pill width, so its window covers no more of the input box than the buttons do.
 #[tauri::command]
 fn set_chip_width(width: f64) {
@@ -245,7 +249,7 @@ pub fn run() {
             if let WindowEvent::Focused(false) = ev { platform::refresh_later(win.app_handle()); }
         })
         .invoke_handler(tauri::generate_handler![
-            bar_target, hide_wings, set_tray_labels, paste_note, capture_now, clear_input, input_text, share_link, set_chip_width, set_prefs, cursor_in_window,
+            bar_target, hide_wings, set_tray_labels, paste_note, capture_now, clear_input, input_text, share_link, set_chip_width, chip_state, set_prefs, cursor_in_window,
             permission_granted, open_permission_settings, shortcut_label, set_shortcut,
             update::check_update, update::download_update, update::open_url,
             store::load_notes, store::add_note, store::remove_note, store::image_data_url

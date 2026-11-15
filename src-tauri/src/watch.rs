@@ -6,6 +6,14 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 
 pub static CHIP: AtomicBool = AtomicBool::new(true);
+/// What the chip shows: whether the focused input has text, or None when there is no input. Kept so a
+/// chip page that loads after the event went out can ask for it.
+pub static CHIP_STATE: std::sync::Mutex<Option<bool>> = std::sync::Mutex::new(None);
+
+fn tell_chip(chip: &tauri::WebviewWindow, state: Option<bool>) {
+    *CHIP_STATE.lock().unwrap() = state;
+    let _ = chip.emit("wings://chip", state);
+}
 
 pub fn start(app: AppHandle) {
     std::thread::spawn(move || {
@@ -44,13 +52,13 @@ pub fn start(app: AppHandle) {
                     if just_shown { continue; }
                     if last_chip != Some(has_text) {
                         last_chip = Some(has_text);
-                        let _ = chip.emit("wings://chip", Some(has_text));
+                        tell_chip(&chip, Some(has_text));
                     }
                 }
                 None => {
                     if last_chip.is_some() {
                         last_chip = None;
-                        let _ = chip.emit("wings://chip", None::<bool>);
+                        tell_chip(&chip, None);
                         hide_at = Some(std::time::Instant::now() + Duration::from_millis(500));
                     }
                     if hide_at.is_some_and(|t| std::time::Instant::now() >= t) {

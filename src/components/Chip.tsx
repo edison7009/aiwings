@@ -15,7 +15,9 @@ export function Chip() {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Listen first, then ask: an event sent while this page was still loading is not lost.
     const un = listen<boolean | null>('wings://chip', e => setHasText(e.payload));
+    void un.then(() => invoke<boolean | null>('chip_state')).then(setHasText, () => {});
     return () => { void un.then(f => f()); };
   }, []);
   // The window is as wide as the pill (it is anchored on the right), so it covers no more of the input box.
